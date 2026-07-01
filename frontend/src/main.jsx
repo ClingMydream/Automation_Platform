@@ -1,23 +1,52 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  Activity,
-  ClipboardList,
-  Clock,
-  Edit3,
-  Eye,
-  FileText,
-  Globe,
-  KeyRound,
-  Play,
-  Plus,
-  RefreshCw,
-  ShieldCheck,
-  TerminalSquare,
-  Trash2,
-  X,
-} from 'lucide-react';
+  Alert,
+  App as AntApp,
+  Button,
+  Card,
+  Col,
+  ConfigProvider,
+  Descriptions,
+  Drawer,
+  Empty,
+  Form,
+  Input,
+  Layout,
+  Menu,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+  theme,
+} from 'antd';
+import {
+  ApiOutlined,
+  BugOutlined,
+  ClockCircleOutlined,
+  CloseOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  FolderOutlined,
+  LogoutOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  RocketOutlined,
+  SafetyCertificateOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
+import 'antd/dist/reset.css';
 import './styles/app.css';
+
+const { Header, Sider, Content } = Layout;
+const { Text, Title, Paragraph } = Typography;
+const { TextArea } = Input;
 
 const API_BASE = '/api';
 const DEFAULT_UI_STEPS = '[{"action":"goto","value":"https://example.com"},{"action":"assert_text","value":"Example Domain"},{"action":"screenshot"}]';
@@ -55,173 +84,224 @@ function formatDuration(ms) {
   return `${(ms / 1000).toFixed(2)} s`;
 }
 
-function StatusBadge({ status }) {
-  return <span className={`badge badge-${status || 'queued'}`}>{status || 'queued'}</span>;
+function statusColor(status) {
+  return {
+    queued: 'gold',
+    running: 'processing',
+    passed: 'success',
+    failed: 'error',
+  }[status || 'queued'] || 'default';
+}
+
+function StatusTag({ status }) {
+  return <Tag color={statusColor(status)}>{status || 'queued'}</Tag>;
 }
 
 function PageGuide({ tab }) {
   const guides = {
     projects: {
-      title: '项目页试用方法',
-      steps: ['新建一个项目作为用例归属。', '已有“示例项目”可以直接使用。', '点“修改”可回填表单，点“删除”会连同关联用例和执行记录一起清理。'],
+      title: '项目管理',
+      description: '项目是用例的归属空间。可以先使用示例项目，也可以创建自己的业务项目。',
+      steps: ['新建项目', '在接口或 UI 页面选择项目', '必要时修改或删除项目'],
     },
     api: {
-      title: '接口测试试用方法',
-      steps: ['选择项目，URL 填 https://example.com。', '断言状态码填 200，响应包含文本填 Example Domain。', '保存后点“执行”，系统会自动跳到执行记录查看结果。'],
+      title: '接口测试',
+      description: '填写请求地址、方法、请求头和断言条件，保存后即可执行。',
+      steps: ['URL 填 https://example.com', '状态码填 200', '响应文本填 Example Domain'],
     },
     ui: {
-      title: 'UI 测试试用方法',
-      steps: ['选择项目，步骤 JSON 可先使用默认内容。', '保存后点“执行”，系统会单独打开执行详情窗口。', '详情窗口会自动刷新状态，并展示每一步后的页面截图。'],
+      title: 'UI 自动化',
+      description: '用低代码 JSON 描述页面步骤。执行时会打开独立的实时执行窗口。',
+      steps: ['使用默认步骤 JSON', '保存 UI 用例', '点击执行查看实时窗口'],
     },
     runs: {
-      title: '执行记录查看方法',
-      steps: ['查看创建时间、更新时间、耗时和状态。', '点“详情”可查看断言、步骤日志、错误信息和 UI 截图。', 'queued/running 状态下可点刷新，详情页也会自动轮询。'],
+      title: '执行记录',
+      description: '查看任务状态、耗时、执行时间、接口断言、UI 步骤和截图。',
+      steps: ['点击详情查看报告', '运行中自动刷新', '失败时查看错误信息'],
     },
   };
   const guide = guides[tab] || guides.projects;
   return (
-    <section className="trial-guide">
-      <div className="trial-guide-title"><ClipboardList size={18} /><strong>{guide.title}</strong></div>
-      <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
-    </section>
+    <Card className="guide-card" size="small">
+      <Space align="start" size={14}>
+        <div className="guide-icon"><RocketOutlined /></div>
+        <div>
+          <Title level={5}>{guide.title}</Title>
+          <Paragraph>{guide.description}</Paragraph>
+          <Space wrap>{guide.steps.map((step, index) => <Tag key={step} color="cyan">{index + 1}. {step}</Tag>)}</Space>
+        </div>
+      </Space>
+    </Card>
   );
 }
 
 function Login({ onLogin }) {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { message } = AntApp.useApp();
 
-  async function submit(event) {
-    event.preventDefault();
+  async function submit(values) {
     setLoading(true);
-    setError('');
     try {
-      const data = await apiClient().post('/auth/login', { username, password });
+      const data = await apiClient().post('/auth/login', values);
       localStorage.setItem('token', data.access_token);
       onLogin(data.access_token);
+      message.success('登录成功');
     } catch (err) {
-      setError(err.message);
+      message.error(err.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="login-shell">
-      <section className="login-panel">
-        <div className="brand-row">
-          <ShieldCheck size={30} />
-          <div>
-            <h1>Automation Platform</h1>
-            <p>接口测试与低代码 UI 测试控制台</p>
+    <main className="login-screen">
+      <Card className="login-card">
+        <Space direction="vertical" size={24} className="full-width">
+          <div className="login-brand">
+            <SafetyCertificateOutlined />
+            <div>
+              <Title level={3}>Automation Platform</Title>
+              <Text type="secondary">接口测试与低代码 UI 自动化控制台</Text>
+            </div>
           </div>
-        </div>
-        <form onSubmit={submit} className="stack">
-          <label>管理员账号<input value={username} onChange={(e) => setUsername(e.target.value)} /></label>
-          <label>管理员密码<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus /></label>
-          {error && <div className="error">{error}</div>}
-          <button className="primary" disabled={loading}><KeyRound size={18} />{loading ? '登录中' : '登录'}</button>
-        </form>
-      </section>
+          <Form layout="vertical" initialValues={{ username: 'admin', password: '' }} onFinish={submit}>
+            <Form.Item label="管理员账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
+              <Input size="large" />
+            </Form.Item>
+            <Form.Item label="管理员密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
+              <Input.Password size="large" autoFocus />
+            </Form.Item>
+            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<SafetyCertificateOutlined />}>登录平台</Button>
+          </Form>
+        </Space>
+      </Card>
     </main>
   );
 }
 
-function ProjectPanel({ client, projects, reload, onNotice, onError }) {
-  const emptyForm = { name: '', description: '' };
-  const [form, setForm] = useState(emptyForm);
+function ProjectPanel({ client, projects, reload }) {
+  const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const { message, modal } = AntApp.useApp();
+
+  function resetForm() {
+    setEditingId(null);
+    form.resetFields();
+  }
 
   function startEdit(item) {
     setEditingId(item.id);
-    setForm({ name: item.name, description: item.description || '' });
+    form.setFieldsValue({ name: item.name, description: item.description || '' });
   }
 
-  function cancelEdit() {
-    setEditingId(null);
-    setForm(emptyForm);
-  }
-
-  async function submit(event) {
-    event.preventDefault();
+  async function submit(values) {
     setSaving(true);
     try {
       if (editingId) {
-        await client.put(`/projects/${editingId}`, form);
-        onNotice('项目已更新');
+        await client.put(`/projects/${editingId}`, values);
+        message.success('项目已更新');
       } else {
-        await client.post('/projects', form);
-        onNotice('项目已创建');
+        await client.post('/projects', values);
+        message.success('项目已创建');
       }
-      cancelEdit();
+      resetForm();
       await reload();
     } catch (err) {
-      onError(err);
+      message.error(err.message);
     } finally {
       setSaving(false);
     }
   }
 
-  async function remove(item) {
-    if (!window.confirm(`确认删除项目“${item.name}”？关联用例和执行记录也会删除。`)) return;
-    try {
-      await client.delete(`/projects/${item.id}`);
-      if (editingId === item.id) cancelEdit();
-      onNotice('项目已删除');
-      await reload();
-    } catch (err) {
-      onError(err);
-    }
+  function remove(item) {
+    modal.confirm({
+      title: `删除项目「${item.name}」？`,
+      content: '关联接口用例、UI 用例和执行记录也会一起删除。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        await client.delete(`/projects/${item.id}`);
+        if (editingId === item.id) resetForm();
+        message.success('项目已删除');
+        await reload();
+      },
+    });
   }
 
   return (
-    <div className="grid two">
-      <section className="panel">
-        <h2><Plus size={18} />{editingId ? '修改项目' : '新建项目'}</h2>
-        <form onSubmit={submit} className="stack">
-          <label>项目名称<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
-          <label>说明<textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
-          <div className="actions">
-            <button className="primary" disabled={saving}><Plus size={18} />{saving ? '保存中' : editingId ? '更新项目' : '保存项目'}</button>
-            {editingId && <button type="button" className="ghost" onClick={cancelEdit}><X size={16} />取消</button>}
-          </div>
-        </form>
-      </section>
-      <section className="panel">
-        <h2><FileText size={18} />项目列表</h2>
-        <table>
-          <thead><tr><th>ID</th><th>名称</th><th>说明</th><th>操作</th></tr></thead>
-          <tbody>{projects.map((item) => (
-            <tr key={item.id}>
-              <td>{item.id}</td>
-              <td>{item.name}</td>
-              <td>{item.description}</td>
-              <td><RowActions onEdit={() => startEdit(item)} onDelete={() => remove(item)} /></td>
-            </tr>
-          ))}</tbody>
-        </table>
-      </section>
-    </div>
+    <Row gutter={[16, 16]}>
+      <Col xs={24} xl={9}>
+        <Card title={editingId ? '修改项目' : '新建项目'} extra={editingId && <Button onClick={resetForm}>取消编辑</Button>}>
+          <Form form={form} layout="vertical" onFinish={submit}>
+            <Form.Item label="项目名称" name="name" rules={[{ required: true, message: '请输入项目名称' }]}>
+              <Input placeholder="例如：电商平台自动化" />
+            </Form.Item>
+            <Form.Item label="说明" name="description">
+              <TextArea rows={5} placeholder="项目用途、业务范围或备注" />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新项目' : '保存项目'}</Button>
+          </Form>
+        </Card>
+      </Col>
+      <Col xs={24} xl={15}>
+        <Card title="项目列表">
+          <Table
+            rowKey="id"
+            dataSource={projects}
+            pagination={{ pageSize: 8 }}
+            columns={[
+              { title: 'ID', dataIndex: 'id', width: 80 },
+              { title: '名称', dataIndex: 'name' },
+              { title: '说明', dataIndex: 'description', render: (value) => value || '-' },
+              {
+                title: '操作',
+                width: 170,
+                render: (_, record) => (
+                  <Space>
+                    <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
+                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      </Col>
+    </Row>
   );
 }
 
-function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated, onNotice, onError }) {
-  const emptyForm = { project_id: '', name: '', method: 'GET', url: '', headers: '{}', body: '', assert_status: 200, assert_text: '', assert_json_path: '', assert_json_value: '' };
-  const [form, setForm] = useState(emptyForm);
+function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated }) {
+  const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const { message, modal } = AntApp.useApp();
 
-  function payload() {
-    return { ...form, project_id: Number(form.project_id), headers: JSON.parse(form.headers || '{}'), assert_status: Number(form.assert_status) || null };
+  function resetForm() {
+    setEditingId(null);
+    form.resetFields();
+    form.setFieldsValue({ method: 'GET', headers: '{}', assert_status: 200 });
+  }
+
+  function buildPayload(values) {
+    return {
+      ...values,
+      project_id: Number(values.project_id),
+      headers: JSON.parse(values.headers || '{}'),
+      assert_status: Number(values.assert_status) || null,
+      body: values.body || null,
+      assert_text: values.assert_text || null,
+      assert_json_path: values.assert_json_path || null,
+      assert_json_value: values.assert_json_value || null,
+    };
   }
 
   function startEdit(item) {
     setEditingId(item.id);
-    setForm({
-      project_id: String(item.project_id),
+    form.setFieldsValue({
+      project_id: item.project_id,
       name: item.name,
       method: item.method,
       url: item.url,
@@ -234,328 +314,372 @@ function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated, onNoti
     });
   }
 
-  function cancelEdit() {
-    setEditingId(null);
-    setForm(emptyForm);
-  }
-
-  async function submit(event) {
-    event.preventDefault();
+  async function submit(values) {
     setSaving(true);
     try {
+      const body = buildPayload(values);
       if (editingId) {
-        await client.put(`/api-cases/${editingId}`, payload());
-        onNotice('接口用例已更新');
+        await client.put(`/api-cases/${editingId}`, body);
+        message.success('接口用例已更新');
       } else {
-        await client.post('/api-cases', payload());
-        onNotice('接口用例已创建');
+        await client.post('/api-cases', body);
+        message.success('接口用例已创建');
       }
-      cancelEdit();
+      resetForm();
       await reload();
     } catch (err) {
-      onError(err);
+      message.error(err.message);
     } finally {
       setSaving(false);
     }
   }
 
-  async function remove(item) {
-    if (!window.confirm(`确认删除接口用例“${item.name}”？对应执行记录也会删除。`)) return;
+  function remove(item) {
+    modal.confirm({
+      title: `删除接口用例「${item.name}」？`,
+      content: '对应执行记录也会一起删除。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        await client.delete(`/api-cases/${item.id}`);
+        if (editingId === item.id) resetForm();
+        message.success('接口用例已删除');
+        await reload();
+      },
+    });
+  }
+
+  async function runCase(record) {
     try {
-      await client.delete(`/api-cases/${item.id}`);
-      if (editingId === item.id) cancelEdit();
-      onNotice('接口用例已删除');
+      const run = await client.post('/runs', { case_type: 'api', case_id: record.id });
+      message.success(`已创建接口执行任务 #${run.id}`);
       await reload();
+      onRunCreated(run, 'api', false);
     } catch (err) {
-      onError(err);
+      message.error(err.message);
     }
   }
 
   return (
-    <div className="grid two">
-      <section className="panel">
-        <h2><Globe size={18} />{editingId ? '修改接口用例' : '接口用例'}</h2>
-        <form onSubmit={submit} className="stack">
-          <label>所属项目<select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} required><option value="">选择项目</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-          <label>用例名称<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
-          <div className="inline">
-            <label>方法<select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}>{['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => <option key={m}>{m}</option>)}</select></label>
-            <label>断言状态码<input type="number" value={form.assert_status} onChange={(e) => setForm({ ...form, assert_status: e.target.value })} /></label>
-          </div>
-          <label>完整 URL<input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://example.com" required /></label>
-          <label>请求头 JSON<textarea value={form.headers} onChange={(e) => setForm({ ...form, headers: e.target.value })} /></label>
-          <label>请求体<textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></label>
-          <div className="inline">
-            <label>响应包含文本<input value={form.assert_text} onChange={(e) => setForm({ ...form, assert_text: e.target.value })} /></label>
-            <label>JSON 路径<input value={form.assert_json_path} onChange={(e) => setForm({ ...form, assert_json_path: e.target.value })} placeholder="$.data.name" /></label>
-          </div>
-          <label>JSON 期望值<input value={form.assert_json_value} onChange={(e) => setForm({ ...form, assert_json_value: e.target.value })} /></label>
-          <div className="actions">
-            <button className="primary" disabled={saving}><Plus size={18} />{saving ? '保存中' : editingId ? '更新接口用例' : '保存接口用例'}</button>
-            {editingId && <button type="button" className="ghost" onClick={cancelEdit}><X size={16} />取消</button>}
-          </div>
-        </form>
-      </section>
-      <CaseList client={client} cases={apiCases} type="api" reload={reload} onRunCreated={onRunCreated} onEdit={startEdit} onDelete={remove} onError={onError} />
-    </div>
+    <Row gutter={[16, 16]}>
+      <Col xs={24} xl={10}>
+        <Card title={editingId ? '修改接口用例' : '接口用例'} extra={editingId && <Button onClick={resetForm}>取消编辑</Button>}>
+          <Form form={form} layout="vertical" onFinish={submit} initialValues={{ method: 'GET', headers: '{}', assert_status: 200 }}>
+            <Form.Item label="所属项目" name="project_id" rules={[{ required: true, message: '请选择项目' }]}>
+              <Select placeholder="选择项目" options={projects.map((project) => ({ value: project.id, label: project.name }))} />
+            </Form.Item>
+            <Form.Item label="用例名称" name="name" rules={[{ required: true, message: '请输入用例名称' }]}>
+              <Input placeholder="例如：检查首页可访问" />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={10}>
+                <Form.Item label="请求方法" name="method">
+                  <Select options={['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((value) => ({ value, label: value }))} />
+                </Form.Item>
+              </Col>
+              <Col span={14}>
+                <Form.Item label="断言状态码" name="assert_status">
+                  <Input type="number" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item label="完整 URL" name="url" rules={[{ required: true, message: '请输入 URL' }]}>
+              <Input placeholder="https://example.com" />
+            </Form.Item>
+            <Form.Item label="请求头 JSON" name="headers">
+              <TextArea rows={4} className="code-input" />
+            </Form.Item>
+            <Form.Item label="请求体" name="body">
+              <TextArea rows={4} className="code-input" />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item label="响应包含文本" name="assert_text">
+                  <Input placeholder="Example Domain" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="JSON 路径" name="assert_json_path">
+                  <Input placeholder="$.data.name" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item label="JSON 期望值" name="assert_json_value">
+              <Input />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新接口用例' : '保存接口用例'}</Button>
+          </Form>
+        </Card>
+      </Col>
+      <Col xs={24} xl={14}>
+        <Card title="接口用例列表">
+          <Table
+            rowKey="id"
+            dataSource={apiCases}
+            pagination={{ pageSize: 8 }}
+            columns={[
+              { title: 'ID', dataIndex: 'id', width: 70 },
+              { title: '名称', dataIndex: 'name' },
+              { title: '方法', dataIndex: 'method', width: 90, render: (value) => <Tag color="blue">{value}</Tag> },
+              { title: 'URL', dataIndex: 'url', ellipsis: true },
+              {
+                title: '操作',
+                width: 250,
+                render: (_, record) => (
+                  <Space>
+                    <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => runCase(record)}>执行</Button>
+                    <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
+                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      </Col>
+    </Row>
   );
 }
 
-function UiCasePanel({ client, projects, uiCases, reload, onRunCreated, onNotice, onError }) {
-  const emptyForm = { project_id: '', name: '', steps: DEFAULT_UI_STEPS };
-  const [form, setForm] = useState(emptyForm);
+function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
+  const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [runningId, setRunningId] = useState(null);
+  const { message, modal } = AntApp.useApp();
+
+  function resetForm() {
+    setEditingId(null);
+    form.resetFields();
+    form.setFieldsValue({ steps: DEFAULT_UI_STEPS });
+  }
 
   function startEdit(item) {
     setEditingId(item.id);
-    setForm({
-      project_id: String(item.project_id),
+    form.setFieldsValue({
+      project_id: item.project_id,
       name: item.name,
       steps: JSON.stringify(item.steps || [], null, 2),
     });
   }
 
-  function cancelEdit() {
-    setEditingId(null);
-    setForm(emptyForm);
-  }
-
-  async function submit(event) {
-    event.preventDefault();
+  async function submit(values) {
     setSaving(true);
     try {
-      const body = { project_id: Number(form.project_id), name: form.name, steps: JSON.parse(form.steps) };
+      const body = { project_id: Number(values.project_id), name: values.name, steps: JSON.parse(values.steps) };
       if (editingId) {
         await client.put(`/ui-cases/${editingId}`, body);
-        onNotice('UI 用例已更新');
+        message.success('UI 用例已更新');
       } else {
         await client.post('/ui-cases', body);
-        onNotice('UI 用例已创建');
+        message.success('UI 用例已创建');
       }
-      cancelEdit();
+      resetForm();
       await reload();
     } catch (err) {
-      onError(err);
+      message.error(err.message);
     } finally {
       setSaving(false);
     }
   }
 
-  async function remove(item) {
-    if (!window.confirm(`确认删除 UI 用例“${item.name}”？对应执行记录也会删除。`)) return;
-    try {
-      await client.delete(`/ui-cases/${item.id}`);
-      if (editingId === item.id) cancelEdit();
-      onNotice('UI 用例已删除');
-      await reload();
-    } catch (err) {
-      onError(err);
-    }
+  function remove(item) {
+    modal.confirm({
+      title: `删除 UI 用例「${item.name}」？`,
+      content: '对应执行记录也会一起删除。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        await client.delete(`/ui-cases/${item.id}`);
+        if (editingId === item.id) resetForm();
+        message.success('UI 用例已删除');
+        await reload();
+      },
+    });
   }
 
-  return (
-    <div className="grid two">
-      <section className="panel">
-        <h2><TerminalSquare size={18} />{editingId ? '修改 UI 用例' : 'UI 用例'}</h2>
-        <form onSubmit={submit} className="stack">
-          <label>所属项目<select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} required><option value="">选择项目</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-          <label>用例名称<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
-          <label>步骤 JSON<textarea className="codebox" value={form.steps} onChange={(e) => setForm({ ...form, steps: e.target.value })} /></label>
-          <p className="hint">支持 action: goto, click, fill, wait, assert_text, screenshot。公网部署默认禁止访问内网地址。</p>
-          <div className="actions">
-            <button className="primary" disabled={saving}><Plus size={18} />{saving ? '保存中' : editingId ? '更新 UI 用例' : '保存 UI 用例'}</button>
-            {editingId && <button type="button" className="ghost" onClick={cancelEdit}><X size={16} />取消</button>}
-          </div>
-        </form>
-      </section>
-      <CaseList client={client} cases={uiCases} type="ui" reload={reload} onRunCreated={onRunCreated} onEdit={startEdit} onDelete={remove} onError={onError} />
-    </div>
-  );
-}
-
-function RowActions({ onEdit, onDelete, children }) {
-  return (
-    <div className="row-actions">
-      {children}
-      <button type="button" className="ghost" onClick={onEdit}><Edit3 size={15} />修改</button>
-      <button type="button" className="danger" onClick={onDelete}><Trash2 size={15} />删除</button>
-    </div>
-  );
-}
-
-function CaseList({ client, cases, type, reload, onRunCreated, onEdit, onDelete, onError }) {
-  const [runningId, setRunningId] = useState(null);
-
-  async function runCase(id) {
-    let detailWindow = null;
-    if (type === 'ui') {
-      detailWindow = window.open('', `ui-run-${Date.now()}`, 'width=1180,height=820');
-      if (detailWindow) {
-        detailWindow.document.write('<!doctype html><title>UI 自动化执行窗口</title><body style="font-family:system-ui;padding:24px;background:#101820;color:#fff;">正在启动 UI 自动化执行窗口，请稍候...</body>');
-      }
+  async function runCase(record) {
+    let detailWindow = window.open('', `ui-run-${Date.now()}`, 'width=1200,height=860');
+    if (detailWindow) {
+      detailWindow.document.write('<!doctype html><title>UI 自动化执行窗口</title><body style="font-family:system-ui;padding:24px;background:#101820;color:#fff;">正在启动 UI 自动化执行窗口，请稍候...</body>');
     }
-    setRunningId(id);
+    setRunningId(record.id);
     try {
-      const run = await client.post('/runs', { case_type: type, case_id: id });
+      const run = await client.post('/runs', { case_type: 'ui', case_id: record.id });
       if (detailWindow) {
         detailWindow.location.href = `${window.location.origin}${window.location.pathname}?liveRunId=${run.id}`;
       }
+      message.success(`已创建 UI 执行任务 #${run.id}`);
       await reload();
-      onRunCreated(run, type, Boolean(detailWindow));
+      onRunCreated(run, 'ui', Boolean(detailWindow));
     } catch (err) {
       if (detailWindow) detailWindow.close();
-      onError(err);
+      message.error(err.message);
     } finally {
       setRunningId(null);
     }
   }
 
   return (
-    <section className="panel">
-      <h2><Play size={18} />{type === 'api' ? '接口' : 'UI'}用例列表</h2>
-      <table>
-        <thead><tr><th>ID</th><th>名称</th><th>操作</th></tr></thead>
-        <tbody>{cases.map((item) => (
-          <tr key={item.id}>
-            <td>{item.id}</td>
-            <td>{item.name}</td>
-            <td>
-              <RowActions onEdit={() => onEdit(item)} onDelete={() => onDelete(item)}>
-                <button type="button" className="primary slim" disabled={runningId === item.id} onClick={() => runCase(item.id)}>
-                  <Play size={15} />{runningId === item.id ? '执行中' : '执行'}
-                </button>
-              </RowActions>
-            </td>
-          </tr>
-        ))}</tbody>
-      </table>
-    </section>
+    <Row gutter={[16, 16]}>
+      <Col xs={24} xl={10}>
+        <Card title={editingId ? '修改 UI 用例' : 'UI 用例'} extra={editingId && <Button onClick={resetForm}>取消编辑</Button>}>
+          <Form form={form} layout="vertical" onFinish={submit} initialValues={{ steps: DEFAULT_UI_STEPS }}>
+            <Form.Item label="所属项目" name="project_id" rules={[{ required: true, message: '请选择项目' }]}>
+              <Select placeholder="选择项目" options={projects.map((project) => ({ value: project.id, label: project.name }))} />
+            </Form.Item>
+            <Form.Item label="用例名称" name="name" rules={[{ required: true, message: '请输入用例名称' }]}>
+              <Input placeholder="例如：打开示例页面并断言文本" />
+            </Form.Item>
+            <Form.Item label="步骤 JSON" name="steps" rules={[{ required: true, message: '请输入步骤 JSON' }]}>
+              <TextArea rows={12} className="code-input" />
+            </Form.Item>
+            <Alert type="info" showIcon message="支持 action: goto, click, fill, wait, assert_text, screenshot。公网部署默认禁止访问内网地址。" />
+            <Button className="form-submit" type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新 UI 用例' : '保存 UI 用例'}</Button>
+          </Form>
+        </Card>
+      </Col>
+      <Col xs={24} xl={14}>
+        <Card title="UI 用例列表">
+          <Table
+            rowKey="id"
+            dataSource={uiCases}
+            pagination={{ pageSize: 8 }}
+            columns={[
+              { title: 'ID', dataIndex: 'id', width: 70 },
+              { title: '名称', dataIndex: 'name' },
+              { title: '项目', dataIndex: 'project_id', width: 90 },
+              { title: '步骤数', dataIndex: 'steps', width: 90, render: (steps) => steps?.length || 0 },
+              {
+                title: '操作',
+                width: 250,
+                render: (_, record) => (
+                  <Space>
+                    <Button type="primary" icon={<PlayCircleOutlined />} loading={runningId === record.id} onClick={() => runCase(record)}>执行</Button>
+                    <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
+                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      </Col>
+    </Row>
   );
 }
 
-function RunDetail({ run, onClose, onRefresh, refreshing }) {
-  if (!run) {
-    return (
-      <section className="panel run-detail">
-        <div className="panel-title">
-          <h2><Eye size={18} />执行详情</h2>
-          <button className="ghost" onClick={onRefresh} disabled={refreshing}><RefreshCw size={16} />{refreshing ? '刷新中' : '刷新'}</button>
-        </div>
-        <div className="empty-detail">
-          <Eye size={28} />
-          <strong>详情已关闭</strong>
-          <p>点击左侧执行记录里的“详情”重新打开。</p>
-        </div>
-      </section>
-    );
-  }
-  const report = run.report || {};
+function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
+  const report = run?.report || {};
   const events = report.events || [];
   const checks = report.checks || [];
   const screenshots = report.screenshots || [];
   return (
-    <section className="panel run-detail">
-      <div className="panel-title">
-        <h2><Eye size={18} />执行详情 #{run.id}</h2>
-        <div className="actions">
-          <button className="ghost" onClick={onRefresh} disabled={refreshing}><RefreshCw size={16} />{refreshing ? '刷新中' : '刷新'}</button>
-          <button className="ghost" onClick={onClose}><X size={16} />关闭详情</button>
-        </div>
-      </div>
-      <div className="detail-grid">
-        <div><span>类型</span><strong>{run.case_type}</strong></div>
-        <div><span>用例 ID</span><strong>{run.case_id}</strong></div>
-        <div><span>状态</span><StatusBadge status={run.status} /></div>
-        <div><span>耗时</span><strong>{formatDuration(run.duration_ms)}</strong></div>
-        <div><span>创建时间</span><strong>{formatTime(run.created_at)}</strong></div>
-        <div><span>更新时间</span><strong>{formatTime(run.updated_at)}</strong></div>
-      </div>
-      {run.logs && <p className="hint"><Clock size={14} /> {run.logs}</p>}
-      {run.error && <div className="error">{run.error}</div>}
-      {report.latest_screenshot && (
-        <div className="screenshot-box">
-          <h3>当前页面截图</h3>
-          <img src={report.latest_screenshot} alt={`run-${run.id}-latest`} />
-        </div>
+    <Drawer title={run ? `执行详情 #${run.id}` : '执行详情'} width={720} open={open} onClose={onClose} extra={<Button icon={<ReloadOutlined />} onClick={onRefresh} loading={refreshing}>刷新</Button>}>
+      {!run ? <Empty description="请选择一条执行记录" /> : (
+        <Space direction="vertical" size={18} className="full-width">
+          <Descriptions bordered column={2} size="small">
+            <Descriptions.Item label="类型">{run.case_type}</Descriptions.Item>
+            <Descriptions.Item label="用例 ID">{run.case_id}</Descriptions.Item>
+            <Descriptions.Item label="状态"><StatusTag status={run.status} /></Descriptions.Item>
+            <Descriptions.Item label="耗时">{formatDuration(run.duration_ms)}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{formatTime(run.created_at)}</Descriptions.Item>
+            <Descriptions.Item label="更新时间">{formatTime(run.updated_at)}</Descriptions.Item>
+          </Descriptions>
+          {run.logs && <Alert type="info" showIcon message={run.logs} />}
+          {run.error && <Alert type="error" showIcon message={run.error} />}
+          {report.latest_screenshot && (
+            <Card title="当前页面截图" size="small">
+              <img className="report-image" src={report.latest_screenshot} alt={`run-${run.id}-latest`} />
+            </Card>
+          )}
+          {events.length > 0 && (
+            <Card title="UI 步骤" size="small">
+              <Table
+                rowKey={(event) => `${event.step}-${event.action}`}
+                size="small"
+                pagination={false}
+                dataSource={events}
+                columns={[
+                  { title: '步骤', dataIndex: 'step', width: 70 },
+                  { title: '动作', dataIndex: 'action', width: 110 },
+                  { title: '目标', dataIndex: 'target', ellipsis: true, render: (value) => value || '-' },
+                  { title: '值', dataIndex: 'value', ellipsis: true, render: (value) => value || '-' },
+                  { title: '耗时', dataIndex: 'elapsed_ms', width: 100, render: formatDuration },
+                ]}
+              />
+            </Card>
+          )}
+          {checks.length > 0 && (
+            <Card title="接口断言" size="small">
+              <Table
+                rowKey="name"
+                size="small"
+                pagination={false}
+                dataSource={checks}
+                columns={[
+                  { title: '名称', dataIndex: 'name' },
+                  { title: '结果', dataIndex: 'passed', render: (value) => value ? <Tag color="success">通过</Tag> : <Tag color="error">失败</Tag> },
+                  { title: '期望', dataIndex: 'expected', render: (value) => String(value ?? '-') },
+                  { title: '实际', dataIndex: 'actual', render: (value) => String(value ?? '-') },
+                ]}
+              />
+            </Card>
+          )}
+          {report.response && (
+            <Card title="接口响应" size="small">
+              <pre className="json-report">{JSON.stringify(report.response, null, 2)}</pre>
+            </Card>
+          )}
+          {screenshots.length > 0 && (
+            <Card title="截图清单" size="small">
+              <div className="thumb-grid">{screenshots.map((item) => <img key={`${item.step}-${item.title}`} src={item.image} alt={item.title} />)}</div>
+            </Card>
+          )}
+        </Space>
       )}
-      {events.length > 0 && (
-        <div className="detail-section">
-          <h3>UI 步骤</h3>
-          <table>
-            <thead><tr><th>步骤</th><th>动作</th><th>目标</th><th>值</th><th>耗时</th><th>页面</th></tr></thead>
-            <tbody>{events.map((event) => (
-              <tr key={`${event.step}-${event.action}`}>
-                <td>{event.step}</td>
-                <td>{event.action}</td>
-                <td className="clip">{event.target || '-'}</td>
-                <td className="clip">{event.value || '-'}</td>
-                <td>{formatDuration(event.elapsed_ms)}</td>
-                <td className="clip">{event.title || event.url || '-'}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      )}
-      {checks.length > 0 && (
-        <div className="detail-section">
-          <h3>接口断言</h3>
-          <table>
-            <thead><tr><th>名称</th><th>结果</th><th>期望</th><th>实际</th></tr></thead>
-            <tbody>{checks.map((check) => (
-              <tr key={check.name}>
-                <td>{check.name}</td>
-                <td>{check.passed ? '通过' : '失败'}</td>
-                <td>{String(check.expected ?? '-')}</td>
-                <td>{String(check.actual ?? '-')}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      )}
-      {report.response && (
-        <div className="detail-section">
-          <h3>接口响应</h3>
-          <pre className="report">{JSON.stringify(report.response, null, 2)}</pre>
-        </div>
-      )}
-      {screenshots.length > 0 && (
-        <div className="detail-section screenshot-grid">
-          <h3>截图清单</h3>
-          {screenshots.map((item) => <img key={`${item.step}-${item.title}`} src={item.image} alt={item.title} />)}
-        </div>
-      )}
-    </section>
+    </Drawer>
   );
 }
 
 function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun }) {
-  const selectedRun = selectedRunId ? runs.find((run) => run.id === selectedRunId) : null;
+  const selectedRun = runs.find((run) => run.id === selectedRunId) || null;
+  const summary = {
+    total: runs.length,
+    running: runs.filter((run) => ['queued', 'running'].includes(run.status)).length,
+    passed: runs.filter((run) => run.status === 'passed').length,
+    failed: runs.filter((run) => run.status === 'failed').length,
+  };
   return (
-    <div className="grid runs-layout">
-      <section className="panel">
-        <div className="panel-title">
-          <h2><Activity size={18} />执行记录</h2>
-          <button className="ghost" onClick={reload} disabled={refreshing}><RefreshCw size={16} />{refreshing ? '刷新中' : '刷新'}</button>
-        </div>
-        <table>
-          <thead><tr><th>ID</th><th>类型</th><th>用例</th><th>状态</th><th>创建时间</th><th>更新时间</th><th>耗时</th><th>操作</th></tr></thead>
-          <tbody>{runs.map((run) => (
-            <tr key={run.id} className={selectedRun?.id === run.id ? 'selected-row' : ''}>
-              <td>{run.id}</td>
-              <td>{run.case_type}</td>
-              <td>{run.case_id}</td>
-              <td><StatusBadge status={run.status} /></td>
-              <td>{formatTime(run.created_at)}</td>
-              <td>{formatTime(run.updated_at)}</td>
-              <td>{formatDuration(run.duration_ms)}</td>
-              <td><button className="ghost slim" onClick={() => onSelectRun(run.id)}><Eye size={15} />详情</button></td>
-            </tr>
-          ))}</tbody>
-        </table>
-      </section>
-      <RunDetail run={selectedRun} onClose={() => onSelectRun(null)} onRefresh={reload} refreshing={refreshing} />
-    </div>
+    <Space direction="vertical" size={16} className="full-width">
+      <Row gutter={[16, 16]}>
+        <Col xs={12} lg={6}><Card><Statistic title="最近任务" value={summary.total} prefix={<ClockCircleOutlined />} /></Card></Col>
+        <Col xs={12} lg={6}><Card><Statistic title="运行中" value={summary.running} valueStyle={{ color: '#1677ff' }} /></Card></Col>
+        <Col xs={12} lg={6}><Card><Statistic title="通过" value={summary.passed} valueStyle={{ color: '#16a34a' }} /></Card></Col>
+        <Col xs={12} lg={6}><Card><Statistic title="失败" value={summary.failed} valueStyle={{ color: '#dc2626' }} /></Card></Col>
+      </Row>
+      <Card title="执行记录" extra={<Button icon={<ReloadOutlined />} loading={refreshing} onClick={reload}>刷新</Button>}>
+        <Table
+          rowKey="id"
+          dataSource={runs}
+          pagination={{ pageSize: 10 }}
+          columns={[
+            { title: 'ID', dataIndex: 'id', width: 80 },
+            { title: '类型', dataIndex: 'case_type', width: 90, render: (value) => <Tag>{value}</Tag> },
+            { title: '用例', dataIndex: 'case_id', width: 90 },
+            { title: '状态', dataIndex: 'status', width: 110, render: (value) => <StatusTag status={value} /> },
+            { title: '创建时间', dataIndex: 'created_at', render: formatTime },
+            { title: '更新时间', dataIndex: 'updated_at', render: formatTime },
+            { title: '耗时', dataIndex: 'duration_ms', width: 110, render: formatDuration },
+            { title: '错误', dataIndex: 'error', ellipsis: true, render: (value) => value || '-' },
+            { title: '操作', width: 100, render: (_, record) => <Button icon={<EyeOutlined />} onClick={() => onSelectRun(record.id)}>详情</Button> },
+          ]}
+        />
+      </Card>
+      <RunDetail run={selectedRun} open={Boolean(selectedRunId)} onClose={() => onSelectRun(null)} onRefresh={reload} refreshing={refreshing} />
+    </Space>
   );
 }
 
@@ -598,7 +722,7 @@ function LiveRunWindow({ token, runId }) {
           <div><span>耗时</span><strong>{formatDuration(run?.duration_ms)}</strong></div>
         </div>
       </header>
-      {error && <div className="error">{error}</div>}
+      {error && <Alert type="error" showIcon message={error} />}
       <section className="live-stage">
         <div className="browser-chrome">
           <span></span><span></span><span></span>
@@ -609,7 +733,7 @@ function LiveRunWindow({ token, runId }) {
             <img src={report.latest_screenshot} alt="UI 自动化当前页面" />
           ) : (
             <div className="live-empty">
-              <RefreshCw size={28} />
+              <ThunderboltOutlined />
               <strong>{isRunning ? '浏览器正在启动，等待第一张画面...' : '暂无页面画面'}</strong>
             </div>
           )}
@@ -627,13 +751,13 @@ function LiveRunWindow({ token, runId }) {
             </div>
           ))}
         </div>
-        {run?.error && <div className="error">{run.error}</div>}
+        {run?.error && <Alert className="live-error" type="error" showIcon message={run.error} />}
       </section>
     </main>
   );
 }
 
-function App() {
+function PlatformApp() {
   const params = new URLSearchParams(window.location.search);
   const initialRunId = Number(params.get('runId')) || null;
   const liveRunId = Number(params.get('liveRunId')) || null;
@@ -641,9 +765,8 @@ function App() {
   const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
   const [data, setData] = useState({ projects: [], apiCases: [], uiCases: [], runs: [] });
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const { message } = AntApp.useApp();
   const client = useMemo(() => apiClient(token), [token]);
 
   async function reload() {
@@ -657,45 +780,29 @@ function App() {
         client.get('/runs'),
       ]);
       setData({ projects, apiCases, uiCases, runs });
-      setError('');
     } catch (err) {
-      handleError(err);
+      message.error(err.message);
     } finally {
       setRefreshing(false);
     }
   }
 
-  function handleError(err) {
-    setError(err.message || '操作失败');
-    setNotice('');
-  }
-
-  function handleNotice(message) {
-    setNotice(message);
-    setError('');
-  }
-
   function handleSelectRun(runId) {
     setSelectedRunId(runId);
-    if (runId) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('runId', runId);
-      window.history.replaceState(null, '', url);
-    } else {
-      window.history.replaceState(null, '', window.location.pathname);
-    }
+    const url = new URL(window.location.href);
+    if (runId) url.searchParams.set('runId', runId);
+    else url.searchParams.delete('runId');
+    window.history.replaceState(null, '', url);
   }
 
   function handleRunCreated(run, type, detailWindowOpened) {
     setTab('runs');
     handleSelectRun(run.id);
-    if (type === 'ui') {
-      handleNotice(detailWindowOpened ? `已创建 UI 执行任务 #${run.id}，详情窗口会自动刷新截图。` : `已创建 UI 执行任务 #${run.id}。浏览器拦截了新窗口，请在执行记录里点详情查看截图。`);
-    } else {
-      handleNotice(`已创建接口执行任务 #${run.id}，正在后台运行。`);
+    if (type === 'ui' && !detailWindowOpened) {
+      message.warning('浏览器拦截了新窗口，请在执行记录里点详情查看截图。');
     }
-    setTimeout(() => reload(), 1000);
-    setTimeout(() => reload(), 3000);
+    setTimeout(reload, 1000);
+    setTimeout(reload, 3000);
   }
 
   useEffect(() => { reload(); }, [token]);
@@ -704,39 +811,67 @@ function App() {
     if (!token || tab !== 'runs') return undefined;
     const selected = data.runs.find((run) => run.id === selectedRunId);
     if (!selected || !['queued', 'running'].includes(selected.status)) return undefined;
-    const timer = window.setInterval(() => reload(), 2000);
+    const timer = window.setInterval(reload, 2000);
     return () => window.clearInterval(timer);
   }, [token, tab, selectedRunId, data.runs]);
 
   if (!token) return <Login onLogin={setToken} />;
   if (liveRunId) return <LiveRunWindow token={token} runId={liveRunId} />;
 
-  const tabs = [
-    ['projects', '项目'],
-    ['api', '接口测试'],
-    ['ui', 'UI 测试'],
-    ['runs', '执行记录'],
+  const menuItems = [
+    { key: 'projects', icon: <FolderOutlined />, label: '项目' },
+    { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
+    { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
+    { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
   ];
+  const currentTitle = menuItems.find((item) => item.key === tab)?.label;
 
   return (
-    <div className="app-shell">
-      <aside>
-        <div className="brand-row small"><ShieldCheck size={24} /><strong>Automation Platform</strong></div>
-        <nav>{tabs.map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</nav>
-        <button className="logout" onClick={() => { localStorage.removeItem('token'); setToken(''); }}>退出登录</button>
-      </aside>
-      <main className="content">
-        <header><h1>{tabs.find(([key]) => key === tab)?.[1]}</h1><button className="ghost" onClick={reload} disabled={refreshing}><RefreshCw size={16} />{refreshing ? '刷新中' : '刷新'}</button></header>
-        <PageGuide tab={tab} />
-        {notice && <div className="notice">{notice}</div>}
-        {error && <div className="error">{error}</div>}
-        {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} onNotice={handleNotice} onError={handleError} />}
-        {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} onNotice={handleNotice} onError={handleError} />}
-        {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} onNotice={handleNotice} onError={handleError} />}
-        {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
-      </main>
-    </div>
+    <Layout className="app-layout">
+      <Sider width={248} className="app-sider">
+        <div className="brand">
+          <SafetyCertificateOutlined />
+          <div>
+            <strong>Automation</strong>
+            <span>Testing Platform</span>
+          </div>
+        </div>
+        <Menu theme="dark" mode="inline" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
+        <Button className="logout-button" icon={<LogoutOutlined />} onClick={() => { localStorage.removeItem('token'); setToken(''); }}>退出登录</Button>
+      </Sider>
+      <Layout>
+        <Header className="app-header">
+          <div>
+            <Title level={3}>{currentTitle}</Title>
+            <Text type="secondary">专业化自动化测试控制台</Text>
+          </div>
+          <Button icon={<ReloadOutlined />} loading={refreshing} onClick={reload}>刷新数据</Button>
+        </Header>
+        <Content className="app-content">
+          <PageGuide tab={tab} />
+          {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
+          {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
+          {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
+          {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
+        </Content>
+      </Layout>
+    </Layout>
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  <ConfigProvider
+    theme={{
+      algorithm: theme.defaultAlgorithm,
+      token: {
+        colorPrimary: '#0f766e',
+        borderRadius: 6,
+        fontFamily: 'Inter, "Segoe UI", system-ui, sans-serif',
+      },
+    }}
+  >
+    <AntApp>
+      <PlatformApp />
+    </AntApp>
+  </ConfigProvider>,
+);
