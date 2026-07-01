@@ -1,9 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, ClipboardList, FileText, Globe, KeyRound, Play, Plus, RefreshCw, ShieldCheck, TerminalSquare } from 'lucide-react';
+import {
+  Activity,
+  ClipboardList,
+  Edit3,
+  FileText,
+  Globe,
+  KeyRound,
+  Play,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  TerminalSquare,
+  Trash2,
+  X,
+} from 'lucide-react';
 import './styles/app.css';
 
 const API_BASE = '/api';
+const DEFAULT_UI_STEPS = '[{"action":"goto","value":"https://example.com"},{"action":"assert_text","value":"Example Domain"},{"action":"screenshot"}]';
 
 function apiClient(token) {
   async function request(path, options = {}) {
@@ -22,6 +37,8 @@ function apiClient(token) {
   return {
     get: (path) => request(path),
     post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
+    put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (path) => request(path, { method: 'DELETE' }),
   };
 }
 
@@ -86,46 +103,152 @@ function Login({ onLogin }) {
   );
 }
 
-function ProjectPanel({ client, projects, reload }) {
-  const [form, setForm] = useState({ name: '', description: '' });
+function ProjectPanel({ client, projects, reload, onNotice, onError }) {
+  const emptyForm = { name: '', description: '' };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setForm({ name: item.name, description: item.description || '' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(emptyForm);
+  }
+
   async function submit(event) {
     event.preventDefault();
-    await client.post('/projects', form);
-    setForm({ name: '', description: '' });
-    reload();
+    setSaving(true);
+    try {
+      if (editingId) {
+        await client.put(`/projects/${editingId}`, form);
+        onNotice('项目已更新');
+      } else {
+        await client.post('/projects', form);
+        onNotice('项目已创建');
+      }
+      cancelEdit();
+      await reload();
+    } catch (err) {
+      onError(err);
+    } finally {
+      setSaving(false);
+    }
   }
+
+  async function remove(item) {
+    if (!window.confirm(`确认删除项目“${item.name}”？关联用例和执行记录也会删除。`)) return;
+    try {
+      await client.delete(`/projects/${item.id}`);
+      if (editingId === item.id) cancelEdit();
+      onNotice('项目已删除');
+      await reload();
+    } catch (err) {
+      onError(err);
+    }
+  }
+
   return (
     <div className="grid two">
       <section className="panel">
-        <h2><Plus size={18} />新建项目</h2>
+        <h2><Plus size={18} />{editingId ? '修改项目' : '新建项目'}</h2>
         <form onSubmit={submit} className="stack">
           <label>项目名称<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
           <label>说明<textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
-          <button className="primary"><Plus size={18} />保存项目</button>
+          <div className="actions">
+            <button className="primary" disabled={saving}><Plus size={18} />{saving ? '保存中' : editingId ? '更新项目' : '保存项目'}</button>
+            {editingId && <button type="button" className="ghost" onClick={cancelEdit}><X size={16} />取消</button>}
+          </div>
         </form>
       </section>
       <section className="panel">
         <h2><FileText size={18} />项目列表</h2>
         <table>
-          <thead><tr><th>ID</th><th>名称</th><th>说明</th></tr></thead>
-          <tbody>{projects.map((item) => <tr key={item.id}><td>{item.id}</td><td>{item.name}</td><td>{item.description}</td></tr>)}</tbody>
+          <thead><tr><th>ID</th><th>名称</th><th>说明</th><th>操作</th></tr></thead>
+          <tbody>{projects.map((item) => (
+            <tr key={item.id}>
+              <td>{item.id}</td>
+              <td>{item.name}</td>
+              <td>{item.description}</td>
+              <td><RowActions onEdit={() => startEdit(item)} onDelete={() => remove(item)} /></td>
+            </tr>
+          ))}</tbody>
         </table>
       </section>
     </div>
   );
 }
 
-function ApiCasePanel({ client, projects, apiCases, reload }) {
-  const [form, setForm] = useState({ project_id: '', name: '', method: 'GET', url: '', headers: '{}', body: '', assert_status: 200, assert_text: '', assert_json_path: '', assert_json_value: '' });
+function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated, onNotice, onError }) {
+  const emptyForm = { project_id: '', name: '', method: 'GET', url: '', headers: '{}', body: '', assert_status: 200, assert_text: '', assert_json_path: '', assert_json_value: '' };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  function payload() {
+    return { ...form, project_id: Number(form.project_id), headers: JSON.parse(form.headers || '{}'), assert_status: Number(form.assert_status) || null };
+  }
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setForm({
+      project_id: String(item.project_id),
+      name: item.name,
+      method: item.method,
+      url: item.url,
+      headers: JSON.stringify(item.headers || {}, null, 2),
+      body: item.body || '',
+      assert_status: item.assert_status || '',
+      assert_text: item.assert_text || '',
+      assert_json_path: item.assert_json_path || '',
+      assert_json_value: item.assert_json_value || '',
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(emptyForm);
+  }
+
   async function submit(event) {
     event.preventDefault();
-    await client.post('/api-cases', { ...form, project_id: Number(form.project_id), headers: JSON.parse(form.headers || '{}'), assert_status: Number(form.assert_status) || null });
-    reload();
+    setSaving(true);
+    try {
+      if (editingId) {
+        await client.put(`/api-cases/${editingId}`, payload());
+        onNotice('接口用例已更新');
+      } else {
+        await client.post('/api-cases', payload());
+        onNotice('接口用例已创建');
+      }
+      cancelEdit();
+      await reload();
+    } catch (err) {
+      onError(err);
+    } finally {
+      setSaving(false);
+    }
   }
+
+  async function remove(item) {
+    if (!window.confirm(`确认删除接口用例“${item.name}”？对应执行记录也会删除。`)) return;
+    try {
+      await client.delete(`/api-cases/${item.id}`);
+      if (editingId === item.id) cancelEdit();
+      onNotice('接口用例已删除');
+      await reload();
+    } catch (err) {
+      onError(err);
+    }
+  }
+
   return (
     <div className="grid two">
       <section className="panel">
-        <h2><Globe size={18} />接口用例</h2>
+        <h2><Globe size={18} />{editingId ? '修改接口用例' : '接口用例'}</h2>
         <form onSubmit={submit} className="stack">
           <label>所属项目<select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} required><option value="">选择项目</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
           <label>用例名称<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
@@ -133,7 +256,7 @@ function ApiCasePanel({ client, projects, apiCases, reload }) {
             <label>方法<select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}>{['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => <option key={m}>{m}</option>)}</select></label>
             <label>断言状态码<input type="number" value={form.assert_status} onChange={(e) => setForm({ ...form, assert_status: e.target.value })} /></label>
           </div>
-          <label>完整 URL<input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://example.com/api/health" required /></label>
+          <label>完整 URL<input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://example.com" required /></label>
           <label>请求头 JSON<textarea value={form.headers} onChange={(e) => setForm({ ...form, headers: e.target.value })} /></label>
           <label>请求体<textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></label>
           <div className="inline">
@@ -141,49 +264,134 @@ function ApiCasePanel({ client, projects, apiCases, reload }) {
             <label>JSON 路径<input value={form.assert_json_path} onChange={(e) => setForm({ ...form, assert_json_path: e.target.value })} placeholder="$.data.name" /></label>
           </div>
           <label>JSON 期望值<input value={form.assert_json_value} onChange={(e) => setForm({ ...form, assert_json_value: e.target.value })} /></label>
-          <button className="primary"><Plus size={18} />保存接口用例</button>
+          <div className="actions">
+            <button className="primary" disabled={saving}><Plus size={18} />{saving ? '保存中' : editingId ? '更新接口用例' : '保存接口用例'}</button>
+            {editingId && <button type="button" className="ghost" onClick={cancelEdit}><X size={16} />取消</button>}
+          </div>
         </form>
       </section>
-      <CaseList client={client} cases={apiCases} type="api" reload={reload} />
+      <CaseList client={client} cases={apiCases} type="api" reload={reload} onRunCreated={onRunCreated} onEdit={startEdit} onDelete={remove} onError={onError} />
     </div>
   );
 }
 
-function UiCasePanel({ client, projects, uiCases, reload }) {
-  const [form, setForm] = useState({ project_id: '', name: '', steps: '[{\"action\":\"goto\",\"value\":\"https://example.com\"},{\"action\":\"assert_text\",\"value\":\"Example Domain\"},{\"action\":\"screenshot\"}]' });
+function UiCasePanel({ client, projects, uiCases, reload, onRunCreated, onNotice, onError }) {
+  const emptyForm = { project_id: '', name: '', steps: DEFAULT_UI_STEPS };
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setForm({
+      project_id: String(item.project_id),
+      name: item.name,
+      steps: JSON.stringify(item.steps || [], null, 2),
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(emptyForm);
+  }
+
   async function submit(event) {
     event.preventDefault();
-    await client.post('/ui-cases', { project_id: Number(form.project_id), name: form.name, steps: JSON.parse(form.steps) });
-    reload();
+    setSaving(true);
+    try {
+      const body = { project_id: Number(form.project_id), name: form.name, steps: JSON.parse(form.steps) };
+      if (editingId) {
+        await client.put(`/ui-cases/${editingId}`, body);
+        onNotice('UI 用例已更新');
+      } else {
+        await client.post('/ui-cases', body);
+        onNotice('UI 用例已创建');
+      }
+      cancelEdit();
+      await reload();
+    } catch (err) {
+      onError(err);
+    } finally {
+      setSaving(false);
+    }
   }
+
+  async function remove(item) {
+    if (!window.confirm(`确认删除 UI 用例“${item.name}”？对应执行记录也会删除。`)) return;
+    try {
+      await client.delete(`/ui-cases/${item.id}`);
+      if (editingId === item.id) cancelEdit();
+      onNotice('UI 用例已删除');
+      await reload();
+    } catch (err) {
+      onError(err);
+    }
+  }
+
   return (
     <div className="grid two">
       <section className="panel">
-        <h2><TerminalSquare size={18} />UI 用例</h2>
+        <h2><TerminalSquare size={18} />{editingId ? '修改 UI 用例' : 'UI 用例'}</h2>
         <form onSubmit={submit} className="stack">
           <label>所属项目<select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} required><option value="">选择项目</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
           <label>用例名称<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
           <label>步骤 JSON<textarea className="codebox" value={form.steps} onChange={(e) => setForm({ ...form, steps: e.target.value })} /></label>
           <p className="hint">支持 action: goto, click, fill, wait, assert_text, screenshot。公网部署默认禁止访问内网地址。</p>
-          <button className="primary"><Plus size={18} />保存 UI 用例</button>
+          <div className="actions">
+            <button className="primary" disabled={saving}><Plus size={18} />{saving ? '保存中' : editingId ? '更新 UI 用例' : '保存 UI 用例'}</button>
+            {editingId && <button type="button" className="ghost" onClick={cancelEdit}><X size={16} />取消</button>}
+          </div>
         </form>
       </section>
-      <CaseList client={client} cases={uiCases} type="ui" reload={reload} />
+      <CaseList client={client} cases={uiCases} type="ui" reload={reload} onRunCreated={onRunCreated} onEdit={startEdit} onDelete={remove} onError={onError} />
     </div>
   );
 }
 
-function CaseList({ client, cases, type, reload }) {
+function RowActions({ onEdit, onDelete, children }) {
+  return (
+    <div className="row-actions">
+      {children}
+      <button type="button" className="ghost" onClick={onEdit}><Edit3 size={15} />修改</button>
+      <button type="button" className="danger" onClick={onDelete}><Trash2 size={15} />删除</button>
+    </div>
+  );
+}
+
+function CaseList({ client, cases, type, reload, onRunCreated, onEdit, onDelete, onError }) {
+  const [runningId, setRunningId] = useState(null);
+
   async function runCase(id) {
-    await client.post('/runs', { case_type: type, case_id: id });
-    reload();
+    setRunningId(id);
+    try {
+      const run = await client.post('/runs', { case_type: type, case_id: id });
+      await reload();
+      onRunCreated(run);
+    } catch (err) {
+      onError(err);
+    } finally {
+      setRunningId(null);
+    }
   }
+
   return (
     <section className="panel">
       <h2><Play size={18} />{type === 'api' ? '接口' : 'UI'}用例列表</h2>
       <table>
         <thead><tr><th>ID</th><th>名称</th><th>操作</th></tr></thead>
-        <tbody>{cases.map((item) => <tr key={item.id}><td>{item.id}</td><td>{item.name}</td><td><button className="ghost" onClick={() => runCase(item.id)}><Play size={16} />执行</button></td></tr>)}</tbody>
+        <tbody>{cases.map((item) => (
+          <tr key={item.id}>
+            <td>{item.id}</td>
+            <td>{item.name}</td>
+            <td>
+              <RowActions onEdit={() => onEdit(item)} onDelete={() => onDelete(item)}>
+                <button type="button" className="primary slim" disabled={runningId === item.id} onClick={() => runCase(item.id)}>
+                  <Play size={15} />{runningId === item.id ? '执行中' : '执行'}
+                </button>
+              </RowActions>
+            </td>
+          </tr>
+        ))}</tbody>
       </table>
     </section>
   );
@@ -210,6 +418,7 @@ function App() {
   const [tab, setTab] = useState('projects');
   const [data, setData] = useState({ projects: [], apiCases: [], uiCases: [], runs: [] });
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const client = useMemo(() => apiClient(token), [token]);
 
   async function reload() {
@@ -224,8 +433,25 @@ function App() {
       setData({ projects, apiCases, uiCases, runs });
       setError('');
     } catch (err) {
-      setError(err.message);
+      handleError(err);
     }
+  }
+
+  function handleError(err) {
+    setError(err.message || '操作失败');
+    setNotice('');
+  }
+
+  function handleNotice(message) {
+    setNotice(message);
+    setError('');
+  }
+
+  function handleRunCreated(run) {
+    setTab('runs');
+    handleNotice(`已创建执行任务 #${run.id}，正在后台运行。请稍后刷新查看最新状态。`);
+    setTimeout(() => reload(), 1200);
+    setTimeout(() => reload(), 3500);
   }
 
   useEffect(() => { reload(); }, [token]);
@@ -248,10 +474,11 @@ function App() {
       <main className="content">
         <header><h1>{tabs.find(([key]) => key === tab)?.[1]}</h1><button className="ghost" onClick={reload}><RefreshCw size={16} />刷新</button></header>
         <TrialGuide />
+        {notice && <div className="notice">{notice}</div>}
         {error && <div className="error">{error}</div>}
-        {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
-        {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} />}
-        {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} />}
+        {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} onNotice={handleNotice} onError={handleError} />}
+        {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} onNotice={handleNotice} onError={handleError} />}
+        {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} onNotice={handleNotice} onError={handleError} />}
         {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} />}
       </main>
     </div>

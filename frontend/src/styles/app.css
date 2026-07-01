@@ -58,8 +58,11 @@ button {
 }
 .primary { background: #0f766e; color: #ffffff; font-weight: 700; }
 .ghost { background: #eef5f4; color: #0f766e; }
+.danger { background: #fff1f0; color: #b42318; }
+.slim { min-height: 34px; padding: 7px 10px; }
 .logout { margin-top: auto; background: #2f3d46; color: #e8eef2; width: 100%; }
 .error { color: #b42318; background: #fff1f0; border: 1px solid #ffd7d3; padding: 10px 12px; border-radius: 6px; }
+.notice { color: #075e54; background: #e6f6f3; border: 1px solid #b7d9d5; padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; }
 .hint { margin: 0; color: #667085; font-size: 14px; }
 
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 260px 1fr; }
@@ -105,6 +108,7 @@ header h1 { margin: 0 0 18px; font-size: 28px; }
 .panel { padding: 18px; overflow: hidden; }
 .panel h2 { display: flex; align-items: center; gap: 8px; font-size: 18px; margin: 0 0 14px; }
 .inline { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.actions, .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; border-bottom: 1px solid #e7edf1; padding: 10px; vertical-align: top; }

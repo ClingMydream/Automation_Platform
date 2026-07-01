@@ -63,6 +63,36 @@ def create_project(payload: ProjectCreate, _: str = Depends(verify_admin), db: S
     return project
 
 
+@router.put("/projects/{project_id}", response_model=ProjectRead)
+def update_project(project_id: int, payload: ProjectCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    project = db.get(Project, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    for key, value in payload.model_dump().items():
+        setattr(project, key, value)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+@router.delete("/projects/{project_id}")
+def delete_project(project_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    project = db.get(Project, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    api_ids = [row[0] for row in db.query(ApiCase.id).filter(ApiCase.project_id == project_id).all()]
+    ui_ids = [row[0] for row in db.query(UiCase.id).filter(UiCase.project_id == project_id).all()]
+    if api_ids:
+        db.query(TestRun).filter(TestRun.case_type == "api", TestRun.case_id.in_(api_ids)).delete(synchronize_session=False)
+        db.query(ApiCase).filter(ApiCase.id.in_(api_ids)).delete(synchronize_session=False)
+    if ui_ids:
+        db.query(TestRun).filter(TestRun.case_type == "ui", TestRun.case_id.in_(ui_ids)).delete(synchronize_session=False)
+        db.query(UiCase).filter(UiCase.id.in_(ui_ids)).delete(synchronize_session=False)
+    db.delete(project)
+    db.commit()
+    return {"status": "ok"}
+
+
 @router.get("/environments", response_model=list[EnvironmentRead])
 def list_environments(_: str = Depends(verify_admin), db: Session = Depends(get_db)):
     return db.query(Environment).order_by(Environment.id.desc()).all()
@@ -86,11 +116,39 @@ def list_api_cases(_: str = Depends(verify_admin), db: Session = Depends(get_db)
 @router.post("/api-cases", response_model=ApiCaseRead)
 def create_api_case(payload: ApiCaseCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
     validate_public_http_url(payload.url)
+    if db.get(Project, payload.project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
     case = ApiCase(**payload.model_dump())
     db.add(case)
     db.commit()
     db.refresh(case)
     return case
+
+
+@router.put("/api-cases/{case_id}", response_model=ApiCaseRead)
+def update_api_case(case_id: int, payload: ApiCaseCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    validate_public_http_url(payload.url)
+    if db.get(Project, payload.project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    case = db.get(ApiCase, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    for key, value in payload.model_dump().items():
+        setattr(case, key, value)
+    db.commit()
+    db.refresh(case)
+    return case
+
+
+@router.delete("/api-cases/{case_id}")
+def delete_api_case(case_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    case = db.get(ApiCase, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    db.query(TestRun).filter(TestRun.case_type == "api", TestRun.case_id == case_id).delete(synchronize_session=False)
+    db.delete(case)
+    db.commit()
+    return {"status": "ok"}
 
 
 @router.get("/ui-cases", response_model=list[UiCaseRead])
@@ -100,6 +158,8 @@ def list_ui_cases(_: str = Depends(verify_admin), db: Session = Depends(get_db))
 
 @router.post("/ui-cases", response_model=UiCaseRead)
 def create_ui_case(payload: UiCaseCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    if db.get(Project, payload.project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
     for step in payload.steps:
         if step.action == "goto" and step.value:
             validate_public_http_url(step.value)
@@ -108,6 +168,35 @@ def create_ui_case(payload: UiCaseCreate, _: str = Depends(verify_admin), db: Se
     db.commit()
     db.refresh(case)
     return case
+
+
+@router.put("/ui-cases/{case_id}", response_model=UiCaseRead)
+def update_ui_case(case_id: int, payload: UiCaseCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    if db.get(Project, payload.project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    for step in payload.steps:
+        if step.action == "goto" and step.value:
+            validate_public_http_url(step.value)
+    case = db.get(UiCase, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    case.project_id = payload.project_id
+    case.name = payload.name
+    case.steps = [step.model_dump() for step in payload.steps]
+    db.commit()
+    db.refresh(case)
+    return case
+
+
+@router.delete("/ui-cases/{case_id}")
+def delete_ui_case(case_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    case = db.get(UiCase, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    db.query(TestRun).filter(TestRun.case_type == "ui", TestRun.case_id == case_id).delete(synchronize_session=False)
+    db.delete(case)
+    db.commit()
+    return {"status": "ok"}
 
 
 @router.get("/runs", response_model=list[RunRead])
