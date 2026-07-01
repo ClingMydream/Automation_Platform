@@ -15,6 +15,7 @@ import {
   Layout,
   Menu,
   Modal,
+  QRCode,
   Row,
   Select,
   Space,
@@ -22,17 +23,22 @@ import {
   Table,
   Tag,
   Typography,
+  Upload,
   theme,
 } from 'antd';
 import {
   ApiOutlined,
   BugOutlined,
+  CloudUploadOutlined,
+  CopyOutlined,
   ClockCircleOutlined,
   CloseOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   EditOutlined,
   EyeOutlined,
   FolderOutlined,
+  InboxOutlined,
   LogoutOutlined,
   PlayCircleOutlined,
   PlusOutlined,
@@ -47,16 +53,18 @@ import './styles/app.css';
 const { Header, Sider, Content } = Layout;
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
+const { Dragger } = Upload;
 
 const API_BASE = '/api';
 const DEFAULT_UI_STEPS = '[{"action":"goto","value":"https://example.com"},{"action":"assert_text","value":"Example Domain"},{"action":"screenshot"}]';
 
 function apiClient(token) {
   async function request(path, options = {}) {
+    const isFormData = options.body instanceof FormData;
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers || {}),
       },
@@ -67,7 +75,7 @@ function apiClient(token) {
   }
   return {
     get: (path) => request(path),
-    post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
+    post: (path, body) => request(path, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) }),
     put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (path) => request(path, { method: 'DELETE' }),
   };
@@ -82,6 +90,18 @@ function formatDuration(ms) {
   if (ms === null || ms === undefined) return '-';
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(2)} s`;
+}
+
+function formatBytes(value) {
+  if (!value && value !== 0) return '-';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let index = 0;
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024;
+    index += 1;
+  }
+  return `${size.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
 function statusColor(status) {
@@ -118,6 +138,11 @@ function PageGuide({ tab }) {
       title: '执行记录',
       description: '查看任务状态、耗时、执行时间、接口断言、UI 步骤和截图。',
       steps: ['点击详情查看报告', '运行中自动刷新', '失败时查看错误信息'],
+    },
+    files: {
+      title: '文件快传',
+      description: '上传临时文件并生成二维码，手机扫码免登录下载，也可以从手机回传文件到电脑端列表。',
+      steps: ['上传临时文件', '手机扫码下载', '手机页面可回传文件'],
     },
   };
   const guide = guides[tab] || guides.projects;
@@ -576,6 +601,233 @@ function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
   );
 }
 
+function FileTransferPanel({ client }) {
+  const [transfers, setTransfers] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [expiresHours, setExpiresHours] = useState(24);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const { message, modal } = AntApp.useApp();
+
+  async function loadTransfers() {
+    setLoading(true);
+    try {
+      const data = await client.get('/file-transfers');
+      setTransfers(data);
+      if (!selected && data.length > 0) setSelected(data[0]);
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTransfers();
+  }, []);
+
+  async function uploadFile({ file, onSuccess, onError }) {
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const item = await client.post(`/file-transfers?expires_hours=${expiresHours}`, body);
+      setSelected(item);
+      message.success('文件已上传，二维码已生成');
+      await loadTransfers();
+      onSuccess?.(item);
+    } catch (err) {
+      message.error(err.message);
+      onError?.(err);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success('链接已复制');
+    } catch {
+      message.warning('复制失败，请手动复制链接');
+    }
+  }
+
+  function remove(item) {
+    modal.confirm({
+      title: `删除临时文件「${item.original_name}」？`,
+      content: '删除后二维码和下载链接会立即失效。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        await client.delete(`/file-transfers/${item.id}`);
+        message.success('临时文件已删除');
+        if (selected?.id === item.id) setSelected(null);
+        await loadTransfers();
+      },
+    });
+  }
+
+  return (
+    <Row gutter={[16, 16]}>
+      <Col xs={24} xl={9}>
+        <Card title="上传临时文件">
+          <Space direction="vertical" size={16} className="full-width">
+            <Alert type="info" showIcon message="文件默认临时保存，过期后会自动清理。手机扫码页面免登录，请只分享给可信设备。" />
+            <Select
+              className="full-width"
+              value={expiresHours}
+              onChange={setExpiresHours}
+              options={[
+                { value: 1, label: '1 小时后过期' },
+                { value: 6, label: '6 小时后过期' },
+                { value: 24, label: '24 小时后过期' },
+                { value: 72, label: '3 天后过期' },
+                { value: 168, label: '7 天后过期' },
+              ]}
+            />
+            <Dragger multiple={false} showUploadList={false} customRequest={uploadFile} disabled={uploading}>
+              <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+              <p className="ant-upload-text">点击或拖拽文件到这里上传</p>
+              <p className="ant-upload-hint">适合电脑传手机、手机扫码下载；单文件最大大小由服务器配置控制。</p>
+            </Dragger>
+          </Space>
+        </Card>
+        {selected && (
+          <Card className="share-card" title="扫码下载" extra={<Tag color={selected.source === 'public' ? 'purple' : 'green'}>{selected.source === 'public' ? '手机回传' : '电脑上传'}</Tag>}>
+            <Space direction="vertical" size={14} className="full-width">
+              <div className="qr-wrap"><QRCode value={selected.share_url} size={196} /></div>
+              <Descriptions size="small" column={1}>
+                <Descriptions.Item label="文件名">{selected.original_name}</Descriptions.Item>
+                <Descriptions.Item label="大小">{formatBytes(selected.size_bytes)}</Descriptions.Item>
+                <Descriptions.Item label="过期时间">{formatTime(selected.expires_at)}</Descriptions.Item>
+              </Descriptions>
+              <Space wrap>
+                <Button type="primary" icon={<DownloadOutlined />} onClick={() => window.open(selected.download_url, '_blank')}>下载</Button>
+                <Button icon={<CopyOutlined />} onClick={() => copyText(selected.share_url)}>复制扫码链接</Button>
+              </Space>
+            </Space>
+          </Card>
+        )}
+      </Col>
+      <Col xs={24} xl={15}>
+        <Card title="临时文件列表" extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={loadTransfers}>刷新</Button>}>
+          <Table
+            rowKey="id"
+            dataSource={transfers}
+            loading={loading}
+            pagination={{ pageSize: 8 }}
+            scroll={{ x: 940 }}
+            columns={[
+              { title: 'ID', dataIndex: 'id', width: 70 },
+              { title: '文件名', dataIndex: 'original_name', ellipsis: true },
+              { title: '大小', dataIndex: 'size_bytes', width: 110, render: formatBytes },
+              { title: '来源', dataIndex: 'source', width: 100, render: (value) => <Tag color={value === 'public' ? 'purple' : 'green'}>{value === 'public' ? '手机回传' : '电脑上传'}</Tag> },
+              { title: '创建时间', dataIndex: 'created_at', width: 180, render: formatTime },
+              { title: '过期时间', dataIndex: 'expires_at', width: 180, render: formatTime },
+              {
+                title: '操作',
+                width: 230,
+                fixed: 'right',
+                render: (_, record) => (
+                  <Space className="table-actions transfer-actions" size={6} wrap>
+                    <Button icon={<EyeOutlined />} onClick={() => setSelected(record)}>二维码</Button>
+                    <Button icon={<DownloadOutlined />} onClick={() => window.open(record.download_url, '_blank')}>下载</Button>
+                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      </Col>
+    </Row>
+  );
+}
+
+function PublicTransferPage({ token }) {
+  const client = useMemo(() => apiClient(), []);
+  const [item, setItem] = useState(null);
+  const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [returnedFile, setReturnedFile] = useState(null);
+  const { message } = AntApp.useApp();
+
+  async function loadTransfer() {
+    try {
+      const data = await client.get(`/file-transfers/public/${token}`);
+      setItem(data);
+      setError('');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  useEffect(() => {
+    loadTransfer();
+  }, [token]);
+
+  async function uploadBack({ file, onSuccess, onError }) {
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const data = await client.post(`/file-transfers/public/${token}/upload`, body);
+      setReturnedFile(data);
+      message.success('已上传回传文件，电脑端刷新列表即可看到');
+      onSuccess?.(data);
+    } catch (err) {
+      message.error(err.message);
+      onError?.(err);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <main className="public-transfer-screen">
+      <Card className="public-transfer-card">
+        <Space direction="vertical" size={18} className="full-width">
+          <div className="public-transfer-title">
+            <CloudUploadOutlined />
+            <div>
+              <Title level={3}>文件快传</Title>
+              <Text type="secondary">免登录临时传文件</Text>
+            </div>
+          </div>
+          {error && <Alert type="error" showIcon message={error} />}
+          {item && (
+            <>
+              <Descriptions bordered column={1} size="small">
+                <Descriptions.Item label="文件名">{item.original_name}</Descriptions.Item>
+                <Descriptions.Item label="大小">{formatBytes(item.size_bytes)}</Descriptions.Item>
+                <Descriptions.Item label="来源">{item.source === 'public' ? '手机回传' : '电脑上传'}</Descriptions.Item>
+                <Descriptions.Item label="过期时间">{formatTime(item.expires_at)}</Descriptions.Item>
+              </Descriptions>
+              <Button type="primary" size="large" block icon={<DownloadOutlined />} onClick={() => window.open(item.download_url, '_self')}>下载到手机</Button>
+              <Alert type="info" showIcon message="也可以从手机上传文件回电脑，电脑端在文件快传列表刷新即可看到。" />
+              <Dragger multiple={false} showUploadList={false} customRequest={uploadBack} disabled={uploading}>
+                <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+                <p className="ant-upload-text">从手机选择文件回传</p>
+                <p className="ant-upload-hint">上传后会生成新的临时文件记录。</p>
+              </Dragger>
+              {returnedFile && (
+                <Alert
+                  type="success"
+                  showIcon
+                  message="回传成功"
+                  description={`已上传：${returnedFile.original_name}，电脑端刷新“文件快传”列表即可下载。`}
+                />
+              )}
+            </>
+          )}
+        </Space>
+      </Card>
+    </main>
+  );
+}
+
 function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
   const report = run?.report || {};
   const events = report.events || [];
@@ -767,6 +1019,7 @@ function PlatformApp() {
   const params = new URLSearchParams(window.location.search);
   const initialRunId = Number(params.get('runId')) || null;
   const liveRunId = Number(params.get('liveRunId')) || null;
+  const transferToken = params.get('transferToken');
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
@@ -821,6 +1074,7 @@ function PlatformApp() {
     return () => window.clearInterval(timer);
   }, [token, tab, selectedRunId, data.runs]);
 
+  if (transferToken) return <PublicTransferPage token={transferToken} />;
   if (!token) return <Login onLogin={setToken} />;
   if (liveRunId) return <LiveRunWindow token={token} runId={liveRunId} />;
 
@@ -828,6 +1082,7 @@ function PlatformApp() {
     { key: 'projects', icon: <FolderOutlined />, label: '项目' },
     { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
     { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
+    { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
     { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
   ];
   const currentTitle = menuItems.find((item) => item.key === tab)?.label;
@@ -858,6 +1113,7 @@ function PlatformApp() {
           {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
           {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
           {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
+          {tab === 'files' && <FileTransferPanel client={client} />}
           {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
         </Content>
       </Layout>

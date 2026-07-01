@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+import secrets
+import shutil
+from datetime import datetime, timedelta
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.auth import create_access_token, verify_admin
 from app.core.config import get_settings
 from app.core.target_guard import validate_public_http_url
 from app.db import get_db
-from app.models.entities import ApiCase, Environment, Project, TestRun, UiCase
+from app.models.entities import ApiCase, Environment, FileTransfer, Project, TestRun, UiCase
 from app.schemas.entities import (
     ApiCaseCreate,
     ApiCaseRead,
@@ -24,6 +30,101 @@ from app.services.queue import enqueue_run
 
 
 router = APIRouter()
+
+
+def _transfer_dir() -> Path:
+    settings = get_settings()
+    path = Path(settings.file_transfer_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _clean_filename(name: str) -> str:
+    cleaned = Path(name or "file").name.strip().replace("\x00", "")
+    return cleaned[:255] or "file"
+
+
+def _file_response(item: FileTransfer) -> dict:
+    settings = get_settings()
+    base_url = settings.public_base_url.rstrip("/")
+    return {
+        "id": item.id,
+        "token": item.token,
+        "original_name": item.original_name,
+        "content_type": item.content_type,
+        "size_bytes": item.size_bytes,
+        "source": item.source,
+        "parent_token": item.parent_token,
+        "created_at": item.created_at,
+        "updated_at": item.updated_at,
+        "expires_at": item.expires_at,
+        "download_url": f"{base_url}/api/file-transfers/public/{item.token}/download",
+        "share_url": f"{base_url}/?transferToken={item.token}",
+    }
+
+
+def _cleanup_expired(db: Session) -> None:
+    now = datetime.utcnow()
+    expired = db.query(FileTransfer).filter(FileTransfer.expires_at <= now).all()
+    if not expired:
+        return
+    directory = _transfer_dir()
+    for item in expired:
+        path = directory / item.stored_name
+        if path.exists():
+            path.unlink()
+        db.delete(item)
+    db.commit()
+
+
+def _save_upload(upload: UploadFile, destination: Path, max_bytes: int) -> int:
+    size = 0
+    with destination.open("wb") as output:
+        while True:
+            chunk = upload.file.read(1024 * 1024)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > max_bytes:
+                output.close()
+                destination.unlink(missing_ok=True)
+                raise HTTPException(status_code=413, detail="File is too large")
+            output.write(chunk)
+    return size
+
+
+def _create_transfer(
+    db: Session,
+    upload: UploadFile,
+    *,
+    source: str,
+    parent_token: str | None = None,
+    expires_at: datetime | None = None,
+) -> FileTransfer:
+    settings = get_settings()
+    max_bytes = settings.file_transfer_max_mb * 1024 * 1024
+    token = secrets.token_urlsafe(24)
+    original_name = _clean_filename(upload.filename or "file")
+    stored_name = f"{token}-{original_name}"
+    destination = _transfer_dir() / stored_name
+    size = _save_upload(upload, destination, max_bytes)
+    if size == 0:
+        destination.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="File is empty")
+    item = FileTransfer(
+        token=token,
+        original_name=original_name,
+        stored_name=stored_name,
+        content_type=upload.content_type,
+        size_bytes=size,
+        source=source,
+        parent_token=parent_token,
+        expires_at=expires_at or (datetime.utcnow() + timedelta(hours=settings.file_transfer_default_hours)),
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
 
 
 @router.get("/health")
@@ -197,6 +298,84 @@ def delete_ui_case(case_id: int, _: str = Depends(verify_admin), db: Session = D
     db.delete(case)
     db.commit()
     return {"status": "ok"}
+
+
+@router.get("/file-transfers")
+def list_file_transfers(_: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    _cleanup_expired(db)
+    items = db.query(FileTransfer).order_by(FileTransfer.id.desc()).limit(100).all()
+    return [_file_response(item) for item in items]
+
+
+@router.post("/file-transfers")
+def upload_file_transfer(
+    file: UploadFile = File(...),
+    expires_hours: int = Query(default=24, ge=1, le=168),
+    _: str = Depends(verify_admin),
+    db: Session = Depends(get_db),
+):
+    _cleanup_expired(db)
+    item = _create_transfer(
+        db,
+        file,
+        source="admin",
+        expires_at=datetime.utcnow() + timedelta(hours=expires_hours),
+    )
+    return _file_response(item)
+
+
+@router.delete("/file-transfers/{transfer_id}")
+def delete_file_transfer(transfer_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+    item = db.get(FileTransfer, transfer_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="File not found")
+    path = _transfer_dir() / item.stored_name
+    if path.exists():
+        path.unlink()
+    db.delete(item)
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.get("/file-transfers/public/{token}")
+def get_public_file_transfer(token: str, db: Session = Depends(get_db)):
+    _cleanup_expired(db)
+    item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="File not found or expired")
+    return _file_response(item)
+
+
+@router.get("/file-transfers/public/{token}/download")
+def download_public_file_transfer(token: str, db: Session = Depends(get_db)):
+    _cleanup_expired(db)
+    item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="File not found or expired")
+    path = _transfer_dir() / item.stored_name
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Stored file is missing")
+    return FileResponse(
+        path=path,
+        media_type=item.content_type or "application/octet-stream",
+        filename=item.original_name,
+    )
+
+
+@router.post("/file-transfers/public/{token}/upload")
+def upload_public_file_transfer(token: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    _cleanup_expired(db)
+    parent = db.query(FileTransfer).filter(FileTransfer.token == token).first()
+    if parent is None:
+        raise HTTPException(status_code=404, detail="Transfer link not found or expired")
+    item = _create_transfer(
+        db,
+        file,
+        source="public",
+        parent_token=token,
+        expires_at=parent.expires_at,
+    )
+    return _file_response(item)
 
 
 @router.get("/runs", response_model=list[RunRead])

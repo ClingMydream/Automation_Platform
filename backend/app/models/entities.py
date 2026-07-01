@@ -70,3 +70,17 @@ class TestRun(Base, TimestampMixin):
     logs: Mapped[str | None] = mapped_column(Text)
     error: Mapped[str | None] = mapped_column(Text)
     report: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class FileTransfer(Base, TimestampMixin):
+    __tablename__ = "file_transfers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    token: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
+    original_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    stored_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(160))
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[str] = mapped_column(String(30), default="admin", nullable=False)
+    parent_token: Mapped[str | None] = mapped_column(String(80))
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
