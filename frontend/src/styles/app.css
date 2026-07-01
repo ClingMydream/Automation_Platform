@@ -101,14 +101,19 @@ body {
 }
 
 .app-header {
-  height: 76px;
+  min-height: 76px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 24px;
+  padding: 14px 24px;
+  line-height: 1.4;
   background: #ffffff;
   border-bottom: 1px solid #dfe7ed;
+}
+
+.app-header .ant-typography {
+  line-height: 1.35;
 }
 
 .app-content {
@@ -141,6 +146,18 @@ body {
 .code-input,
 .json-report {
   font-family: Consolas, "Courier New", monospace;
+}
+
+.ant-card-body {
+  overflow: hidden;
+}
+
+.table-actions {
+  max-width: 172px;
+}
+
+.table-actions .ant-btn {
+  padding-inline: 8px;
 }
 
 .form-submit {

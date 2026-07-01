@@ -251,6 +251,7 @@ function ProjectPanel({ client, projects, reload }) {
             rowKey="id"
             dataSource={projects}
             pagination={{ pageSize: 8 }}
+            scroll={{ x: 720 }}
             columns={[
               { title: 'ID', dataIndex: 'id', width: 80 },
               { title: '名称', dataIndex: 'name' },
@@ -259,7 +260,7 @@ function ProjectPanel({ client, projects, reload }) {
                 title: '操作',
                 width: 170,
                 render: (_, record) => (
-                  <Space>
+                  <Space className="table-actions" size={6} wrap>
                     <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
                     <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
                   </Space>
@@ -418,6 +419,7 @@ function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated }) {
             rowKey="id"
             dataSource={apiCases}
             pagination={{ pageSize: 8 }}
+            scroll={{ x: 980 }}
             columns={[
               { title: 'ID', dataIndex: 'id', width: 70 },
               { title: '名称', dataIndex: 'name' },
@@ -425,9 +427,10 @@ function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated }) {
               { title: 'URL', dataIndex: 'url', ellipsis: true },
               {
                 title: '操作',
-                width: 250,
+                width: 180,
+                fixed: 'right',
                 render: (_, record) => (
-                  <Space>
+                  <Space className="table-actions" size={6} wrap>
                     <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => runCase(record)}>执行</Button>
                     <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
                     <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
@@ -547,6 +550,7 @@ function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
             rowKey="id"
             dataSource={uiCases}
             pagination={{ pageSize: 8 }}
+            scroll={{ x: 860 }}
             columns={[
               { title: 'ID', dataIndex: 'id', width: 70 },
               { title: '名称', dataIndex: 'name' },
@@ -554,9 +558,10 @@ function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
               { title: '步骤数', dataIndex: 'steps', width: 90, render: (steps) => steps?.length || 0 },
               {
                 title: '操作',
-                width: 250,
+                width: 180,
+                fixed: 'right',
                 render: (_, record) => (
-                  <Space>
+                  <Space className="table-actions" size={6} wrap>
                     <Button type="primary" icon={<PlayCircleOutlined />} loading={runningId === record.id} onClick={() => runCase(record)}>执行</Button>
                     <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
                     <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
@@ -665,6 +670,7 @@ function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun }) {
           rowKey="id"
           dataSource={runs}
           pagination={{ pageSize: 10 }}
+          scroll={{ x: 1180 }}
           columns={[
             { title: 'ID', dataIndex: 'id', width: 80 },
             { title: '类型', dataIndex: 'case_type', width: 90, render: (value) => <Tag>{value}</Tag> },
