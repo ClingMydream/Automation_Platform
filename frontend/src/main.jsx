@@ -392,14 +392,14 @@ function CaseList({ client, cases, type, reload, onRunCreated, onEdit, onDelete,
     if (type === 'ui') {
       detailWindow = window.open('', `ui-run-${Date.now()}`, 'width=1180,height=820');
       if (detailWindow) {
-        detailWindow.document.write('<!doctype html><title>UI 执行详情</title><body style="font-family:system-ui;padding:24px;">正在创建 UI 执行任务，请稍候...</body>');
+        detailWindow.document.write('<!doctype html><title>UI 自动化执行窗口</title><body style="font-family:system-ui;padding:24px;background:#101820;color:#fff;">正在启动 UI 自动化执行窗口，请稍候...</body>');
       }
     }
     setRunningId(id);
     try {
       const run = await client.post('/runs', { case_type: type, case_id: id });
       if (detailWindow) {
-        detailWindow.location.href = `${window.location.origin}${window.location.pathname}?runId=${run.id}`;
+        detailWindow.location.href = `${window.location.origin}${window.location.pathname}?liveRunId=${run.id}`;
       }
       await reload();
       onRunCreated(run, type, Boolean(detailWindow));
@@ -552,8 +552,84 @@ function RunsPanel({ runs, reload, selectedRunId, onSelectRun }) {
   );
 }
 
+function LiveRunWindow({ token, runId }) {
+  const client = useMemo(() => apiClient(token), [token]);
+  const [run, setRun] = useState(null);
+  const [error, setError] = useState('');
+
+  async function loadRun() {
+    try {
+      const data = await client.get(`/runs/${runId}`);
+      setRun(data);
+      setError('');
+    } catch (err) {
+      setError(err.message || '读取执行状态失败');
+    }
+  }
+
+  useEffect(() => {
+    loadRun();
+    const timer = window.setInterval(loadRun, 800);
+    return () => window.clearInterval(timer);
+  }, [runId, token]);
+
+  const report = run?.report || {};
+  const events = report.events || [];
+  const current = report.current_step && report.total_steps ? `${report.current_step}/${report.total_steps}` : '-';
+  const isRunning = run && ['queued', 'running'].includes(run.status);
+
+  return (
+    <main className="live-shell">
+      <header className="live-header">
+        <div>
+          <h1>UI 自动化执行窗口</h1>
+          <p>任务 #{runId} {run ? `· ${run.status}` : '· 正在连接'}</p>
+        </div>
+        <div className="live-stats">
+          <div><span>当前步骤</span><strong>{current}</strong></div>
+          <div><span>当前动作</span><strong>{report.current_action || '-'}</strong></div>
+          <div><span>耗时</span><strong>{formatDuration(run?.duration_ms)}</strong></div>
+        </div>
+      </header>
+      {error && <div className="error">{error}</div>}
+      <section className="live-stage">
+        <div className="browser-chrome">
+          <span></span><span></span><span></span>
+          <strong>{events[events.length - 1]?.url || 'about:blank'}</strong>
+        </div>
+        <div className="browser-screen">
+          {report.latest_screenshot ? (
+            <img src={report.latest_screenshot} alt="UI 自动化当前页面" />
+          ) : (
+            <div className="live-empty">
+              <RefreshCw size={28} />
+              <strong>{isRunning ? '浏览器正在启动，等待第一张画面...' : '暂无页面画面'}</strong>
+            </div>
+          )}
+          {isRunning && <div className="live-running">正在执行</div>}
+        </div>
+      </section>
+      <section className="live-steps">
+        <h2>执行过程</h2>
+        <div className="step-strip">
+          {events.length === 0 && <span className="hint">等待 worker 开始执行步骤...</span>}
+          {events.map((event) => (
+            <div className="step-pill" key={`${event.step}-${event.action}`}>
+              <strong>{event.step}. {event.action}</strong>
+              <span>{formatDuration(event.elapsed_ms)} · {event.title || event.url || '-'}</span>
+            </div>
+          ))}
+        </div>
+        {run?.error && <div className="error">{run.error}</div>}
+      </section>
+    </main>
+  );
+}
+
 function App() {
-  const initialRunId = Number(new URLSearchParams(window.location.search).get('runId')) || null;
+  const params = new URLSearchParams(window.location.search);
+  const initialRunId = Number(params.get('runId')) || null;
+  const liveRunId = Number(params.get('liveRunId')) || null;
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
@@ -622,6 +698,7 @@ function App() {
   }, [token, tab, selectedRunId, data.runs]);
 
   if (!token) return <Login onLogin={setToken} />;
+  if (liveRunId) return <LiveRunWindow token={token} runId={liveRunId} />;
 
   const tabs = [
     ['projects', '项目'],

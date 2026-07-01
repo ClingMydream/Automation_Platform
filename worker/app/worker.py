@@ -19,6 +19,7 @@ QUEUE_NAME = "automation:runs"
 DATABASE_URL = os.environ["DATABASE_URL"]
 REDIS_URL = os.environ["REDIS_URL"]
 ALLOW_PRIVATE_TARGETS = os.getenv("ALLOW_PRIVATE_TARGETS", "false").lower() == "true"
+UI_STEP_VISUAL_DELAY_MS = int(os.getenv("UI_STEP_VISUAL_DELAY_MS", "700"))
 
 
 @dataclass
@@ -136,12 +137,13 @@ def run_api_case(case: dict[str, Any]) -> dict[str, Any]:
 
 
 def screenshot_data_url(page) -> str:
-    image = page.screenshot(full_page=True)
-    return "data:image/png;base64," + base64.b64encode(image).decode("ascii")
+    image = page.screenshot(type="jpeg", quality=70, full_page=False)
+    return "data:image/jpeg;base64," + base64.b64encode(image).decode("ascii")
 
 
 def run_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str, Any]:
     steps = json.loads(case["steps"]) if isinstance(case["steps"], str) else case["steps"]
+    total_steps = len(steps)
     events = []
     screenshots = []
     latest_screenshot = None
@@ -159,6 +161,21 @@ def run_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str, An
                 target = step.get("target")
                 value = step.get("value")
                 timeout = step.get("timeout_ms") or 5000
+                if run_id:
+                    update_run(
+                        run_id,
+                        logs=f"Running UI step {index}/{total_steps}: {action}",
+                        report={
+                            "passed": False,
+                            "running": True,
+                            "current_step": index,
+                            "total_steps": total_steps,
+                            "current_action": action,
+                            "events": events,
+                            "screenshots": screenshots,
+                            "latest_screenshot": latest_screenshot,
+                        },
+                    )
                 if action == "goto":
                     if not value or is_blocked_url(value):
                         raise ValueError("Private or local targets are not allowed")
@@ -195,14 +212,27 @@ def run_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str, An
                         report={
                             "passed": False,
                             "running": True,
+                            "current_step": index,
+                            "total_steps": total_steps,
+                            "current_action": action,
                             "events": events,
                             "screenshots": screenshots,
                             "latest_screenshot": latest_screenshot,
                         },
                     )
+                if UI_STEP_VISUAL_DELAY_MS > 0:
+                    page.wait_for_timeout(UI_STEP_VISUAL_DELAY_MS)
         finally:
             browser.close()
-    return {"passed": True, "running": False, "events": events, "screenshots": screenshots, "latest_screenshot": latest_screenshot}
+    return {
+        "passed": True,
+        "running": False,
+        "current_step": total_steps,
+        "total_steps": total_steps,
+        "events": events,
+        "screenshots": screenshots,
+        "latest_screenshot": latest_screenshot,
+    }
 
 
 def process_run(run_id: int) -> None:
