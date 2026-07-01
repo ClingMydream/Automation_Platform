@@ -42,6 +42,8 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - transfer-data:/tmp/automation-platform-transfers
     depends_on:
       mysql:
         condition: service_healthy
@@ -99,3 +101,4 @@ services:
 volumes:
   mysql-data:
   redis-data:
+  transfer-data:
