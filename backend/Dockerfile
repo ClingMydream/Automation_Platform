@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN addgroup --system app && adduser --system --ingroup app app
+RUN mkdir -p /tmp/automation-platform-transfers && chown -R app:app /tmp/automation-platform-transfers && chmod 700 /tmp/automation-platform-transfers
 
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir \
