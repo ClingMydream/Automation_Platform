@@ -59,6 +59,7 @@ def _file_response(item: FileTransfer) -> dict:
         "updated_at": item.updated_at,
         "expires_at": item.expires_at,
         "download_url": f"{base_url}/api/file-transfers/public/{item.token}/download",
+        "preview_url": f"{base_url}/api/file-transfers/public/{item.token}/preview",
         "share_url": f"{base_url}/?transferToken={item.token}",
     }
 
@@ -359,6 +360,26 @@ def download_public_file_transfer(token: str, db: Session = Depends(get_db)):
         path=path,
         media_type=item.content_type or "application/octet-stream",
         filename=item.original_name,
+    )
+
+
+@router.get("/file-transfers/public/{token}/preview")
+def preview_public_file_transfer(token: str, db: Session = Depends(get_db)):
+    _cleanup_expired(db)
+    item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="File not found or expired")
+    content_type = item.content_type or "application/octet-stream"
+    if not (content_type.startswith("image/") or content_type.startswith("video/")):
+        raise HTTPException(status_code=415, detail="Preview only supports images and videos")
+    path = _transfer_dir() / item.stored_name
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Stored file is missing")
+    return FileResponse(
+        path=path,
+        media_type=content_type,
+        filename=item.original_name,
+        content_disposition_type="inline",
     )
 
 

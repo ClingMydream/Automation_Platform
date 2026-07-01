@@ -104,6 +104,40 @@ function formatBytes(value) {
   return `${size.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+function transferKind(item) {
+  const contentType = (item?.content_type || '').toLowerCase();
+  const name = (item?.original_name || '').toLowerCase();
+  if (contentType.startsWith('image/') || /\.(apng|avif|bmp|gif|heic|heif|ico|jpe?g|png|svg|webp)$/.test(name)) return 'image';
+  if (contentType.startsWith('video/') || /\.(3gp|avi|m4v|mkv|mov|mp4|mpeg|mpg|ogv|webm)$/.test(name)) return 'video';
+  return 'file';
+}
+
+function transferKindLabel(item) {
+  return { image: '图片', video: '视频', file: '文件' }[transferKind(item)];
+}
+
+function TransferPreview({ item }) {
+  if (!item) return null;
+  const kind = transferKind(item);
+  if (kind === 'image') {
+    return (
+      <div className="transfer-preview">
+        <img src={item.preview_url || item.download_url} alt={item.original_name} />
+      </div>
+    );
+  }
+  if (kind === 'video') {
+    return (
+      <div className="transfer-preview transfer-preview-video">
+        <video controls preload="metadata" src={item.preview_url || item.download_url}>
+          <track kind="captions" />
+        </video>
+      </div>
+    );
+  }
+  return null;
+}
+
 function statusColor(status) {
   return {
     queued: 'gold',
@@ -690,7 +724,7 @@ function FileTransferPanel({ client }) {
             <Dragger multiple={false} showUploadList={false} customRequest={uploadFile} disabled={uploading}>
               <p className="ant-upload-drag-icon"><InboxOutlined /></p>
               <p className="ant-upload-text">点击或拖拽文件到这里上传</p>
-              <p className="ant-upload-hint">适合电脑传手机、手机扫码下载；单文件最大大小由服务器配置控制。</p>
+              <p className="ant-upload-hint">支持图片、视频、压缩包和常见文档，单文件最大 1GB；手机扫码可预览图片/视频，也可直接下载。</p>
             </Dragger>
           </Space>
         </Card>
@@ -700,9 +734,11 @@ function FileTransferPanel({ client }) {
               <div className="qr-wrap"><QRCode value={selected.share_url} size={196} /></div>
               <Descriptions size="small" column={1}>
                 <Descriptions.Item label="文件名">{selected.original_name}</Descriptions.Item>
+                <Descriptions.Item label="类型">{transferKindLabel(selected)}</Descriptions.Item>
                 <Descriptions.Item label="大小">{formatBytes(selected.size_bytes)}</Descriptions.Item>
                 <Descriptions.Item label="过期时间">{formatTime(selected.expires_at)}</Descriptions.Item>
               </Descriptions>
+              <TransferPreview item={selected} />
               <Space wrap>
                 <Button type="primary" icon={<DownloadOutlined />} onClick={() => window.open(selected.download_url, '_blank')}>下载</Button>
                 <Button icon={<CopyOutlined />} onClick={() => copyText(selected.share_url)}>复制扫码链接</Button>
@@ -722,6 +758,7 @@ function FileTransferPanel({ client }) {
             columns={[
               { title: 'ID', dataIndex: 'id', width: 70 },
               { title: '文件名', dataIndex: 'original_name', ellipsis: true },
+              { title: '类型', width: 90, render: (_, record) => <Tag color={transferKind(record) === 'video' ? 'volcano' : transferKind(record) === 'image' ? 'cyan' : 'default'}>{transferKindLabel(record)}</Tag> },
               { title: '大小', dataIndex: 'size_bytes', width: 110, render: formatBytes },
               { title: '来源', dataIndex: 'source', width: 100, render: (value) => <Tag color={value === 'public' ? 'purple' : 'green'}>{value === 'public' ? '手机回传' : '电脑上传'}</Tag> },
               { title: '创建时间', dataIndex: 'created_at', width: 180, render: formatTime },
@@ -801,16 +838,18 @@ function PublicTransferPage({ token }) {
             <>
               <Descriptions bordered column={1} size="small">
                 <Descriptions.Item label="文件名">{item.original_name}</Descriptions.Item>
+                <Descriptions.Item label="类型">{transferKindLabel(item)}</Descriptions.Item>
                 <Descriptions.Item label="大小">{formatBytes(item.size_bytes)}</Descriptions.Item>
                 <Descriptions.Item label="来源">{item.source === 'public' ? '手机回传' : '电脑上传'}</Descriptions.Item>
                 <Descriptions.Item label="过期时间">{formatTime(item.expires_at)}</Descriptions.Item>
               </Descriptions>
+              <TransferPreview item={item} />
               <Button type="primary" size="large" block icon={<DownloadOutlined />} onClick={() => window.open(item.download_url, '_self')}>下载到手机</Button>
               <Alert type="info" showIcon message="也可以从手机上传文件回电脑，电脑端在文件快传列表刷新即可看到。" />
               <Dragger multiple={false} showUploadList={false} customRequest={uploadBack} disabled={uploading}>
                 <p className="ant-upload-drag-icon"><InboxOutlined /></p>
                 <p className="ant-upload-text">从手机选择文件回传</p>
-                <p className="ant-upload-hint">上传后会生成新的临时文件记录。</p>
+                <p className="ant-upload-hint">支持图片、视频和常见文件，上传后会生成新的临时文件记录。</p>
               </Dragger>
               {returnedFile && (
                 <Alert

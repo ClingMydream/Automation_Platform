@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost"
     allow_private_targets: bool = False
     file_transfer_dir: str = "/tmp/automation-platform-transfers"
-    file_transfer_max_mb: int = 100
+    file_transfer_max_mb: int = 1024
     file_transfer_default_hours: int = 24
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
