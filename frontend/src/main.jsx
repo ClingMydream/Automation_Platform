@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, FileText, Globe, KeyRound, Play, Plus, RefreshCw, ShieldCheck, TerminalSquare } from 'lucide-react';
+import { Activity, ClipboardList, FileText, Globe, KeyRound, Play, Plus, RefreshCw, ShieldCheck, TerminalSquare } from 'lucide-react';
 import './styles/app.css';
 
 const API_BASE = '/api';
@@ -27,6 +27,21 @@ function apiClient(token) {
 
 function StatusBadge({ status }) {
   return <span className={`badge badge-${status || 'queued'}`}>{status || 'queued'}</span>;
+}
+
+function TrialGuide() {
+  const steps = [
+    '项目：先保留“示例项目”，也可以新建自己的项目。',
+    '接口测试：选择项目，填写 https://example.com，状态码填 200，保存后点执行。',
+    'UI 测试：选择项目，使用默认步骤 JSON，保存后点执行。',
+    '执行记录：刷新后查看 passed/failed、耗时、错误和报告内容。',
+  ];
+  return (
+    <section className="trial-guide">
+      <div className="trial-guide-title"><ClipboardList size={18} /><strong>快速试用方法</strong></div>
+      <ol>{steps.map((step) => <li key={step}>{step}</li>)}</ol>
+    </section>
+  );
 }
 
 function Login({ onLogin }) {
@@ -232,6 +247,7 @@ function App() {
       </aside>
       <main className="content">
         <header><h1>{tabs.find(([key]) => key === tab)?.[1]}</h1><button className="ghost" onClick={reload}><RefreshCw size={16} />刷新</button></header>
+        <TrialGuide />
         {error && <div className="error">{error}</div>}
         {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
         {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} />}

@@ -71,6 +71,35 @@ nav button.active { background: #0f766e; color: #ffffff; }
 header, .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 header h1 { margin: 0 0 18px; font-size: 28px; }
 
+.trial-guide {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #b7d9d5;
+  border-left: 4px solid #0f766e;
+  border-radius: 8px;
+  background: #f4fbfa;
+  color: #25423f;
+}
+.trial-guide-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #0f766e;
+}
+.trial-guide ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+.trial-guide li {
+  line-height: 1.45;
+  padding-right: 8px;
+}
+
 .grid { display: grid; gap: 18px; align-items: start; }
 .grid.two { grid-template-columns: minmax(320px, 440px) minmax(0, 1fr); }
 .panel { padding: 18px; overflow: hidden; }
@@ -92,5 +121,6 @@ th { color: #52616b; font-weight: 750; background: #f7fafb; }
   .app-shell { grid-template-columns: 1fr; }
   aside { position: static; }
   .grid.two, .inline { grid-template-columns: 1fr; }
+  .trial-guide ol { grid-template-columns: 1fr; }
   header { align-items: flex-start; flex-direction: column; }
 }
