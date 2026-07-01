@@ -434,12 +434,19 @@ function CaseList({ client, cases, type, reload, onRunCreated, onEdit, onDelete,
   );
 }
 
-function RunDetail({ run, onClose, onRefresh }) {
+function RunDetail({ run, onClose, onRefresh, refreshing }) {
   if (!run) {
     return (
       <section className="panel run-detail">
-        <div className="panel-title"><h2><Eye size={18} />执行详情</h2><button className="ghost" onClick={onRefresh}><RefreshCw size={16} />刷新</button></div>
-        <p className="hint">暂无执行详情，点击列表里的“详情”查看。</p>
+        <div className="panel-title">
+          <h2><Eye size={18} />执行详情</h2>
+          <button className="ghost" onClick={onRefresh} disabled={refreshing}><RefreshCw size={16} />{refreshing ? '刷新中' : '刷新'}</button>
+        </div>
+        <div className="empty-detail">
+          <Eye size={28} />
+          <strong>详情已关闭</strong>
+          <p>点击左侧执行记录里的“详情”重新打开。</p>
+        </div>
       </section>
     );
   }
@@ -452,7 +459,7 @@ function RunDetail({ run, onClose, onRefresh }) {
       <div className="panel-title">
         <h2><Eye size={18} />执行详情 #{run.id}</h2>
         <div className="actions">
-          <button className="ghost" onClick={onRefresh}><RefreshCw size={16} />刷新</button>
+          <button className="ghost" onClick={onRefresh} disabled={refreshing}><RefreshCw size={16} />{refreshing ? '刷新中' : '刷新'}</button>
           <button className="ghost" onClick={onClose}><X size={16} />关闭详情</button>
         </div>
       </div>
@@ -522,14 +529,14 @@ function RunDetail({ run, onClose, onRefresh }) {
   );
 }
 
-function RunsPanel({ runs, reload, selectedRunId, onSelectRun }) {
-  const selectedRun = runs.find((run) => run.id === selectedRunId) || runs[0];
+function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun }) {
+  const selectedRun = selectedRunId ? runs.find((run) => run.id === selectedRunId) : null;
   return (
     <div className="grid runs-layout">
       <section className="panel">
         <div className="panel-title">
           <h2><Activity size={18} />执行记录</h2>
-          <button className="ghost" onClick={reload}><RefreshCw size={16} />刷新</button>
+          <button className="ghost" onClick={reload} disabled={refreshing}><RefreshCw size={16} />{refreshing ? '刷新中' : '刷新'}</button>
         </div>
         <table>
           <thead><tr><th>ID</th><th>类型</th><th>用例</th><th>状态</th><th>创建时间</th><th>更新时间</th><th>耗时</th><th>操作</th></tr></thead>
@@ -547,7 +554,7 @@ function RunsPanel({ runs, reload, selectedRunId, onSelectRun }) {
           ))}</tbody>
         </table>
       </section>
-      <RunDetail run={selectedRun} onClose={() => onSelectRun(null)} onRefresh={reload} />
+      <RunDetail run={selectedRun} onClose={() => onSelectRun(null)} onRefresh={reload} refreshing={refreshing} />
     </div>
   );
 }
@@ -636,10 +643,12 @@ function App() {
   const [data, setData] = useState({ projects: [], apiCases: [], uiCases: [], runs: [] });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const client = useMemo(() => apiClient(token), [token]);
 
   async function reload() {
     if (!token) return;
+    setRefreshing(true);
     try {
       const [projects, apiCases, uiCases, runs] = await Promise.all([
         client.get('/projects'),
@@ -651,6 +660,8 @@ function App() {
       setError('');
     } catch (err) {
       handleError(err);
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -715,14 +726,14 @@ function App() {
         <button className="logout" onClick={() => { localStorage.removeItem('token'); setToken(''); }}>退出登录</button>
       </aside>
       <main className="content">
-        <header><h1>{tabs.find(([key]) => key === tab)?.[1]}</h1><button className="ghost" onClick={reload}><RefreshCw size={16} />刷新</button></header>
+        <header><h1>{tabs.find(([key]) => key === tab)?.[1]}</h1><button className="ghost" onClick={reload} disabled={refreshing}><RefreshCw size={16} />{refreshing ? '刷新中' : '刷新'}</button></header>
         <PageGuide tab={tab} />
         {notice && <div className="notice">{notice}</div>}
         {error && <div className="error">{error}</div>}
         {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} onNotice={handleNotice} onError={handleError} />}
         {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} onNotice={handleNotice} onError={handleError} />}
         {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} onNotice={handleNotice} onError={handleError} />}
-        {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
+        {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
       </main>
     </div>
   );
