@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import time
@@ -134,9 +135,16 @@ def run_api_case(case: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def run_ui_case(case: dict[str, Any]) -> dict[str, Any]:
+def screenshot_data_url(page) -> str:
+    image = page.screenshot(full_page=True)
+    return "data:image/png;base64," + base64.b64encode(image).decode("ascii")
+
+
+def run_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str, Any]:
     steps = json.loads(case["steps"]) if isinstance(case["steps"], str) else case["steps"]
     events = []
+    screenshots = []
+    latest_screenshot = None
     with sync_playwright() as p:
         launch_options = {
             "headless": True,
@@ -146,6 +154,7 @@ def run_ui_case(case: dict[str, Any]) -> dict[str, Any]:
         page = browser.new_page()
         try:
             for index, step in enumerate(steps, start=1):
+                step_start = time.perf_counter()
                 action = step["action"]
                 target = step.get("target")
                 value = step.get("value")
@@ -163,13 +172,37 @@ def run_ui_case(case: dict[str, Any]) -> dict[str, Any]:
                 elif action == "assert_text":
                     page.get_by_text(value or "", exact=False).wait_for(timeout=timeout)
                 elif action == "screenshot":
-                    page.screenshot(path=f"/tmp/run-{case['id']}-{index}.png", full_page=True)
+                    latest_screenshot = screenshot_data_url(page)
+                    screenshots.append({"step": index, "title": f"step-{index}", "image": latest_screenshot})
                 else:
                     raise ValueError(f"Unsupported UI action: {action}")
-                events.append({"step": index, "action": action, "status": "passed"})
+                if action != "screenshot":
+                    latest_screenshot = screenshot_data_url(page)
+                events.append({
+                    "step": index,
+                    "action": action,
+                    "target": target,
+                    "value": value,
+                    "status": "passed",
+                    "elapsed_ms": int((time.perf_counter() - step_start) * 1000),
+                    "url": page.url,
+                    "title": page.title(),
+                })
+                if run_id:
+                    update_run(
+                        run_id,
+                        logs=f"Completed UI step {index}/{len(steps)}",
+                        report={
+                            "passed": False,
+                            "running": True,
+                            "events": events,
+                            "screenshots": screenshots,
+                            "latest_screenshot": latest_screenshot,
+                        },
+                    )
         finally:
             browser.close()
-    return {"passed": True, "events": events}
+    return {"passed": True, "running": False, "events": events, "screenshots": screenshots, "latest_screenshot": latest_screenshot}
 
 
 def process_run(run_id: int) -> None:
@@ -177,7 +210,7 @@ def process_run(run_id: int) -> None:
     start = time.perf_counter()
     try:
         run, case = fetch_run_case(run_id)
-        report = run_api_case(case) if run["case_type"] == "api" else run_ui_case(case)
+        report = run_api_case(case) if run["case_type"] == "api" else run_ui_case(case, run_id)
         duration_ms = int((time.perf_counter() - start) * 1000)
         status = "passed" if report.get("passed") else "failed"
         update_run(run_id, status=status, duration_ms=duration_ms, logs="Run completed", error=None, report=report)

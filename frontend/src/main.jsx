@@ -3,7 +3,9 @@ import { createRoot } from 'react-dom/client';
 import {
   Activity,
   ClipboardList,
+  Clock,
   Edit3,
+  Eye,
   FileText,
   Globe,
   KeyRound,
@@ -42,21 +44,45 @@ function apiClient(token) {
   };
 }
 
+function formatTime(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('zh-CN', { hour12: false });
+}
+
+function formatDuration(ms) {
+  if (ms === null || ms === undefined) return '-';
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(2)} s`;
+}
+
 function StatusBadge({ status }) {
   return <span className={`badge badge-${status || 'queued'}`}>{status || 'queued'}</span>;
 }
 
-function TrialGuide() {
-  const steps = [
-    '项目：先保留“示例项目”，也可以新建自己的项目。',
-    '接口测试：选择项目，填写 https://example.com，状态码填 200，保存后点执行。',
-    'UI 测试：选择项目，使用默认步骤 JSON，保存后点执行。',
-    '执行记录：刷新后查看 passed/failed、耗时、错误和报告内容。',
-  ];
+function PageGuide({ tab }) {
+  const guides = {
+    projects: {
+      title: '项目页试用方法',
+      steps: ['新建一个项目作为用例归属。', '已有“示例项目”可以直接使用。', '点“修改”可回填表单，点“删除”会连同关联用例和执行记录一起清理。'],
+    },
+    api: {
+      title: '接口测试试用方法',
+      steps: ['选择项目，URL 填 https://example.com。', '断言状态码填 200，响应包含文本填 Example Domain。', '保存后点“执行”，系统会自动跳到执行记录查看结果。'],
+    },
+    ui: {
+      title: 'UI 测试试用方法',
+      steps: ['选择项目，步骤 JSON 可先使用默认内容。', '保存后点“执行”，系统会单独打开执行详情窗口。', '详情窗口会自动刷新状态，并展示每一步后的页面截图。'],
+    },
+    runs: {
+      title: '执行记录查看方法',
+      steps: ['查看创建时间、更新时间、耗时和状态。', '点“详情”可查看断言、步骤日志、错误信息和 UI 截图。', 'queued/running 状态下可点刷新，详情页也会自动轮询。'],
+    },
+  };
+  const guide = guides[tab] || guides.projects;
   return (
     <section className="trial-guide">
-      <div className="trial-guide-title"><ClipboardList size={18} /><strong>快速试用方法</strong></div>
-      <ol>{steps.map((step) => <li key={step}>{step}</li>)}</ol>
+      <div className="trial-guide-title"><ClipboardList size={18} /><strong>{guide.title}</strong></div>
+      <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
     </section>
   );
 }
@@ -362,12 +388,23 @@ function CaseList({ client, cases, type, reload, onRunCreated, onEdit, onDelete,
   const [runningId, setRunningId] = useState(null);
 
   async function runCase(id) {
+    let detailWindow = null;
+    if (type === 'ui') {
+      detailWindow = window.open('', `ui-run-${Date.now()}`, 'width=1180,height=820');
+      if (detailWindow) {
+        detailWindow.document.write('<!doctype html><title>UI 执行详情</title><body style="font-family:system-ui;padding:24px;">正在创建 UI 执行任务，请稍候...</body>');
+      }
+    }
     setRunningId(id);
     try {
       const run = await client.post('/runs', { case_type: type, case_id: id });
+      if (detailWindow) {
+        detailWindow.location.href = `${window.location.origin}${window.location.pathname}?runId=${run.id}`;
+      }
       await reload();
-      onRunCreated(run);
+      onRunCreated(run, type, Boolean(detailWindow));
     } catch (err) {
+      if (detailWindow) detailWindow.close();
       onError(err);
     } finally {
       setRunningId(null);
@@ -397,25 +434,129 @@ function CaseList({ client, cases, type, reload, onRunCreated, onEdit, onDelete,
   );
 }
 
-function RunsPanel({ runs, reload }) {
+function RunDetail({ run, onClose, onRefresh }) {
+  if (!run) {
+    return (
+      <section className="panel run-detail">
+        <div className="panel-title"><h2><Eye size={18} />执行详情</h2><button className="ghost" onClick={onRefresh}><RefreshCw size={16} />刷新</button></div>
+        <p className="hint">暂无执行详情，点击列表里的“详情”查看。</p>
+      </section>
+    );
+  }
+  const report = run.report || {};
+  const events = report.events || [];
+  const checks = report.checks || [];
+  const screenshots = report.screenshots || [];
   return (
-    <section className="panel">
+    <section className="panel run-detail">
       <div className="panel-title">
-        <h2><Activity size={18} />执行记录</h2>
-        <button className="ghost" onClick={reload}><RefreshCw size={16} />刷新</button>
+        <h2><Eye size={18} />执行详情 #{run.id}</h2>
+        <div className="actions">
+          <button className="ghost" onClick={onRefresh}><RefreshCw size={16} />刷新</button>
+          <button className="ghost" onClick={onClose}><X size={16} />关闭详情</button>
+        </div>
       </div>
-      <table>
-        <thead><tr><th>ID</th><th>类型</th><th>用例</th><th>状态</th><th>耗时</th><th>错误</th></tr></thead>
-        <tbody>{runs.map((run) => <tr key={run.id}><td>{run.id}</td><td>{run.case_type}</td><td>{run.case_id}</td><td><StatusBadge status={run.status} /></td><td>{run.duration_ms ?? '-'}</td><td className="clip">{run.error}</td></tr>)}</tbody>
-      </table>
-      <pre className="report">{JSON.stringify(runs[0]?.report || {}, null, 2)}</pre>
+      <div className="detail-grid">
+        <div><span>类型</span><strong>{run.case_type}</strong></div>
+        <div><span>用例 ID</span><strong>{run.case_id}</strong></div>
+        <div><span>状态</span><StatusBadge status={run.status} /></div>
+        <div><span>耗时</span><strong>{formatDuration(run.duration_ms)}</strong></div>
+        <div><span>创建时间</span><strong>{formatTime(run.created_at)}</strong></div>
+        <div><span>更新时间</span><strong>{formatTime(run.updated_at)}</strong></div>
+      </div>
+      {run.logs && <p className="hint"><Clock size={14} /> {run.logs}</p>}
+      {run.error && <div className="error">{run.error}</div>}
+      {report.latest_screenshot && (
+        <div className="screenshot-box">
+          <h3>当前页面截图</h3>
+          <img src={report.latest_screenshot} alt={`run-${run.id}-latest`} />
+        </div>
+      )}
+      {events.length > 0 && (
+        <div className="detail-section">
+          <h3>UI 步骤</h3>
+          <table>
+            <thead><tr><th>步骤</th><th>动作</th><th>目标</th><th>值</th><th>耗时</th><th>页面</th></tr></thead>
+            <tbody>{events.map((event) => (
+              <tr key={`${event.step}-${event.action}`}>
+                <td>{event.step}</td>
+                <td>{event.action}</td>
+                <td className="clip">{event.target || '-'}</td>
+                <td className="clip">{event.value || '-'}</td>
+                <td>{formatDuration(event.elapsed_ms)}</td>
+                <td className="clip">{event.title || event.url || '-'}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {checks.length > 0 && (
+        <div className="detail-section">
+          <h3>接口断言</h3>
+          <table>
+            <thead><tr><th>名称</th><th>结果</th><th>期望</th><th>实际</th></tr></thead>
+            <tbody>{checks.map((check) => (
+              <tr key={check.name}>
+                <td>{check.name}</td>
+                <td>{check.passed ? '通过' : '失败'}</td>
+                <td>{String(check.expected ?? '-')}</td>
+                <td>{String(check.actual ?? '-')}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {report.response && (
+        <div className="detail-section">
+          <h3>接口响应</h3>
+          <pre className="report">{JSON.stringify(report.response, null, 2)}</pre>
+        </div>
+      )}
+      {screenshots.length > 0 && (
+        <div className="detail-section screenshot-grid">
+          <h3>截图清单</h3>
+          {screenshots.map((item) => <img key={`${item.step}-${item.title}`} src={item.image} alt={item.title} />)}
+        </div>
+      )}
     </section>
   );
 }
 
+function RunsPanel({ runs, reload, selectedRunId, onSelectRun }) {
+  const selectedRun = runs.find((run) => run.id === selectedRunId) || runs[0];
+  return (
+    <div className="grid runs-layout">
+      <section className="panel">
+        <div className="panel-title">
+          <h2><Activity size={18} />执行记录</h2>
+          <button className="ghost" onClick={reload}><RefreshCw size={16} />刷新</button>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>类型</th><th>用例</th><th>状态</th><th>创建时间</th><th>更新时间</th><th>耗时</th><th>操作</th></tr></thead>
+          <tbody>{runs.map((run) => (
+            <tr key={run.id} className={selectedRun?.id === run.id ? 'selected-row' : ''}>
+              <td>{run.id}</td>
+              <td>{run.case_type}</td>
+              <td>{run.case_id}</td>
+              <td><StatusBadge status={run.status} /></td>
+              <td>{formatTime(run.created_at)}</td>
+              <td>{formatTime(run.updated_at)}</td>
+              <td>{formatDuration(run.duration_ms)}</td>
+              <td><button className="ghost slim" onClick={() => onSelectRun(run.id)}><Eye size={15} />详情</button></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </section>
+      <RunDetail run={selectedRun} onClose={() => onSelectRun(null)} onRefresh={reload} />
+    </div>
+  );
+}
+
 function App() {
+  const initialRunId = Number(new URLSearchParams(window.location.search).get('runId')) || null;
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [tab, setTab] = useState('projects');
+  const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
+  const [selectedRunId, setSelectedRunId] = useState(initialRunId);
   const [data, setData] = useState({ projects: [], apiCases: [], uiCases: [], runs: [] });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -447,14 +588,39 @@ function App() {
     setError('');
   }
 
-  function handleRunCreated(run) {
+  function handleSelectRun(runId) {
+    setSelectedRunId(runId);
+    if (runId) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('runId', runId);
+      window.history.replaceState(null, '', url);
+    } else {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }
+
+  function handleRunCreated(run, type, detailWindowOpened) {
     setTab('runs');
-    handleNotice(`已创建执行任务 #${run.id}，正在后台运行。请稍后刷新查看最新状态。`);
-    setTimeout(() => reload(), 1200);
-    setTimeout(() => reload(), 3500);
+    handleSelectRun(run.id);
+    if (type === 'ui') {
+      handleNotice(detailWindowOpened ? `已创建 UI 执行任务 #${run.id}，详情窗口会自动刷新截图。` : `已创建 UI 执行任务 #${run.id}。浏览器拦截了新窗口，请在执行记录里点详情查看截图。`);
+    } else {
+      handleNotice(`已创建接口执行任务 #${run.id}，正在后台运行。`);
+    }
+    setTimeout(() => reload(), 1000);
+    setTimeout(() => reload(), 3000);
   }
 
   useEffect(() => { reload(); }, [token]);
+
+  useEffect(() => {
+    if (!token || tab !== 'runs') return undefined;
+    const selected = data.runs.find((run) => run.id === selectedRunId);
+    if (!selected || !['queued', 'running'].includes(selected.status)) return undefined;
+    const timer = window.setInterval(() => reload(), 2000);
+    return () => window.clearInterval(timer);
+  }, [token, tab, selectedRunId, data.runs]);
+
   if (!token) return <Login onLogin={setToken} />;
 
   const tabs = [
@@ -473,13 +639,13 @@ function App() {
       </aside>
       <main className="content">
         <header><h1>{tabs.find(([key]) => key === tab)?.[1]}</h1><button className="ghost" onClick={reload}><RefreshCw size={16} />刷新</button></header>
-        <TrialGuide />
+        <PageGuide tab={tab} />
         {notice && <div className="notice">{notice}</div>}
         {error && <div className="error">{error}</div>}
         {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} onNotice={handleNotice} onError={handleError} />}
         {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} onNotice={handleNotice} onError={handleError} />}
         {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} onNotice={handleNotice} onError={handleError} />}
-        {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} />}
+        {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
       </main>
     </div>
   );
