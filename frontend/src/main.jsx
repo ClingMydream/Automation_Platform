@@ -40,6 +40,7 @@ import {
   FolderOutlined,
   InboxOutlined,
   LogoutOutlined,
+  PictureOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -138,6 +139,18 @@ function TransferPreview({ item }) {
   return null;
 }
 
+function downloadBlob(blob, fallbackName, onPreview) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = fallbackName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  onPreview?.(objectUrl);
+}
+
 function statusColor(status) {
   return {
     queued: 'gold',
@@ -177,6 +190,11 @@ function PageGuide({ tab }) {
       title: '文件快传',
       description: '上传临时文件并生成二维码，手机扫码免登录下载，也可以从手机回传文件到电脑端列表。',
       steps: ['上传临时文件', '手机扫码下载', '手机页面可回传文件'],
+    },
+    images: {
+      title: '图片工具',
+      description: '自定义生成图片，也可以上传图片后裁剪尺寸、缩放大小、叠加文案并转换格式。',
+      steps: ['填写尺寸和文案生成图片', '上传原图裁剪或缩放', '选择格式并下载结果'],
     },
   };
   const guide = guides[tab] || guides.projects;
@@ -632,6 +650,186 @@ function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
         </Card>
       </Col>
     </Row>
+  );
+}
+
+function ImageToolPanel({ token }) {
+  const [formats, setFormats] = useState([]);
+  const [generating, setGenerating] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [sourceFile, setSourceFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const { message } = AntApp.useApp();
+  const formatOptions = formats.length > 0 ? formats.map((item) => ({ value: item.value, label: item.label })) : [
+    { value: 'png', label: 'PNG' },
+    { value: 'jpeg', label: 'JPEG' },
+    { value: 'webp', label: 'WEBP' },
+    { value: 'gif', label: 'GIF' },
+    { value: 'bmp', label: 'BMP' },
+    { value: 'tiff', label: 'TIFF' },
+    { value: 'svg', label: 'SVG' },
+  ];
+
+  useEffect(() => {
+    apiClient(token).get('/image-tools/formats').then(setFormats).catch(() => {});
+  }, [token]);
+
+  function filenameFromResponse(res, fallback) {
+    const disposition = res.headers.get('content-disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    return match?.[1] || fallback;
+  }
+
+  async function fetchImage(path, options, fallbackName) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || '图片处理失败');
+    }
+    const blob = await res.blob();
+    return { blob, filename: filenameFromResponse(res, fallbackName), type: res.headers.get('content-type') || blob.type };
+  }
+
+  function showResult(result) {
+    if (preview?.url) URL.revokeObjectURL(preview.url);
+    const nextUrl = URL.createObjectURL(result.blob);
+    setPreview({ url: nextUrl, type: result.type, name: result.filename });
+    downloadBlob(result.blob, result.filename);
+  }
+
+  async function generate(values) {
+    setGenerating(true);
+    try {
+      const result = await fetchImage('/image-tools/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          width: Number(values.width),
+          height: Number(values.height),
+          background_color: values.background_color,
+          text: values.text || '',
+          text_color: values.text_color,
+          font_size: Number(values.font_size),
+          format: values.format,
+          quality: Number(values.quality),
+          max_kb: values.max_kb ? Number(values.max_kb) : null,
+        }),
+      }, 'generated-image.png');
+      showResult(result);
+      message.success('图片已生成并下载');
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function process(values) {
+    if (!sourceFile) {
+      message.warning('请先上传需要裁剪或转换的图片');
+      return;
+    }
+    setProcessing(true);
+    try {
+      const body = new FormData();
+      body.append('file', sourceFile);
+      ['crop_x', 'crop_y', 'crop_width', 'crop_height', 'output_width', 'output_height', 'text', 'text_color', 'font_size', 'format', 'quality', 'max_kb'].forEach((key) => {
+        const value = values[key];
+        if (value !== undefined && value !== null && value !== '') body.append(key, value);
+      });
+      const result = await fetchImage('/image-tools/process', { method: 'POST', body }, 'processed-image.png');
+      showResult(result);
+      message.success('图片已处理并下载');
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  return (
+    <Space direction="vertical" size={16} className="full-width">
+      <Alert type="info" showIcon message="支持 PNG、JPEG、WEBP、GIF、BMP、TIFF、SVG。JPEG/WEBP 可按目标 KB 尽量压缩，SVG 适合生成文案矢量图。" />
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={12}>
+          <Card title="生成图片">
+            <Form layout="vertical" onFinish={generate} initialValues={{ width: 1080, height: 1080, background_color: '#ffffff', text_color: '#17202a', font_size: 72, format: 'png', quality: 92 }}>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item label="宽度 px" name="width" rules={[{ required: true }]}><Input type="number" min={32} max={8192} /></Form.Item></Col>
+                <Col span={12}><Form.Item label="高度 px" name="height" rules={[{ required: true }]}><Input type="number" min={32} max={8192} /></Form.Item></Col>
+              </Row>
+              <Form.Item label="图片文案" name="text"><TextArea rows={4} placeholder="例如：新品上线&#10;限时优惠" /></Form.Item>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item label="背景颜色" name="background_color"><Input type="color" /></Form.Item></Col>
+                <Col span={12}><Form.Item label="文字颜色" name="text_color"><Input type="color" /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={8}><Form.Item label="字号" name="font_size"><Input type="number" min={8} max={512} /></Form.Item></Col>
+                <Col span={8}><Form.Item label="格式" name="format"><Select options={formatOptions} /></Form.Item></Col>
+                <Col span={8}><Form.Item label="质量" name="quality"><Input type="number" min={1} max={100} /></Form.Item></Col>
+              </Row>
+              <Form.Item label="目标大小 KB" name="max_kb"><Input type="number" placeholder="可不填" /></Form.Item>
+              <Button type="primary" htmlType="submit" loading={generating} icon={<PictureOutlined />}>生成并下载</Button>
+            </Form>
+          </Card>
+        </Col>
+        <Col xs={24} xl={12}>
+          <Card title="裁剪 / 缩放 / 转格式">
+            <Form layout="vertical" onFinish={process} initialValues={{ crop_x: 0, crop_y: 0, format: 'png', quality: 92, text_color: '#17202a', font_size: 48 }}>
+              <Form.Item label="上传原图">
+                <Dragger
+                  multiple={false}
+                  beforeUpload={(file) => { setSourceFile(file); return false; }}
+                  onRemove={() => setSourceFile(null)}
+                  maxCount={1}
+                  accept="image/*"
+                >
+                  <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+                  <p className="ant-upload-text">点击或拖拽图片到这里</p>
+                  <p className="ant-upload-hint">支持常见图片，填写裁剪区域后可输出为指定格式。</p>
+                </Dragger>
+              </Form.Item>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item label="裁剪 X" name="crop_x"><Input type="number" min={0} /></Form.Item></Col>
+                <Col span={12}><Form.Item label="裁剪 Y" name="crop_y"><Input type="number" min={0} /></Form.Item></Col>
+                <Col span={12}><Form.Item label="裁剪宽度" name="crop_width"><Input type="number" placeholder="不填为剩余宽度" /></Form.Item></Col>
+                <Col span={12}><Form.Item label="裁剪高度" name="crop_height"><Input type="number" placeholder="不填为剩余高度" /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item label="输出宽度" name="output_width"><Input type="number" placeholder="可不填" /></Form.Item></Col>
+                <Col span={12}><Form.Item label="输出高度" name="output_height"><Input type="number" placeholder="可不填" /></Form.Item></Col>
+              </Row>
+              <Form.Item label="追加文案" name="text"><TextArea rows={3} placeholder="可不填，填写后居中叠加到图片上" /></Form.Item>
+              <Row gutter={12}>
+                <Col span={8}><Form.Item label="文字颜色" name="text_color"><Input type="color" /></Form.Item></Col>
+                <Col span={8}><Form.Item label="字号" name="font_size"><Input type="number" min={8} max={512} /></Form.Item></Col>
+                <Col span={8}><Form.Item label="格式" name="format"><Select options={formatOptions} /></Form.Item></Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}><Form.Item label="质量" name="quality"><Input type="number" min={1} max={100} /></Form.Item></Col>
+                <Col span={12}><Form.Item label="目标大小 KB" name="max_kb"><Input type="number" placeholder="可不填" /></Form.Item></Col>
+              </Row>
+              <Button type="primary" htmlType="submit" loading={processing} icon={<PictureOutlined />}>处理并下载</Button>
+            </Form>
+          </Card>
+        </Col>
+      </Row>
+      {preview && (
+        <Card title={`处理结果：${preview.name}`}>
+          {preview.type.includes('svg') ? (
+            <iframe className="image-tool-preview-frame" src={preview.url} title="image-preview" />
+          ) : (
+            <img className="image-tool-preview" src={preview.url} alt={preview.name} />
+          )}
+        </Card>
+      )}
+    </Space>
   );
 }
 
@@ -1122,6 +1320,7 @@ function PlatformApp() {
     { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
     { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
     { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
+    { key: 'images', icon: <PictureOutlined />, label: '图片工具' },
     { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
   ];
   const currentTitle = menuItems.find((item) => item.key === tab)?.label;
@@ -1153,6 +1352,7 @@ function PlatformApp() {
           {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
           {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
           {tab === 'files' && <FileTransferPanel client={client} />}
+          {tab === 'images' && <ImageToolPanel token={token} />}
           {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
         </Content>
       </Layout>

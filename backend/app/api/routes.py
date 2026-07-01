@@ -1,10 +1,15 @@
 import secrets
 import shutil
+from base64 import b64encode
 from datetime import datetime, timedelta
+from html import escape
+from io import BytesIO
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, Response
+from PIL import Image, ImageDraw, ImageFont, ImageOps
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.auth import create_access_token, verify_admin
@@ -32,6 +37,29 @@ from app.services.queue import enqueue_run
 router = APIRouter()
 
 
+IMAGE_FORMATS = {
+    "png": {"label": "PNG", "mime": "image/png", "ext": "png", "pillow": "PNG"},
+    "jpeg": {"label": "JPEG", "mime": "image/jpeg", "ext": "jpg", "pillow": "JPEG"},
+    "webp": {"label": "WEBP", "mime": "image/webp", "ext": "webp", "pillow": "WEBP"},
+    "gif": {"label": "GIF", "mime": "image/gif", "ext": "gif", "pillow": "GIF"},
+    "bmp": {"label": "BMP", "mime": "image/bmp", "ext": "bmp", "pillow": "BMP"},
+    "tiff": {"label": "TIFF", "mime": "image/tiff", "ext": "tiff", "pillow": "TIFF"},
+    "svg": {"label": "SVG", "mime": "image/svg+xml", "ext": "svg", "pillow": None},
+}
+
+
+class ImageGenerateRequest(BaseModel):
+    width: int = Field(default=1080, ge=32, le=8192)
+    height: int = Field(default=1080, ge=32, le=8192)
+    background_color: str = "#ffffff"
+    text: str = ""
+    text_color: str = "#17202a"
+    font_size: int = Field(default=72, ge=8, le=512)
+    format: str = "png"
+    quality: int = Field(default=92, ge=1, le=100)
+    max_kb: int | None = Field(default=None, ge=10, le=1024 * 20)
+
+
 def _transfer_dir() -> Path:
     settings = get_settings()
     path = Path(settings.file_transfer_dir)
@@ -42,6 +70,126 @@ def _transfer_dir() -> Path:
 def _clean_filename(name: str) -> str:
     cleaned = Path(name or "file").name.strip().replace("\x00", "")
     return cleaned[:255] or "file"
+
+
+def _image_format(format_name: str) -> dict:
+    key = (format_name or "png").lower().strip()
+    if key == "jpg":
+        key = "jpeg"
+    config = IMAGE_FORMATS.get(key)
+    if config is None:
+        raise HTTPException(status_code=400, detail="Unsupported image format")
+    return {**config, "key": key}
+
+
+def _safe_color(value: str, fallback: str) -> str:
+    value = (value or "").strip()
+    if value.startswith("#") and len(value) in {4, 7}:
+        return value
+    return fallback
+
+
+def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    candidates = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "C:/Windows/Fonts/msyh.ttc",
+        "C:/Windows/Fonts/simhei.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+    ]
+    for path in candidates:
+        if Path(path).exists():
+            return ImageFont.truetype(path, size=size)
+    return ImageFont.load_default(size=size)
+
+
+def _draw_center_text(image: Image.Image, text: str, color: str, font_size: int) -> None:
+    if not text:
+        return
+    draw = ImageDraw.Draw(image)
+    font = _font(font_size)
+    lines = text.splitlines() or [text]
+    spacing = max(6, font_size // 4)
+    boxes = [draw.textbbox((0, 0), line, font=font) for line in lines]
+    widths = [box[2] - box[0] for box in boxes]
+    heights = [box[3] - box[1] for box in boxes]
+    total_height = sum(heights) + spacing * (len(lines) - 1)
+    y = max(0, (image.height - total_height) / 2)
+    for line, width, height in zip(lines, widths, heights):
+        x = max(0, (image.width - width) / 2)
+        draw.text((x, y), line, fill=color, font=font)
+        y += height + spacing
+
+
+def _svg_response(width: int, height: int, background: str, text: str, text_color: str, font_size: int) -> bytes:
+    lines = text.splitlines() or [""]
+    spacing = max(8, font_size // 3)
+    total_height = font_size * len(lines) + spacing * (len(lines) - 1)
+    first_y = height / 2 - total_height / 2 + font_size
+    text_nodes = []
+    for index, line in enumerate(lines):
+        y = first_y + index * (font_size + spacing)
+        text_nodes.append(
+            f'<text x="50%" y="{y:.1f}" text-anchor="middle" font-family="Arial, Noto Sans CJK SC, sans-serif" '
+            f'font-size="{font_size}" fill="{escape(text_color)}">{escape(line)}</text>'
+        )
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+        f'<rect width="100%" height="100%" fill="{escape(background)}"/>'
+        f'{"".join(text_nodes)}</svg>'
+    )
+    return svg.encode("utf-8")
+
+
+def _image_as_svg(image: Image.Image, filename: str) -> bytes:
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    data = b64encode(buffer.getvalue()).decode("ascii")
+    name = escape(filename)
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{image.width}" height="{image.height}" '
+        f'viewBox="0 0 {image.width} {image.height}">'
+        f'<title>{name}</title>'
+        f'<image width="{image.width}" height="{image.height}" href="data:image/png;base64,{data}"/></svg>'
+    ).encode("utf-8")
+
+
+def _serialize_image(image: Image.Image, format_name: str, quality: int, max_kb: int | None, filename: str) -> Response:
+    config = _image_format(format_name)
+    if config["key"] == "svg":
+        payload = _image_as_svg(image, filename)
+    else:
+        save_image = image
+        if config["key"] in {"jpeg", "bmp"} and save_image.mode in {"RGBA", "LA", "P"}:
+            background = Image.new("RGB", save_image.size, "#ffffff")
+            if save_image.mode == "P":
+                save_image = save_image.convert("RGBA")
+            background.paste(save_image, mask=save_image.split()[-1] if save_image.mode in {"RGBA", "LA"} else None)
+            save_image = background
+        elif config["key"] == "gif":
+            save_image = save_image.convert("P", palette=Image.Palette.ADAPTIVE)
+        elif save_image.mode not in {"RGB", "RGBA"}:
+            save_image = save_image.convert("RGBA")
+
+        payload = b""
+        quality_values = [quality]
+        if max_kb and config["key"] in {"jpeg", "webp"}:
+            quality_values = list(range(quality, 19, -8))
+        for current_quality in quality_values:
+            buffer = BytesIO()
+            kwargs = {"format": config["pillow"]}
+            if config["key"] in {"jpeg", "webp"}:
+                kwargs.update({"quality": current_quality, "optimize": True})
+            elif config["key"] == "png":
+                kwargs.update({"optimize": True})
+            save_image.save(buffer, **kwargs)
+            payload = buffer.getvalue()
+            if not max_kb or len(payload) <= max_kb * 1024:
+                break
+
+    headers = {"Content-Disposition": f'attachment; filename="{filename}.{config["ext"]}"'}
+    return Response(content=payload, media_type=config["mime"], headers=headers)
 
 
 def _file_response(item: FileTransfer) -> dict:
@@ -397,6 +545,86 @@ def upload_public_file_transfer(token: str, file: UploadFile = File(...), db: Se
         expires_at=parent.expires_at,
     )
     return _file_response(item)
+
+
+@router.get("/image-tools/formats")
+def list_image_formats(_: str = Depends(verify_admin)):
+    return [
+        {
+            "value": key,
+            "label": value["label"],
+            "mime": value["mime"],
+            "extension": value["ext"],
+        }
+        for key, value in IMAGE_FORMATS.items()
+    ]
+
+
+@router.post("/image-tools/generate")
+def generate_image(payload: ImageGenerateRequest, _: str = Depends(verify_admin)):
+    config = _image_format(payload.format)
+    background = _safe_color(payload.background_color, "#ffffff")
+    text_color = _safe_color(payload.text_color, "#17202a")
+    filename = f"generated-{payload.width}x{payload.height}"
+    if config["key"] == "svg":
+        svg = _svg_response(payload.width, payload.height, background, payload.text, text_color, payload.font_size)
+        return Response(
+            content=svg,
+            media_type=config["mime"],
+            headers={"Content-Disposition": f'attachment; filename="{filename}.{config["ext"]}"'},
+        )
+    image = Image.new("RGB", (payload.width, payload.height), background)
+    _draw_center_text(image, payload.text, text_color, payload.font_size)
+    return _serialize_image(image, payload.format, payload.quality, payload.max_kb, filename)
+
+
+@router.post("/image-tools/process")
+def process_image(
+    file: UploadFile = File(...),
+    crop_x: int = Form(default=0, ge=0),
+    crop_y: int = Form(default=0, ge=0),
+    crop_width: int | None = Form(default=None, ge=1),
+    crop_height: int | None = Form(default=None, ge=1),
+    output_width: int | None = Form(default=None, ge=32, le=8192),
+    output_height: int | None = Form(default=None, ge=32, le=8192),
+    text: str = Form(default=""),
+    text_color: str = Form(default="#17202a"),
+    font_size: int = Form(default=48, ge=8, le=512),
+    format: str = Form(default="png"),
+    quality: int = Form(default=92, ge=1, le=100),
+    max_kb: int | None = Form(default=None, ge=10, le=1024 * 20),
+    _: str = Depends(verify_admin),
+):
+    settings = get_settings()
+    max_bytes = settings.file_transfer_max_mb * 1024 * 1024
+    content = file.file.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=413, detail="Image is too large")
+    if not content:
+        raise HTTPException(status_code=400, detail="Image is empty")
+    try:
+        with Image.open(BytesIO(content)) as opened:
+            image = ImageOps.exif_transpose(opened).convert("RGBA")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Unsupported or broken image file") from exc
+
+    left = min(crop_x, image.width - 1)
+    top = min(crop_y, image.height - 1)
+    right = min(image.width, left + (crop_width or image.width - left))
+    bottom = min(image.height, top + (crop_height or image.height - top))
+    if right <= left or bottom <= top:
+        raise HTTPException(status_code=400, detail="Invalid crop area")
+    image = image.crop((left, top, right, bottom))
+
+    if output_width or output_height:
+        width = output_width or round(image.width * (output_height / image.height))
+        height = output_height or round(image.height * (output_width / image.width))
+        image = image.resize((width, height), Image.Resampling.LANCZOS)
+
+    _draw_center_text(image, text, _safe_color(text_color, "#17202a"), font_size)
+    original_name = Path(file.filename or "image").stem[:80] or "image"
+    filename = f"{original_name}-processed"
+    return _serialize_image(image, format, quality, max_kb, filename)
 
 
 @router.get("/runs", response_model=list[RunRead])

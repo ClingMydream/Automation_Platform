@@ -230,6 +230,21 @@ body {
   background: #0b1117;
 }
 
+.image-tool-preview,
+.image-tool-preview-frame {
+  display: block;
+  width: 100%;
+  max-height: 560px;
+  border: 1px solid #d7e2e8;
+  border-radius: 8px;
+  background: #ffffff;
+  object-fit: contain;
+}
+
+.image-tool-preview-frame {
+  height: 520px;
+}
+
 .public-transfer-screen {
   min-height: 100vh;
   display: grid;
