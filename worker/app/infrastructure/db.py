@@ -1,3 +1,5 @@
+"""Worker database adapter for reading cases and updating execution runs."""
+
 import json
 import os
 from contextlib import closing
@@ -50,7 +52,9 @@ def connect_db():
 def update_run(run_id: int, **fields: Any) -> None:
     """Update status, logs, report data, or errors for a test run."""
     keys = list(fields)
+    # Build the SET clause from trusted internal field names supplied by worker code.
     assignments = ", ".join(f"{key}=%s" for key in keys)
+    # Store report dictionaries as JSON text because the MySQL column is JSON.
     values = [json.dumps(value, ensure_ascii=False) if key == "report" else value for key, value in fields.items()]
     with closing(connect_db()) as conn, conn.cursor() as cur:
         cur.execute(f"UPDATE test_runs SET {assignments}, updated_at=NOW() WHERE id=%s", [*values, run_id])
@@ -61,6 +65,7 @@ def fetch_run_case(run_id: int) -> tuple[dict[str, Any], dict[str, Any]]:
     with closing(connect_db()) as conn, conn.cursor() as cur:
         cur.execute("SELECT * FROM test_runs WHERE id=%s", [run_id])
         run = cur.fetchone()
+        # API and UI cases live in different tables, selected by the run type.
         table = "api_cases" if run["case_type"] == "api" else "ui_cases"
         cur.execute(f"SELECT * FROM {table} WHERE id=%s", [run["case_id"]])
         case = cur.fetchone()

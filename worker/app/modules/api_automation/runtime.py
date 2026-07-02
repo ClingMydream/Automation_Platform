@@ -1,3 +1,5 @@
+"""API automation runtime implemented with requests and Allure attachments."""
+
 import json
 from typing import Any
 
@@ -16,10 +18,12 @@ def execute_api_case(case: dict[str, Any]) -> dict[str, Any]:
     if is_blocked_url(case["url"]):
         raise ValueError("Private or local targets are not allowed")
 
+    # Normalize headers because MySQL JSON may arrive as dict or JSON string depending on driver behavior.
     headers = json.loads(case["headers"]) if isinstance(case["headers"], str) else (case["headers"] or {})
     request_info = {"method": case["method"], "url": case["url"], "headers": headers, "body": case.get("body")}
     allure.attach(json.dumps(request_info, ensure_ascii=False, indent=2), "request", allure.attachment_type.JSON)
 
+    # requests performs the real HTTP call used by API automation.
     response = requests.request(
         case["method"],
         case["url"],
@@ -34,6 +38,7 @@ def execute_api_case(case: dict[str, Any]) -> dict[str, Any]:
     checks = []
     expected_status = case.get("assert_status")
     if expected_status:
+        # Status assertion is the most common API-test check.
         checks.append({
             "name": "status",
             "passed": response.status_code == expected_status,
@@ -43,6 +48,7 @@ def execute_api_case(case: dict[str, Any]) -> dict[str, Any]:
 
     expected_text = case.get("assert_text")
     if expected_text:
+        # Text assertion checks whether a response contains expected content.
         checks.append({
             "name": "text",
             "passed": expected_text in response.text,
@@ -52,6 +58,7 @@ def execute_api_case(case: dict[str, Any]) -> dict[str, Any]:
 
     expected_path = case.get("assert_json_path")
     if expected_path:
+        # JSON path assertion reads a simple dotted path like $.data.name.
         try:
             response_json = response.json()
         except ValueError:
@@ -65,6 +72,7 @@ def execute_api_case(case: dict[str, Any]) -> dict[str, Any]:
         })
 
     passed = all(item["passed"] for item in checks) if checks else response.status_code < 500
+    # The returned report is stored in MySQL and rendered by execution records and test reports.
     return {
         "passed": passed,
         "framework": "pytest + requests + allure",

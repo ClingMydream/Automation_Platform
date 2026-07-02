@@ -1,1 +1,1 @@
-
+"""Worker automation module package."""

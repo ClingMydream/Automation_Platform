@@ -1,3 +1,5 @@
+"""Pytest runner wrapper for executing one UI case and collecting the report."""
+
 import json
 import tempfile
 from pathlib import Path
@@ -29,6 +31,7 @@ def run_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str, An
     """Run a UI case through pytest while Playwright performs the browser actions."""
     with tempfile.TemporaryDirectory(prefix="ui-case-") as tmp:
         tmp_dir = Path(tmp)
+        # Temporary files let pytest execute a normal test while returning JSON to the worker.
         case_file = tmp_dir / "case.json"
         result_file = tmp_dir / "result.json"
         test_file = tmp_dir / "test_ui_case.py"
@@ -36,13 +39,16 @@ def run_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str, An
 
         case_file.write_text(json.dumps(case, ensure_ascii=False), encoding="utf-8")
         test_file.write_text(TEST_TEMPLATE.format(case_file=case_file, result_file=result_file, run_id=run_id or "None"), encoding="utf-8")
+        # The generated pytest file calls the Playwright runtime and writes a result file.
         exit_code = pytest.main([str(test_file), "--alluredir", str(allure_dir), "-q"])
 
         if result_file.exists():
+            # Return the runtime report with extra pytest and Allure metadata.
             report = json.loads(result_file.read_text(encoding="utf-8"))
             report["pytest_exit_code"] = int(exit_code)
             report["allure_results_dir"] = str(allure_dir)
             return report
+        # Normalize hard pytest failures into the same report shape as runtime failures.
         return {
             "passed": False,
             "running": False,

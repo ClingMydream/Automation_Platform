@@ -1,3 +1,5 @@
+"""Test report routes built from completed execution runs."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path

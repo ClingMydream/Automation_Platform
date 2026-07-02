@@ -1,3 +1,5 @@
+"""Low-code UI test case management routes."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -65,6 +67,7 @@ def create_ui_case(payload: UiCaseCreate, _: AuthContext = Depends(require_menu(
     """Create a UI test case after validating step target URLs."""
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
+    # Only goto steps can open network targets, so those values are safety-checked.
     for step in payload.steps:
         if step.action == "goto" and step.value:
             validate_public_http_url(step.value)
@@ -80,6 +83,7 @@ def update_ui_case(case_id: int, payload: UiCaseCreate, _: AuthContext = Depends
     """Update a UI test case after validating step target URLs."""
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
+    # Re-check goto targets on every edit to prevent unsafe saved steps.
     for step in payload.steps:
         if step.action == "goto" and step.value:
             validate_public_http_url(step.value)

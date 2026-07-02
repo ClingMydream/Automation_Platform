@@ -1,3 +1,5 @@
+"""Aggregate every backend module router under the shared /api prefix."""
+
 from fastapi import APIRouter
 
 from app.modules.api_testing.router import router as api_testing_router
@@ -14,6 +16,7 @@ from app.modules.users.router import router as users_router
 
 router = APIRouter()
 
+# Keep the order aligned with the platform menu and shared services.
 for module_router in [
     health_router,
     auth_router,

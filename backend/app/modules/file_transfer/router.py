@@ -1,3 +1,5 @@
+"""Temporary file transfer routes for desktop upload and mobile token access."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -57,6 +59,7 @@ router = APIRouter()
 @router.get("/file-transfers")
 def list_file_transfers(_: AuthContext = Depends(require_menu("files")), db: Session = Depends(get_db)):
     """List non-expired temporary file transfers."""
+    # Cleanup runs opportunistically so expired files disappear without a separate scheduler.
     _cleanup_expired(db)
     items = db.query(FileTransfer).order_by(FileTransfer.id.desc()).limit(100).all()
     return [_file_response(item) for item in items]
@@ -86,6 +89,7 @@ def delete_file_transfer(transfer_id: int, _: AuthContext = Depends(require_menu
     item = db.get(FileTransfer, transfer_id)
     if item is None:
         raise HTTPException(status_code=404, detail="File not found")
+    # Remove the physical file before deleting the metadata row.
     path = _transfer_dir() / item.stored_name
     if path.exists():
         path.unlink()
@@ -108,6 +112,7 @@ def get_public_file_transfer(token: str, db: Session = Depends(get_db)):
 def download_public_file_transfer(token: str, db: Session = Depends(get_db)):
     """Download a temporary file by public token."""
     _cleanup_expired(db)
+    # Public token endpoints intentionally skip login so phones can scan and download directly.
     item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
     if item is None:
         raise HTTPException(status_code=404, detail="File not found or expired")
@@ -129,6 +134,7 @@ def preview_public_file_transfer(token: str, db: Session = Depends(get_db)):
     if item is None:
         raise HTTPException(status_code=404, detail="File not found or expired")
     content_type = item.content_type or "application/octet-stream"
+    # Inline preview is limited to browser-safe image and video content.
     if not (content_type.startswith("image/") or content_type.startswith("video/")):
         raise HTTPException(status_code=415, detail="Preview only supports images and videos")
     path = _transfer_dir() / item.stored_name

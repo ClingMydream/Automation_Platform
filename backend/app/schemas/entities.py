@@ -1,3 +1,5 @@
+"""Pydantic request and response schemas shared by backend route modules."""
+
 from datetime import datetime
 from typing import Any, Literal
 

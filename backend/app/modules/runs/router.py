@@ -1,3 +1,5 @@
+"""Execution run routes for creating tasks and reading run results."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -64,6 +66,7 @@ def list_runs(_: AuthContext = Depends(require_menu("runs")), db: Session = Depe
 def create_run(payload: RunCreate, current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     """Create a test run and enqueue it for worker execution."""
     required_menu = "api" if payload.case_type == "api" else "ui"
+    # Creating a run is allowed only for the matching test module permission.
     if not current_user.is_admin and required_menu not in current_user.menu_permissions:
         raise HTTPException(status_code=403, detail="Menu permission required")
     model = ApiCase if payload.case_type == "api" else UiCase
@@ -73,6 +76,7 @@ def create_run(payload: RunCreate, current_user: AuthContext = Depends(get_curre
     db.add(run)
     db.commit()
     db.refresh(run)
+    # The backend returns quickly; the worker consumes the Redis job and updates this run later.
     enqueue_run(run.id)
     return run
 

@@ -1,3 +1,5 @@
+"""Shared backend module helpers for users, reports, file transfer, and image processing."""
+
 import secrets
 import shutil
 from base64 import b64encode
@@ -58,9 +60,11 @@ def _clean_filename(name: str) -> str:
 def _normalize_menu_permissions(values: list[str]) -> list[str]:
     """Filter and de-duplicate menu permission keys."""
     seen = []
+    # Only allow known non-admin menu keys and keep the user-provided order.
     for value in values or []:
         if value in ALL_MENU_KEYS and value != "users" and value not in seen:
             seen.append(value)
+    # API/UI testing depends on projects, so grant project visibility automatically.
     if ("api" in seen or "ui" in seen) and "projects" not in seen:
         seen.insert(0, "projects")
     return seen
@@ -90,6 +94,7 @@ def _case_name_for_run(db: Session, run: TestRun) -> str:
 def _report_summary(run: TestRun, case_name: str) -> dict:
     """Convert a run into a report-list summary object."""
     report = run.report or {}
+    # These counts let the frontend build a useful report list without parsing every report deeply.
     checks = report.get("checks") or []
     events = report.get("events") or []
     screenshots = report.get("screenshots") or []
@@ -139,6 +144,7 @@ def _safe_color(value: str, fallback: str) -> str:
 
 def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load a font for drawing image text, falling back to Pillow default."""
+    # Try common Linux container fonts first, then Windows fonts for local development.
     candidates = [
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
@@ -157,6 +163,7 @@ def _draw_center_text(image: Image.Image, text: str, color: str, font_size: int)
     """Draw multi-line text centered inside an image."""
     if not text:
         return
+    # Measure every line first so the whole text block can be vertically centered.
     draw = ImageDraw.Draw(image)
     font = _font(font_size)
     lines = text.splitlines() or [text]
@@ -175,6 +182,7 @@ def _draw_center_text(image: Image.Image, text: str, color: str, font_size: int)
 def _svg_response(width: int, height: int, background: str, text: str, text_color: str, font_size: int) -> bytes:
     """Generate an SVG text image response."""
     lines = text.splitlines() or [""]
+    # Build one centered text node per line instead of rasterizing text into pixels.
     spacing = max(8, font_size // 3)
     total_height = font_size * len(lines) + spacing * (len(lines) - 1)
     first_y = height / 2 - total_height / 2 + font_size
@@ -210,10 +218,12 @@ def _image_as_svg(image: Image.Image, filename: str) -> bytes:
 def _serialize_image(image: Image.Image, format_name: str, quality: int, max_kb: int | None, filename: str) -> Response:
     """Serialize an image with requested format, quality, and size limit."""
     config = _image_format(format_name)
+    # SVG output wraps the raster canvas so the frontend can download a vector-compatible file.
     if config["key"] == "svg":
         payload = _image_as_svg(image, filename)
     else:
         save_image = image
+        # JPEG and BMP do not support alpha, so transparent pixels are flattened onto white.
         if config["key"] in {"jpeg", "bmp"} and save_image.mode in {"RGBA", "LA", "P"}:
             background = Image.new("RGB", save_image.size, "#ffffff")
             if save_image.mode == "P":
@@ -227,6 +237,7 @@ def _serialize_image(image: Image.Image, format_name: str, quality: int, max_kb:
 
         payload = b""
         quality_values = [quality]
+        # JPEG/WEBP can be iteratively compressed toward a target max KB size.
         if max_kb and config["key"] in {"jpeg", "webp"}:
             quality_values = list(range(quality, 19, -8))
         for current_quality in quality_values:
@@ -273,6 +284,7 @@ def _cleanup_expired(db: Session) -> None:
     if not expired:
         return
     directory = _transfer_dir()
+    # File and database cleanup happen together so stale tokens cannot point to removed files.
     for item in expired:
         path = directory / item.stored_name
         if path.exists():
@@ -286,6 +298,7 @@ def _save_upload(upload: UploadFile, destination: Path, max_bytes: int) -> int:
     size = 0
     with destination.open("wb") as output:
         while True:
+            # Stream in 1 MB chunks so large files do not sit fully in memory.
             chunk = upload.file.read(1024 * 1024)
             if not chunk:
                 break
@@ -308,6 +321,7 @@ def _create_transfer(
 ) -> FileTransfer:
     """Create a temporary file transfer record and store its upload."""
     settings = get_settings()
+    # A random token is used both in the stored filename and the public share URL.
     max_bytes = settings.file_transfer_max_mb * 1024 * 1024
     token = secrets.token_urlsafe(24)
     original_name = _clean_filename(upload.filename or "file")

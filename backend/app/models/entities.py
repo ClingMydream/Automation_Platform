@@ -1,3 +1,5 @@
+"""SQLAlchemy ORM entities used by backend routes and worker execution records."""
+
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text

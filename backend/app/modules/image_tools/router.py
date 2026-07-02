@@ -1,3 +1,5 @@
+"""Image generation, crop, resize, annotation, and format-conversion routes."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -72,10 +74,12 @@ def list_image_formats(_: AuthContext = Depends(require_menu("images"))):
 def generate_image(payload: ImageGenerateRequest, _: AuthContext = Depends(require_menu("images"))):
     """Generate an image from size, color, text, and format settings."""
     config = _image_format(payload.format)
+    # Colors are sanitized so invalid form values cannot break Pillow or SVG generation.
     background = _safe_color(payload.background_color, "#ffffff")
     text_color = _safe_color(payload.text_color, "#17202a")
     filename = f"generated-{payload.width}x{payload.height}"
     if config["key"] == "svg":
+        # SVG generation stays text-based instead of creating a raster image first.
         svg = _svg_response(payload.width, payload.height, background, payload.text, text_color, payload.font_size)
         return Response(
             content=svg,
@@ -106,6 +110,7 @@ def process_image(
 ):
     """Crop, resize, annotate, and convert an uploaded image."""
     settings = get_settings()
+    # Reuse the file-transfer size setting so image uploads share the same server limit.
     max_bytes = settings.file_transfer_max_mb * 1024 * 1024
     content = file.file.read(max_bytes + 1)
     if len(content) > max_bytes:
@@ -113,11 +118,13 @@ def process_image(
     if not content:
         raise HTTPException(status_code=400, detail="Image is empty")
     try:
+        # exif_transpose fixes phone photos that store rotation in EXIF metadata.
         with Image.open(BytesIO(content)) as opened:
             image = ImageOps.exif_transpose(opened).convert("RGBA")
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Unsupported or broken image file") from exc
 
+    # Clamp crop coordinates inside the actual image before cropping.
     left = min(crop_x, image.width - 1)
     top = min(crop_y, image.height - 1)
     right = min(image.width, left + (crop_width or image.width - left))
@@ -127,6 +134,7 @@ def process_image(
     image = image.crop((left, top, right, bottom))
 
     if output_width or output_height:
+        # Preserve aspect ratio when only one output dimension is provided.
         width = output_width or round(image.width * (output_height / image.height))
         height = output_height or round(image.height * (output_width / image.width))
         image = image.resize((width, height), Image.Resampling.LANCZOS)

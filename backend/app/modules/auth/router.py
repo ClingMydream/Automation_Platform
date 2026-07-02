@@ -1,3 +1,5 @@
+"""Authentication API routes for login, logout, and current-user profile."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -58,10 +60,12 @@ router = APIRouter()
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     """Validate credentials and return an access token."""
     settings = get_settings()
+    # The configured bootstrap admin can log in even before the database row exists.
     if payload.username == settings.admin_username and payload.password == settings.admin_password:
         admin = ensure_admin_user(db)
         return TokenResponse(access_token=create_access_token(admin.username, is_admin=True))
     user = db.query(AppUser).filter(AppUser.username == payload.username).first()
+    # Disabled users and wrong passwords intentionally share the same error message.
     if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password")
     return TokenResponse(access_token=create_access_token(user.username, is_admin=user.is_admin))

@@ -1,3 +1,5 @@
+"""UI automation runtime implemented with Playwright and Allure attachments."""
+
 import base64
 import json
 import os
@@ -16,6 +18,7 @@ UI_STEP_VISUAL_DELAY_MS = int(os.getenv("UI_STEP_VISUAL_DELAY_MS", "700"))
 
 def _screenshot_data_url(page) -> str:
     """Capture the current Playwright page as a data URL."""
+    # Screenshots are attached to Allure and embedded into the live execution report.
     image = page.screenshot(type="jpeg", quality=70, full_page=False)
     allure.attach(image, "browser screenshot", allure.attachment_type.JPG)
     return "data:image/jpeg;base64," + base64.b64encode(image).decode("ascii")
@@ -58,10 +61,12 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
     latest_screenshot = None
 
     with sync_playwright() as p:
+        # Chromium runs headless inside Docker; no Docker socket or host browser is needed.
         browser = p.chromium.launch(headless=True, args=["--disable-dev-shm-usage", "--no-sandbox"])
         page = browser.new_page()
         try:
             for index, step in enumerate(steps, start=1):
+                # Each low-code step becomes one Playwright action and one Allure step.
                 step_start = time.perf_counter()
                 action = step["action"]
                 target = step.get("target")
@@ -69,6 +74,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                 timeout = step.get("timeout_ms") or 5000
 
                 if run_id:
+                    # Write a live snapshot before the step starts so the popup can show progress.
                     update_run(
                         run_id,
                         logs=f"Running UI step {index}/{total_steps}: {action}",
@@ -85,6 +91,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
 
                 with allure.step(f"{index}. {action}"):
                     if action == "goto":
+                        # Navigation targets are re-checked in the worker before Playwright opens them.
                         if not value or is_blocked_url(value):
                             raise ValueError("Private or local targets are not allowed")
                         page.goto(value, wait_until="networkidle", timeout=timeout)
@@ -103,6 +110,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                         raise ValueError(f"Unsupported UI action: {action}")
 
                 if action != "screenshot":
+                    # Capture after every action so the live window has visual feedback.
                     latest_screenshot = _screenshot_data_url(page)
 
                 events.append({
@@ -117,6 +125,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                 })
 
                 if run_id:
+                    # Persist completed-step state for the execution record and live window.
                     update_run(
                         run_id,
                         logs=f"Completed UI step {index}/{total_steps}",
@@ -132,6 +141,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                     )
 
                 if UI_STEP_VISUAL_DELAY_MS > 0:
+                    # A small delay makes the live execution window readable for humans.
                     page.wait_for_timeout(UI_STEP_VISUAL_DELAY_MS)
         finally:
             browser.close()

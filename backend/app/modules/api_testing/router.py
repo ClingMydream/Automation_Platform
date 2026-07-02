@@ -1,3 +1,5 @@
+"""API test case management routes."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -63,6 +65,7 @@ def list_api_cases(_: AuthContext = Depends(require_menu("api")), db: Session = 
 @router.post("/api-cases", response_model=ApiCaseRead)
 def create_api_case(payload: ApiCaseCreate, _: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
     """Create an API test case after validating the target URL."""
+    # Block private or local targets before they can be saved and executed by the worker.
     validate_public_http_url(payload.url)
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -76,12 +79,14 @@ def create_api_case(payload: ApiCaseCreate, _: AuthContext = Depends(require_men
 @router.put("/api-cases/{case_id}", response_model=ApiCaseRead)
 def update_api_case(case_id: int, payload: ApiCaseCreate, _: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
     """Update an API test case after validating the target URL."""
+    # Re-validate on update so an existing case cannot be changed to a private target.
     validate_public_http_url(payload.url)
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
     case = db.get(ApiCase, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
+    # Copy every validated schema field into the existing SQLAlchemy model.
     for key, value in payload.model_dump().items():
         setattr(case, key, value)
     db.commit()

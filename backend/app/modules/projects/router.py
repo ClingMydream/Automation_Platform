@@ -1,3 +1,5 @@
+"""Project and environment API routes used by test case modules."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -76,6 +78,7 @@ def update_project(project_id: int, payload: ProjectCreate, _: AuthContext = Dep
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
+    # Copy validated request fields onto the ORM model so SQLAlchemy can persist the change.
     for key, value in payload.model_dump().items():
         setattr(project, key, value)
     db.commit()
@@ -89,6 +92,7 @@ def delete_project(project_id: int, _: AuthContext = Depends(require_menu("proje
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
+    # Remove dependent cases and execution history first to avoid orphaned run records.
     api_ids = [row[0] for row in db.query(ApiCase.id).filter(ApiCase.project_id == project_id).all()]
     ui_ids = [row[0] for row in db.query(UiCase.id).filter(UiCase.project_id == project_id).all()]
     if api_ids:
@@ -111,6 +115,7 @@ def list_environments(_: AuthContext = Depends(require_menu("projects")), db: Se
 @router.post("/environments", response_model=EnvironmentRead)
 def create_environment(payload: EnvironmentCreate, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
     """Create an environment record."""
+    # Environment base URLs are also guarded because later tests may use them as targets.
     validate_public_http_url(payload.base_url)
     environment = Environment(**payload.model_dump())
     db.add(environment)

@@ -1,3 +1,5 @@
+"""User management API routes for administrators."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -72,6 +74,7 @@ def list_users(_: AuthContext = Depends(verify_admin), db: Session = Depends(get
 def create_user(payload: UserCreate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
     """Create a non-admin login user with menu permissions."""
     username = payload.username.strip()
+    # The bootstrap administrator name is reserved so a normal user cannot shadow it.
     if username == get_settings().admin_username:
         raise HTTPException(status_code=400, detail="This username is reserved")
     if db.query(AppUser).filter(AppUser.username == username).first() is not None:
@@ -97,6 +100,7 @@ def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(veri
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     if user.is_admin:
+        # Admin permissions are fixed to the full platform and cannot be reduced from the UI.
         user.display_name = payload.display_name or user.display_name
         user.is_active = True
         user.menu_permissions = ADMIN_MENU_KEYS
@@ -105,6 +109,7 @@ def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(veri
         user.is_active = payload.is_active
         user.menu_permissions = _normalize_menu_permissions(payload.menu_permissions)
     if payload.password:
+        # Password changes are optional; leaving it empty preserves the old hash.
         user.password_hash = hash_password(payload.password)
     db.commit()
     db.refresh(user)

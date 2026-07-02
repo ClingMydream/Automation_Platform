@@ -1,3 +1,5 @@
+"""Health check route used by Docker, Nginx, and deployment verification."""
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
