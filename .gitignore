@@ -14,7 +14,7 @@ coverage/
 playwright-report/
 test-results/
 uploads/
-reports/
+/reports/
 screenshots/
 *.log
 *.sqlite3

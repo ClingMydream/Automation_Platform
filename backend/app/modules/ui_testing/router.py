@@ -1,0 +1,102 @@
+from datetime import datetime, timedelta
+from io import BytesIO
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, Response
+from PIL import Image, ImageOps
+from sqlalchemy.orm import Session
+
+from app.core.auth import AuthContext, create_access_token, ensure_admin_user, get_current_user, hash_password, require_menu, verify_admin, verify_password
+from app.core.config import get_settings
+from app.core.menu import ADMIN_MENU, ADMIN_MENU_KEYS, MENU_OPTIONS
+from app.core.target_guard import validate_public_http_url
+from app.db import get_db
+from app.models.entities import ApiCase, AppUser, Environment, FileTransfer, Project, TestRun, UiCase
+from app.modules.common import (
+    IMAGE_FORMATS,
+    ImageGenerateRequest,
+    _case_name_for_run,
+    _cleanup_expired,
+    _create_transfer,
+    _file_response,
+    _image_format,
+    _normalize_menu_permissions,
+    _report_summary,
+    _safe_color,
+    _serialize_image,
+    _svg_response,
+    _transfer_dir,
+    _user_response,
+    _draw_center_text,
+)
+from app.schemas.entities import (
+    ApiCaseCreate,
+    ApiCaseRead,
+    EnvironmentCreate,
+    EnvironmentRead,
+    LoginRequest,
+    MeResponse,
+    ProjectCreate,
+    ProjectRead,
+    RunCreate,
+    RunRead,
+    TokenResponse,
+    UiCaseCreate,
+    UiCaseRead,
+    UserCreate,
+    UserRead,
+    UserUpdate,
+)
+from app.services.queue import enqueue_run
+
+
+router = APIRouter()
+
+# UI 测试用例：保存低代码步骤 JSON，执行时由 worker 调用 Playwright。
+@router.get("/ui-cases", response_model=list[UiCaseRead])
+def list_ui_cases(_: AuthContext = Depends(require_menu("ui")), db: Session = Depends(get_db)):
+    return db.query(UiCase).order_by(UiCase.id.desc()).all()
+
+
+@router.post("/ui-cases", response_model=UiCaseRead)
+def create_ui_case(payload: UiCaseCreate, _: AuthContext = Depends(require_menu("ui")), db: Session = Depends(get_db)):
+    if db.get(Project, payload.project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    for step in payload.steps:
+        if step.action == "goto" and step.value:
+            validate_public_http_url(step.value)
+    case = UiCase(project_id=payload.project_id, name=payload.name, steps=[step.model_dump() for step in payload.steps])
+    db.add(case)
+    db.commit()
+    db.refresh(case)
+    return case
+
+
+@router.put("/ui-cases/{case_id}", response_model=UiCaseRead)
+def update_ui_case(case_id: int, payload: UiCaseCreate, _: AuthContext = Depends(require_menu("ui")), db: Session = Depends(get_db)):
+    if db.get(Project, payload.project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    for step in payload.steps:
+        if step.action == "goto" and step.value:
+            validate_public_http_url(step.value)
+    case = db.get(UiCase, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    case.project_id = payload.project_id
+    case.name = payload.name
+    case.steps = [step.model_dump() for step in payload.steps]
+    db.commit()
+    db.refresh(case)
+    return case
+
+
+@router.delete("/ui-cases/{case_id}")
+def delete_ui_case(case_id: int, _: AuthContext = Depends(require_menu("ui")), db: Session = Depends(get_db)):
+    case = db.get(UiCase, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    db.query(TestRun).filter(TestRun.case_type == "ui", TestRun.case_id == case_id).delete(synchronize_session=False)
+    db.delete(case)
+    db.commit()
+    return {"status": "ok"}

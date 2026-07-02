@@ -1,0 +1,81 @@
+from datetime import datetime, timedelta
+from io import BytesIO
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, Response
+from PIL import Image, ImageOps
+from sqlalchemy.orm import Session
+
+from app.core.auth import AuthContext, create_access_token, ensure_admin_user, get_current_user, hash_password, require_menu, verify_admin, verify_password
+from app.core.config import get_settings
+from app.core.menu import ADMIN_MENU, ADMIN_MENU_KEYS, MENU_OPTIONS
+from app.core.target_guard import validate_public_http_url
+from app.db import get_db
+from app.models.entities import ApiCase, AppUser, Environment, FileTransfer, Project, TestRun, UiCase
+from app.modules.common import (
+    IMAGE_FORMATS,
+    ImageGenerateRequest,
+    _case_name_for_run,
+    _cleanup_expired,
+    _create_transfer,
+    _file_response,
+    _image_format,
+    _normalize_menu_permissions,
+    _report_summary,
+    _safe_color,
+    _serialize_image,
+    _svg_response,
+    _transfer_dir,
+    _user_response,
+    _draw_center_text,
+)
+from app.schemas.entities import (
+    ApiCaseCreate,
+    ApiCaseRead,
+    EnvironmentCreate,
+    EnvironmentRead,
+    LoginRequest,
+    MeResponse,
+    ProjectCreate,
+    ProjectRead,
+    RunCreate,
+    RunRead,
+    TokenResponse,
+    UiCaseCreate,
+    UiCaseRead,
+    UserCreate,
+    UserRead,
+    UserUpdate,
+)
+from app.services.queue import enqueue_run
+
+
+router = APIRouter()
+
+# 登录认证：只负责登录、退出、当前用户信息，不放业务功能。
+@router.post("/auth/login", response_model=TokenResponse)
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    settings = get_settings()
+    if payload.username == settings.admin_username and payload.password == settings.admin_password:
+        admin = ensure_admin_user(db)
+        return TokenResponse(access_token=create_access_token(admin.username, is_admin=True))
+    user = db.query(AppUser).filter(AppUser.username == payload.username).first()
+    if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    return TokenResponse(access_token=create_access_token(user.username, is_admin=user.is_admin))
+
+
+@router.post("/auth/logout")
+def logout(_: AuthContext = Depends(get_current_user)):
+    return {"status": "ok"}
+
+
+@router.get("/auth/me", response_model=MeResponse)
+def me(current_user: AuthContext = Depends(get_current_user)):
+    return {
+        "username": current_user.username,
+        "display_name": current_user.display_name,
+        "is_admin": current_user.is_admin,
+        "menu_permissions": current_user.menu_permissions,
+    }

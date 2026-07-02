@@ -56,6 +56,7 @@ import { compareJsonValues, parseJsonInput, stableStringifyJson } from '../../sh
 import { downloadReportHtml } from '../../shared/reportExport';
 import { JsonHelpCard } from '../../shared/JsonHelpCard.jsx';
 import { StatusTag } from '../../shared/StatusTag.jsx';
+import { RunDetail } from './RunDetail.jsx';
 
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
