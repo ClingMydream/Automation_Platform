@@ -1,3 +1,6 @@
+// File purpose: Image tools page. Generate, crop, resize, annotate, and convert images.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useEffect, useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Upload } from 'antd';
 import { InboxOutlined, PictureOutlined } from '@ant-design/icons';
@@ -10,6 +13,7 @@ const { Dragger } = Upload;
 
 // Image tool page: generates, crops, resizes, annotates, and converts images.
 export function ImageToolPanel({ token }) {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [formats, setFormats] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -26,6 +30,7 @@ export function ImageToolPanel({ token }) {
     { value: 'svg', label: 'SVG' },
   ];
 
+  // Effect block: code here reacts to token, route, or polling changes.
   useEffect(() => {
     apiClient(token).get('/image-tools/formats').then(setFormats).catch(() => {});
   }, [token]);
@@ -118,6 +123,7 @@ export function ImageToolPanel({ token }) {
     }
   }
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Space direction="vertical" size={16} className="full-width">
       <Alert type="info" showIcon message="支持 PNG、JPEG、WEBP、GIF、BMP、TIFF、SVG。JPEG/WEBP 可按目标 KB 尽量压缩，SVG 适合生成文案矢量图。" />

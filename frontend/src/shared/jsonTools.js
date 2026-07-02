@@ -1,7 +1,11 @@
+// File purpose: Shared JSON parsing, formatting, and diff helpers.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 // JSON 工具模块。
 // 修改建议：如果后续要支持“忽略字段”“数组按 key 对比”等能力，优先扩展 compareJsonValues。
 
 // Parse user JSON input and treat empty input as null.
+// Shared helper block: exported helpers below are reused by multiple modules.
 export function parseJsonInput(text) {
   return JSON.parse(text || 'null');
 }

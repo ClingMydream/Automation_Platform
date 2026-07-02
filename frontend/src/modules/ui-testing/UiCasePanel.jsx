@@ -1,3 +1,6 @@
+// File purpose: UI testing page. Edit low-code steps, explain JSON, and start UI runs.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table } from 'antd';
 import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
@@ -16,6 +19,7 @@ const { TextArea } = Input;
 
 // UI testing page: edits low-code steps, saves cases, and starts runs.
 export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -85,6 +89,7 @@ export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated })
     }
   }
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} xl={10}>

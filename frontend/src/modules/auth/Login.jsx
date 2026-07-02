@@ -1,3 +1,6 @@
+// File purpose: Login page. Collect credentials, request a token, and notify the app after login.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Form, Input, Space, Typography } from 'antd';
 import { SafetyCertificateOutlined } from '@ant-design/icons';
@@ -7,6 +10,7 @@ const { Text, Title } = Typography;
 
 // Login page: submits credentials and stores the returned token.
 export function Login({ onLogin, notice }) {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [loading, setLoading] = useState(false);
   const { message } = AntApp.useApp();
 
@@ -25,6 +29,7 @@ export function Login({ onLogin, notice }) {
     }
   }
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <main className="login-screen">
       <Card className="login-card">

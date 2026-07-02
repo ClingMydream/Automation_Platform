@@ -1,3 +1,6 @@
+// File purpose: Live UI run window. Poll and display current automation progress and screenshots.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
@@ -7,6 +10,7 @@ import { formatDuration } from '../../shared/formatters';
 // Live run window: shows UI automation progress, current step, and latest screenshot.
 export function LiveRunWindow({ token, runId }) {
   const client = useMemo(() => apiClient(token), [token]);
+  // State block: values here control loading, selection, form state, and visible page data.
   const [run, setRun] = useState(null);
   const [error, setError] = useState('');
 
@@ -21,6 +25,7 @@ export function LiveRunWindow({ token, runId }) {
     }
   }
 
+  // Effect block: code here reacts to token, route, or polling changes.
   useEffect(() => {
     loadRun();
     const timer = window.setInterval(loadRun, 800);
@@ -32,6 +37,7 @@ export function LiveRunWindow({ token, runId }) {
   const current = report.current_step && report.total_steps ? `${report.current_step}/${report.total_steps}` : '-';
   const isRunning = run && ['queued', 'running'].includes(run.status);
 
+  // Render block: JSX below draws the live browser frame, run stats, and step timeline.
   return (
     <main className="live-shell">
       <header className="live-header">
@@ -81,4 +87,3 @@ export function LiveRunWindow({ token, runId }) {
 }
 
 // 应用总入口：负责登录态、权限菜单、全局数据加载和模块切换。
-

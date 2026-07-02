@@ -1,3 +1,6 @@
+// File purpose: Project page. Create, edit, delete, and list projects.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useState } from 'react';
 import { App as AntApp, Button, Card, Col, Form, Input, Row, Space, Table } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
@@ -7,6 +10,7 @@ const { TextArea } = Input;
 
 // Project page: manages project form and project table.
 export function ProjectPanel({ client, projects, reload }) {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -56,6 +60,7 @@ export function ProjectPanel({ client, projects, reload }) {
     });
   }
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} xl={9}>

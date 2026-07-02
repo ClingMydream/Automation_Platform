@@ -1,7 +1,11 @@
+// File purpose: Test report feature helpers. Keep report filtering and summary calculations out of UI.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 // Test report feature functions.
 // Filtering and summary calculation live here; the UI only renders controls and tables.
 
 // Filter reports by case type and status.
+// Feature block: exported helpers below are used by the page component and can be tested independently.
 export function filterReports(reports, { typeFilter, statusFilter }) {
   return reports.filter((item) => {
     if (typeFilter !== 'all' && item.case_type !== typeFilter) return false;

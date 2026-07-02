@@ -1,3 +1,6 @@
+// File purpose: Shared page guide component that renders usage tips for the active menu.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React from 'react';
 import { Card, Space, Tag, Typography } from 'antd';
 import { RocketOutlined } from '@ant-design/icons';
@@ -5,6 +8,7 @@ import { RocketOutlined } from '@ant-design/icons';
 const { Title, Paragraph } = Typography;
 
 // Render the operation guide for the active menu tab.
+// Shared helper block: exported helpers below are reused by multiple modules.
 export function PageGuide({ tab }) {
   const guides = {
     projects: {
@@ -59,6 +63,7 @@ export function PageGuide({ tab }) {
     },
   };
   const guide = guides[tab] || guides.projects;
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Card className="guide-card" size="small">
       <Space align="start" size={14}>

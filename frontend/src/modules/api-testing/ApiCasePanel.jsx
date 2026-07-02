@@ -1,3 +1,6 @@
+// File purpose: API testing page. Edit API cases, explain JSON fields, and start API runs.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useState } from 'react';
 import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table } from 'antd';
 import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
@@ -9,6 +12,7 @@ const { TextArea } = Input;
 
 // API testing page: renders the case form, case table, and run action.
 export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated }) {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -71,6 +75,7 @@ export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated 
     }
   }
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} xl={10}>

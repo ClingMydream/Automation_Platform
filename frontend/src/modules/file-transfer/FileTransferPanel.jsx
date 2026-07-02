@@ -1,3 +1,6 @@
+// File purpose: File transfer admin page. Upload files, show QR links, and manage temporary records.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useEffect, useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Col, Descriptions, QRCode, Row, Select, Space, Table, Tag, Upload } from 'antd';
 import { CopyOutlined, DeleteOutlined, DownloadOutlined, EyeOutlined, InboxOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -8,6 +11,7 @@ const { Dragger } = Upload;
 
 // File transfer admin page: uploads temporary files and manages QR download links.
 export function FileTransferPanel({ client }) {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [transfers, setTransfers] = useState([]);
   const [selected, setSelected] = useState(null);
   const [expiresHours, setExpiresHours] = useState(24);
@@ -29,6 +33,7 @@ export function FileTransferPanel({ client }) {
     }
   }
 
+  // Effect block: code here reacts to token, route, or polling changes.
   useEffect(() => {
     loadTransfers();
   }, []);
@@ -79,6 +84,7 @@ export function FileTransferPanel({ client }) {
     });
   }
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} xl={9}>

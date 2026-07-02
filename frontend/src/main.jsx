@@ -1,3 +1,6 @@
+// File purpose: Application entry. It wires login state, permission menus, routing, and shared page data.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Login } from './modules/auth/Login.jsx';
@@ -17,64 +20,33 @@ import { apiClient } from './shared/apiClient';
 import { PageGuide } from './shared/PageGuide.jsx';
 import { AUTH_EXPIRED_EVENT } from './shared/constants';
 import {
-  Alert,
   App as AntApp,
   Button,
-  Card,
-  Checkbox,
-  Col,
   ConfigProvider,
-  Descriptions,
-  Drawer,
-  Empty,
-  Form,
-  Input,
   Layout,
   Menu,
-  Modal,
-  QRCode,
-  Row,
-  Select,
-  Space,
-  Statistic,
-  Table,
-  Tag,
   Typography,
-  Upload,
   theme,
 } from 'antd';
 import {
   ApiOutlined,
   BugOutlined,
   CloudUploadOutlined,
-  CopyOutlined,
   ClockCircleOutlined,
-  CloseOutlined,
   CodeOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
   FileDoneOutlined,
   FolderOutlined,
-  InboxOutlined,
   LogoutOutlined,
   PictureOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
   ReloadOutlined,
-  RocketOutlined,
   SafetyCertificateOutlined,
   SwapOutlined,
-  ThunderboltOutlined,
 } from '@ant-design/icons';
 import 'antd/dist/reset.css';
 import './styles/app.css';
 
 const { Header, Sider, Content } = Layout;
-const { Text, Title, Paragraph } = Typography;
-const { TextArea } = Input;
-const { Dragger } = Upload;
+const { Text, Title } = Typography;
 
 
 // 常改位置：左侧菜单、reload 数据源、tab 到页面组件的映射。
@@ -83,6 +55,7 @@ function PlatformApp() {
   const initialRunId = Number(params.get('runId')) || null;
   const liveRunId = Number(params.get('liveRunId')) || null;
   const transferToken = params.get('transferToken');
+  // State block: values here control loading, selection, form state, and visible page data.
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
@@ -168,6 +141,7 @@ function PlatformApp() {
     setTimeout(reload, 3000);
   }
 
+  // Effect block: code here reacts to token, route, or polling changes.
   useEffect(() => { reload(); }, [token]);
 
   useEffect(() => {
@@ -208,6 +182,7 @@ function PlatformApp() {
   const menuItems = menuItemsForUser(currentUser);
   const currentTitle = menuItems.find((item) => item.key === tab)?.label || '加载中';
 
+  // Render block: JSX below describes the shell layout, sidebar menu, header, and active page.
   return (
     <Layout className="app-layout">
       <Sider width={248} className="app-sider">

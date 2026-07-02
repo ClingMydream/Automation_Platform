@@ -1,9 +1,13 @@
+// File purpose: Shared helpers for file-transfer type detection, preview, and downloads.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React from 'react';
 
 // 文件快传前端辅助模块。
 // 修改建议：文件类型识别、预览方式、下载行为都集中在这里，页面组件只负责列表和表单。
 
 // Detect the file transfer type from MIME type and file name.
+// Shared helper block: exported helpers below are reused by multiple modules.
 export function transferKind(item) {
   const contentType = (item?.content_type || '').toLowerCase();
   const name = (item?.original_name || '').toLowerCase();

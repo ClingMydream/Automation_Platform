@@ -1,7 +1,11 @@
+// File purpose: API testing feature helpers. Keep payload shaping and backend calls out of the page component.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 // Interface test feature functions.
 // Keep request payload shaping and backend calls here so the UI stays easy to edit.
 
 // Convert API case form values into the backend request payload.
+// Feature block: exported helpers below are used by the page component and can be tested independently.
 export function buildApiCasePayload(values) {
   return {
     ...values,
@@ -32,6 +36,7 @@ export function buildApiCaseFormValues(item) {
 }
 
 // Create or update an API test case depending on edit state.
+// API operation block: async helpers below call the backend and return normalized results.
 export async function saveApiCase(client, editingId, values) {
   const payload = buildApiCasePayload(values);
   if (editingId) {

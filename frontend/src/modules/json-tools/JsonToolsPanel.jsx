@@ -1,3 +1,6 @@
+// File purpose: JSON tools page. Format, minify, copy, and compare JSON locally.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Col, Input, Row, Space, Table, Tag } from 'antd';
 import { CodeOutlined, CopyOutlined } from '@ant-design/icons';
@@ -7,6 +10,7 @@ const { TextArea } = Input;
 
 // JSON tool page: formats, minifies, and compares JSON locally in the browser.
 export function JsonToolsPanel() {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [leftJson, setLeftJson] = useState('{\n  "name": "demo",\n  "enabled": true\n}');
   const [rightJson, setRightJson] = useState('{\n  "name": "demo",\n  "enabled": false,\n  "version": 1\n}');
   const [diffs, setDiffs] = useState([]);
@@ -58,6 +62,7 @@ export function JsonToolsPanel() {
     navigator.clipboard.writeText(text).then(() => message.success('已复制')).catch(() => message.warning('复制失败，请手动复制'));
   }
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Space direction="vertical" size={16} className="full-width">
       <Alert type="info" showIcon message="JSON 内容只在当前浏览器处理，不会上传到服务器。对比会按字段路径递归检查对象、数组和值。" />

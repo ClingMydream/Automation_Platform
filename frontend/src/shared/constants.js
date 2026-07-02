@@ -1,3 +1,6 @@
+// File purpose: Shared constants and examples used across pages.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 // 前端通用常量。
 // 业务模块需要示例文案或默认值时，从这里 import，避免散落在页面代码里。
 

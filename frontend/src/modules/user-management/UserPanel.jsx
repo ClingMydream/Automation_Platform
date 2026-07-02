@@ -1,3 +1,6 @@
+// File purpose: User management page. Create users, edit status, and assign menu permissions.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useEffect, useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Checkbox, Col, Form, Input, Row, Space, Table, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -5,6 +8,7 @@ import { buildUserFormValues, deleteUser, fetchUserManagementData, saveUser } fr
 
 // User management page: edits login users, active state, and menu permissions.
 export function UserPanel({ client }) {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [form] = Form.useForm();
   const [users, setUsers] = useState([]);
   const [menuOptions, setMenuOptions] = useState([]);
@@ -27,6 +31,7 @@ export function UserPanel({ client }) {
     }
   }
 
+  // Effect block: code here reacts to token, route, or polling changes.
   useEffect(() => {
     loadUsers();
   }, []);
@@ -78,6 +83,7 @@ export function UserPanel({ client }) {
 
   const editingUser = users.find((user) => user.id === editingId);
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} xl={9}>

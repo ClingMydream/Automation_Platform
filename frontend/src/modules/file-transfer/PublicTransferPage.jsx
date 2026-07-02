@@ -1,3 +1,6 @@
+// File purpose: Public mobile transfer page. Download shared files or upload return files without login.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Descriptions, Space, Typography, Upload } from 'antd';
 import { CloudUploadOutlined, DownloadOutlined, InboxOutlined } from '@ant-design/icons';
@@ -11,6 +14,7 @@ const { Dragger } = Upload;
 // Public mobile transfer page: downloads a shared file or uploads a return file.
 export function PublicTransferPage({ token }) {
   const client = useMemo(() => apiClient(), []);
+  // State block: values here control loading, selection, form state, and visible page data.
   const [item, setItem] = useState(null);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -28,6 +32,7 @@ export function PublicTransferPage({ token }) {
     }
   }
 
+  // Effect block: code here reacts to token, route, or polling changes.
   useEffect(() => {
     loadTransfer();
   }, [token]);
@@ -50,6 +55,7 @@ export function PublicTransferPage({ token }) {
     }
   }
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <main className="public-transfer-screen">
       <Card className="public-transfer-card">

@@ -1,7 +1,11 @@
+// File purpose: Shared display formatters for time, duration, size, and status.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 // 通用显示格式化函数。
 // 修改建议：这里只处理“如何显示”，不要在这里写接口请求或页面状态逻辑。
 
 // Format backend timestamps for local display.
+// Shared helper block: exported helpers below are reused by multiple modules.
 export function formatTime(value) {
   if (!value) return '-';
   return new Date(value).toLocaleString('zh-CN', { hour12: false });

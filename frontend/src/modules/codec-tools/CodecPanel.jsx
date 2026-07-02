@@ -1,3 +1,6 @@
+// File purpose: Codec tools page. Convert text locally without sending content to the backend.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Col, Input, Row, Select, Space } from 'antd';
 import { CopyOutlined, SwapOutlined } from '@ant-design/icons';
@@ -7,6 +10,7 @@ const { TextArea } = Input;
 
 // Codec tool page: runs common encode and decode operations locally.
 export function CodecPanel() {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [operation, setOperation] = useState('url_encode');
   const [input, setInput] = useState('中文参数 test=123');
   const [output, setOutput] = useState('');
@@ -49,6 +53,7 @@ export function CodecPanel() {
     setOutput(input);
   }
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Space direction="vertical" size={16} className="full-width">
       <Alert type="info" showIcon message="转码内容只在当前浏览器处理，不会上传到服务器。适合处理接口参数、Token 片段、日志文本和配置片段。" />

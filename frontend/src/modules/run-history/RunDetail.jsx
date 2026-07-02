@@ -1,3 +1,6 @@
+// File purpose: Run detail drawer. Display logs, checks, screenshots, errors, and response data.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React from 'react';
 import { Alert, Button, Card, Descriptions, Drawer, Empty, Space, Table, Tag } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
@@ -10,6 +13,7 @@ export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
   const events = report.events || [];
   const checks = report.checks || [];
   const screenshots = report.screenshots || [];
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Drawer title={run ? `执行详情 #${run.id}` : '执行详情'} width={720} open={open} onClose={onClose} extra={<Button icon={<ReloadOutlined />} onClick={onRefresh} loading={refreshing}>刷新</Button>}>
       {!run ? <Empty description="请选择一条执行记录" /> : (

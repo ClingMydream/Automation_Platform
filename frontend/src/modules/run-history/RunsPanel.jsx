@@ -1,3 +1,6 @@
+// File purpose: Run history page. Show run summary, run table, and selected run detail.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React from 'react';
 import { Button, Card, Col, Row, Space, Statistic, Table, Tag } from 'antd';
 import { ClockCircleOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -10,6 +13,7 @@ import { buildRunSummary, findRunById } from './runHistoryFeature.js';
 export function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun }) {
   const selectedRun = findRunById(runs, selectedRunId);
   const summary = buildRunSummary(runs);
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Space direction="vertical" size={16} className="full-width">
       <Row gutter={[16, 16]}>

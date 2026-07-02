@@ -1,3 +1,6 @@
+// File purpose: Test reports page. Filter reports, view details, and export HTML reports.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import React, { useState } from 'react';
 import { Button, Card, Col, Row, Select, Space, Statistic, Table, Tag } from 'antd';
 import { ClockCircleOutlined, DownloadOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -9,6 +12,7 @@ import { buildReportSummary, filterReports, findReportById } from './testReportF
 
 // Reports page: shows report statistics, filters, details, and export action.
 export function ReportsPanel({ reports, reload, refreshing }) {
+  // State block: values here control loading, selection, form state, and visible page data.
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedReportId, setSelectedReportId] = useState(null);
@@ -16,6 +20,7 @@ export function ReportsPanel({ reports, reload, refreshing }) {
   const summary = buildReportSummary(reports);
   const selectedReport = findReportById(reports, selectedReportId);
 
+  // Render block: JSX below describes what the user sees on this page.
   return (
     <Space direction="vertical" size={16} className="full-width">
       <Row gutter={[16, 16]}>

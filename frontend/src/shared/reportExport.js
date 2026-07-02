@@ -1,3 +1,6 @@
+// File purpose: Shared HTML report exporter for test reports.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import { escapeHtml } from './html';
 import { formatDuration, formatTime } from './formatters';
 
@@ -5,6 +8,7 @@ import { formatDuration, formatTime } from './formatters';
 // 修改建议：如果要调整 HTML 报告样式，优先改这里；不要把导出模板散落在页面组件里。
 
 // Build and download an HTML test report file.
+// Shared helper block: exported helpers below are reused by multiple modules.
 export function downloadReportHtml(report) {
   const detail = report?.report || {};
   const checks = detail.checks || [];

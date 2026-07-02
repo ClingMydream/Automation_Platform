@@ -1,3 +1,6 @@
+// File purpose: Shared API request wrapper. It adds auth headers and normalizes backend errors.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import { API_BASE, AUTH_EXPIRED_EVENT } from './constants';
 
 // 前端 API 客户端。
@@ -16,6 +19,7 @@ function notifyAuthExpired() {
 }
 
 // Create a shared API client that attaches tokens and handles expired sessions.
+// Shared helper block: exported helpers below are reused by multiple modules.
 export function apiClient(token) {
   // Send one HTTP request, parse the response, and normalize API errors.
   async function request(path, options = {}) {

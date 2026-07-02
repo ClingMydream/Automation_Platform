@@ -1,3 +1,6 @@
+// File purpose: Shared codec algorithms used by the codec tools page.
+// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+
 import { escapeHtml } from './html';
 
 // 通用转码模块。
@@ -73,6 +76,7 @@ function base64UrlDecode(text) {
 }
 
 // Dispatch the selected encode or decode operation.
+// Shared helper block: exported helpers below are reused by multiple modules.
 export function runCodec(operation, input) {
   const operations = {
     url_encode: () => encodeURIComponent(input),
