@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, create_access_token, ensure_admin_user, get_current_user, hash_password, require_menu, verify_admin, verify_password
 from app.core.config import get_settings
+from app.core.menu import ADMIN_MENU, ADMIN_MENU_KEYS, ALL_MENU_KEYS, MENU_OPTIONS
 from app.core.target_guard import validate_public_http_url
 from app.db import get_db
 from app.models.entities import ApiCase, AppUser, Environment, FileTransfer, Project, TestRun, UiCase
@@ -39,21 +40,6 @@ from app.services.queue import enqueue_run
 
 
 router = APIRouter()
-
-
-MENU_OPTIONS = [
-    {"key": "projects", "label": "项目"},
-    {"key": "api", "label": "接口测试"},
-    {"key": "ui", "label": "UI 测试"},
-    {"key": "files", "label": "文件快传"},
-    {"key": "images", "label": "图片工具"},
-    {"key": "json_tools", "label": "JSON 工具"},
-    {"key": "codec", "label": "转码工具"},
-    {"key": "runs", "label": "执行记录"},
-    {"key": "reports", "label": "测试报告"},
-]
-ADMIN_MENU = {"key": "users", "label": "用户管理"}
-ALL_MENU_KEYS = {item["key"] for item in MENU_OPTIONS} | {ADMIN_MENU["key"]}
 
 
 IMAGE_FORMATS = {
@@ -102,7 +88,7 @@ def _normalize_menu_permissions(values: list[str]) -> list[str]:
 
 
 def _user_response(user: AppUser) -> dict:
-    permissions = ["projects", "api", "ui", "files", "images", "json_tools", "codec", "runs", "reports", "users"] if user.is_admin else list(user.menu_permissions or [])
+    permissions = ADMIN_MENU_KEYS if user.is_admin else list(user.menu_permissions or [])
     return {
         "id": user.id,
         "username": user.username,
@@ -354,11 +340,13 @@ def _create_transfer(
     return item
 
 
+# 基础健康检查：Docker 和反向代理用它判断后端是否可用。
 @router.get("/health")
 def health():
     return {"status": "ok"}
 
 
+# 登录认证：只负责登录、退出、当前用户信息，不放业务功能。
 @router.post("/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     settings = get_settings()
@@ -386,6 +374,7 @@ def me(current_user: AuthContext = Depends(get_current_user)):
     }
 
 
+# 用户管理：管理员专属，用来维护登录账号和菜单权限。
 @router.get("/menu-options")
 def menu_options(_: AuthContext = Depends(verify_admin)):
     return MENU_OPTIONS
@@ -427,7 +416,7 @@ def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(veri
     if user.is_admin:
         user.display_name = payload.display_name or user.display_name
         user.is_active = True
-        user.menu_permissions = ["projects", "api", "ui", "files", "images", "json_tools", "codec", "runs", "reports", "users"]
+        user.menu_permissions = ADMIN_MENU_KEYS
     else:
         user.display_name = payload.display_name
         user.is_active = payload.is_active
@@ -451,6 +440,7 @@ def delete_user(user_id: int, _: AuthContext = Depends(verify_admin), db: Sessio
     return {"status": "ok"}
 
 
+# 项目与环境：接口用例和 UI 用例都依赖项目，所以权限归到 projects。
 @router.get("/projects", response_model=list[ProjectRead])
 def list_projects(_: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
     return db.query(Project).order_by(Project.id.desc()).all()
@@ -510,6 +500,7 @@ def create_environment(payload: EnvironmentCreate, _: AuthContext = Depends(requ
     return environment
 
 
+# 接口测试用例：这里只保存用例配置，真正执行由 worker 完成。
 @router.get("/api-cases", response_model=list[ApiCaseRead])
 def list_api_cases(_: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
     return db.query(ApiCase).order_by(ApiCase.id.desc()).all()
@@ -553,6 +544,7 @@ def delete_api_case(case_id: int, _: AuthContext = Depends(require_menu("api")),
     return {"status": "ok"}
 
 
+# UI 测试用例：保存低代码步骤 JSON，执行时由 worker 调用 Playwright。
 @router.get("/ui-cases", response_model=list[UiCaseRead])
 def list_ui_cases(_: AuthContext = Depends(require_menu("ui")), db: Session = Depends(get_db)):
     return db.query(UiCase).order_by(UiCase.id.desc()).all()
@@ -601,6 +593,7 @@ def delete_ui_case(case_id: int, _: AuthContext = Depends(require_menu("ui")), d
     return {"status": "ok"}
 
 
+# 文件快传：后台上传文件生成二维码，公开 token 页面用于手机下载/回传。
 @router.get("/file-transfers")
 def list_file_transfers(_: AuthContext = Depends(require_menu("files")), db: Session = Depends(get_db)):
     _cleanup_expired(db)
@@ -699,6 +692,7 @@ def upload_public_file_transfer(token: str, file: UploadFile = File(...), db: Se
     return _file_response(item)
 
 
+# 图片工具：后端负责真实图片处理，前端只负责收集参数和下载结果。
 @router.get("/image-tools/formats")
 def list_image_formats(_: AuthContext = Depends(require_menu("images"))):
     return [
@@ -779,6 +773,7 @@ def process_image(
     return _serialize_image(image, format, quality, max_kb, filename)
 
 
+# 执行任务：创建任务后进入 Redis 队列，worker 异步执行并回写结果。
 @router.get("/runs", response_model=list[RunRead])
 def list_runs(_: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
     return db.query(TestRun).order_by(TestRun.id.desc()).limit(100).all()
@@ -808,6 +803,7 @@ def get_run(run_id: int, _: AuthContext = Depends(require_menu("runs")), db: Ses
     return run
 
 
+# 测试报告：从执行记录中汇总报告字段，供页面查看和导出。
 @router.get("/reports")
 def list_reports(_: AuthContext = Depends(require_menu("reports")), db: Session = Depends(get_db)):
     runs = db.query(TestRun).order_by(TestRun.id.desc()).limit(200).all()

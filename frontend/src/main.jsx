@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { runCodec } from './shared/codec';
+import { formatBytes, formatDuration, formatTime, statusColor } from './shared/formatters';
+import { downloadBlob, transferKind, transferKindLabel, TransferPreview } from './shared/fileTransfer.jsx';
+import { compareJsonValues, parseJsonInput, stableStringifyJson } from './shared/jsonTools';
+import { downloadReportHtml } from './shared/reportExport';
 import {
   Alert,
   App as AntApp,
@@ -123,277 +128,6 @@ function apiClient(token) {
     put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (path) => request(path, { method: 'DELETE' }),
   };
-}
-
-function formatTime(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleString('zh-CN', { hour12: false });
-}
-
-function formatDuration(ms) {
-  if (ms === null || ms === undefined) return '-';
-  if (ms < 1000) return `${ms} ms`;
-  return `${(ms / 1000).toFixed(2)} s`;
-}
-
-function formatBytes(value) {
-  if (!value && value !== 0) return '-';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let size = value;
-  let index = 0;
-  while (size >= 1024 && index < units.length - 1) {
-    size /= 1024;
-    index += 1;
-  }
-  return `${size.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-function transferKind(item) {
-  const contentType = (item?.content_type || '').toLowerCase();
-  const name = (item?.original_name || '').toLowerCase();
-  if (contentType.startsWith('image/') || /\.(apng|avif|bmp|gif|heic|heif|ico|jpe?g|png|svg|webp)$/.test(name)) return 'image';
-  if (contentType.startsWith('video/') || /\.(3gp|avi|m4v|mkv|mov|mp4|mpeg|mpg|ogv|webm)$/.test(name)) return 'video';
-  return 'file';
-}
-
-function transferKindLabel(item) {
-  return { image: '图片', video: '视频', file: '文件' }[transferKind(item)];
-}
-
-function TransferPreview({ item }) {
-  if (!item) return null;
-  const kind = transferKind(item);
-  if (kind === 'image') {
-    return (
-      <div className="transfer-preview">
-        <img src={item.preview_url || item.download_url} alt={item.original_name} />
-      </div>
-    );
-  }
-  if (kind === 'video') {
-    return (
-      <div className="transfer-preview transfer-preview-video">
-        <video controls preload="metadata" src={item.preview_url || item.download_url}>
-          <track kind="captions" />
-        </video>
-      </div>
-    );
-  }
-  return null;
-}
-
-function downloadBlob(blob, fallbackName, onPreview) {
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.download = fallbackName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-  onPreview?.(objectUrl);
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function parseJsonInput(text) {
-  return JSON.parse(text || 'null');
-}
-
-function stableStringifyJson(value, compact = false) {
-  return JSON.stringify(value, null, compact ? 0 : 2);
-}
-
-function valueType(value) {
-  if (Array.isArray(value)) return 'array';
-  if (value === null) return 'null';
-  return typeof value;
-}
-
-function previewValue(value) {
-  if (value === undefined) return '不存在';
-  if (typeof value === 'string') return value;
-  return JSON.stringify(value);
-}
-
-function compareJsonValues(left, right, path = '$') {
-  const diffs = [];
-  const leftType = valueType(left);
-  const rightType = valueType(right);
-  if (leftType !== rightType) {
-    return [{ path, type: '类型不同', left: previewValue(left), right: previewValue(right) }];
-  }
-  if (leftType === 'object') {
-    const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
-    [...keys].sort().forEach((key) => {
-      const nextPath = `${path}.${key}`;
-      if (!(key in left)) diffs.push({ path: nextPath, type: '右侧新增', left: '不存在', right: previewValue(right[key]) });
-      else if (!(key in right)) diffs.push({ path: nextPath, type: '左侧独有', left: previewValue(left[key]), right: '不存在' });
-      else diffs.push(...compareJsonValues(left[key], right[key], nextPath));
-    });
-    return diffs;
-  }
-  if (leftType === 'array') {
-    const max = Math.max(left.length, right.length);
-    for (let index = 0; index < max; index += 1) {
-      const nextPath = `${path}[${index}]`;
-      if (index >= left.length) diffs.push({ path: nextPath, type: '右侧新增', left: '不存在', right: previewValue(right[index]) });
-      else if (index >= right.length) diffs.push({ path: nextPath, type: '左侧独有', left: previewValue(left[index]), right: '不存在' });
-      else diffs.push(...compareJsonValues(left[index], right[index], nextPath));
-    }
-    return diffs;
-  }
-  if (left !== right) {
-    diffs.push({ path, type: '值不同', left: previewValue(left), right: previewValue(right) });
-  }
-  return diffs;
-}
-
-function utf8ToBase64(text) {
-  const bytes = new TextEncoder().encode(text);
-  let binary = '';
-  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-  return btoa(binary);
-}
-
-function base64ToUtf8(text) {
-  const binary = atob(text.trim());
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}
-
-function textToHex(text) {
-  return [...new TextEncoder().encode(text)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function hexToText(text) {
-  const cleaned = text.replace(/[^0-9a-fA-F]/g, '');
-  if (cleaned.length % 2 !== 0) throw new Error('Hex 长度必须是偶数');
-  const bytes = new Uint8Array(cleaned.match(/.{2}/g)?.map((part) => parseInt(part, 16)) || []);
-  return new TextDecoder().decode(bytes);
-}
-
-function unicodeEscape(text) {
-  return Array.from(text).map((char) => {
-    const code = char.codePointAt(0);
-    if (code <= 0x7f) return char;
-    if (code <= 0xffff) return `\\u${code.toString(16).padStart(4, '0')}`;
-    return `\\u{${code.toString(16)}}`;
-  }).join('');
-}
-
-function unicodeUnescape(text) {
-  return text
-    .replace(/\\u\{([0-9a-fA-F]+)\}/g, (_, code) => String.fromCodePoint(parseInt(code, 16)))
-    .replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(parseInt(code, 16)));
-}
-
-function htmlEntityEncode(text) {
-  return escapeHtml(text).replaceAll('\n', '&#10;');
-}
-
-function htmlEntityDecode(text) {
-  const textarea = document.createElement('textarea');
-  textarea.innerHTML = text;
-  return textarea.value;
-}
-
-function base64UrlEncode(text) {
-  return utf8ToBase64(text).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/g, '');
-}
-
-function base64UrlDecode(text) {
-  const normalized = text.trim().replaceAll('-', '+').replaceAll('_', '/');
-  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
-  return base64ToUtf8(padded);
-}
-
-function runCodec(operation, input) {
-  const operations = {
-    url_encode: () => encodeURIComponent(input),
-    url_decode: () => decodeURIComponent(input),
-    base64_encode: () => utf8ToBase64(input),
-    base64_decode: () => base64ToUtf8(input),
-    base64url_encode: () => base64UrlEncode(input),
-    base64url_decode: () => base64UrlDecode(input),
-    unicode_escape: () => unicodeEscape(input),
-    unicode_unescape: () => unicodeUnescape(input),
-    html_encode: () => htmlEntityEncode(input),
-    html_decode: () => htmlEntityDecode(input),
-    hex_encode: () => textToHex(input),
-    hex_decode: () => hexToText(input),
-    json_escape: () => JSON.stringify(input),
-    json_unescape: () => {
-      const value = JSON.parse(input);
-      return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-    },
-  };
-  return operations[operation]?.() ?? input;
-}
-
-function downloadReportHtml(report) {
-  const detail = report?.report || {};
-  const checks = detail.checks || [];
-  const events = detail.events || [];
-  const html = `<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <title>测试报告 #${report.id}</title>
-  <style>
-    body { margin: 0; padding: 28px; font-family: "Segoe UI", Arial, sans-serif; color: #17202a; background: #eef2f5; }
-    main { max-width: 980px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 8px; }
-    h1 { margin-top: 0; }
-    table { width: 100%; border-collapse: collapse; margin: 14px 0; }
-    th, td { border: 1px solid #d7e2e8; padding: 8px; text-align: left; vertical-align: top; }
-    th { background: #f3f7f8; }
-    pre { white-space: pre-wrap; background: #142028; color: #e7f3f4; padding: 12px; border-radius: 6px; overflow: auto; }
-    .passed { color: #15803d; font-weight: 700; }
-    .failed { color: #b91c1c; font-weight: 700; }
-    img { max-width: 100%; border: 1px solid #d7e2e8; border-radius: 6px; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>测试报告 #${report.id}</h1>
-    <p>用例：${escapeHtml(report.case_name)} ｜ 类型：${escapeHtml(report.case_type)} ｜ 状态：<span class="${report.status === 'passed' ? 'passed' : 'failed'}">${escapeHtml(report.status)}</span></p>
-    <table>
-      <tbody>
-        <tr><th>创建时间</th><td>${escapeHtml(formatTime(report.created_at))}</td></tr>
-        <tr><th>更新时间</th><td>${escapeHtml(formatTime(report.updated_at))}</td></tr>
-        <tr><th>耗时</th><td>${escapeHtml(formatDuration(report.duration_ms))}</td></tr>
-        <tr><th>错误信息</th><td>${escapeHtml(report.error || '-')}</td></tr>
-      </tbody>
-    </table>
-    <h2>断言检查</h2>
-    ${checks.length ? `<table><thead><tr><th>名称</th><th>结果</th><th>期望</th><th>实际</th></tr></thead><tbody>${checks.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.passed ? '通过' : '失败'}</td><td>${escapeHtml(item.expected)}</td><td>${escapeHtml(item.actual)}</td></tr>`).join('')}</tbody></table>` : '<p>无断言检查。</p>'}
-    <h2>UI 步骤</h2>
-    ${events.length ? `<table><thead><tr><th>步骤</th><th>动作</th><th>目标</th><th>值</th><th>耗时</th></tr></thead><tbody>${events.map((item) => `<tr><td>${escapeHtml(item.step)}</td><td>${escapeHtml(item.action)}</td><td>${escapeHtml(item.target || '-')}</td><td>${escapeHtml(item.value || '-')}</td><td>${escapeHtml(formatDuration(item.elapsed_ms))}</td></tr>`).join('')}</tbody></table>` : '<p>无 UI 步骤。</p>'}
-    ${detail.response ? `<h2>接口响应</h2><pre>${escapeHtml(JSON.stringify(detail.response, null, 2))}</pre>` : ''}
-    ${detail.latest_screenshot ? `<h2>最新截图</h2><img src="${detail.latest_screenshot}" alt="latest screenshot" />` : ''}
-    <h2>原始报告 JSON</h2>
-    <pre>${escapeHtml(JSON.stringify(detail, null, 2))}</pre>
-  </main>
-</body>
-</html>`;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  downloadBlob(blob, `test-report-${report.id}.html`);
-}
-
-function statusColor(status) {
-  return {
-    queued: 'gold',
-    running: 'processing',
-    passed: 'success',
-    failed: 'error',
-  }[status || 'queued'] || 'default';
 }
 
 function StatusTag({ status }) {
@@ -526,6 +260,8 @@ function Login({ onLogin, notice }) {
   );
 }
 
+// 项目管理模块：维护项目基础信息。
+// 常改位置：表单字段、项目列表列配置、创建/编辑/删除按钮逻辑。
 function ProjectPanel({ client, projects, reload }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
@@ -621,6 +357,8 @@ function ProjectPanel({ client, projects, reload }) {
   );
 }
 
+// 接口测试模块：维护接口用例，并向后端创建执行任务。
+// 常改位置：请求字段、断言字段、用例表格列、执行按钮行为。
 function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
@@ -805,6 +543,8 @@ function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated }) {
   );
 }
 
+// UI 测试模块：维护低代码 UI 步骤，并打开实时执行窗口。
+// 常改位置：步骤 JSON 示例、步骤校验说明、执行窗口打开方式。
 function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
@@ -950,6 +690,8 @@ function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
   );
 }
 
+// 图片工具模块：调用后端图片接口完成生成、裁剪、格式转换。
+// 常改位置：格式选项、尺寸限制、表单默认值、下载文件命名。
 function ImageToolPanel({ token }) {
   const [formats, setFormats] = useState([]);
   const [generating, setGenerating] = useState(false);
@@ -1134,6 +876,8 @@ function ImageToolPanel({ token }) {
   );
 }
 
+// 用户管理模块：管理员维护登录人员和可见菜单权限。
+// 常改位置：菜单权限选项、用户表格字段、普通用户限制规则。
 function UserPanel({ client }) {
   const [form] = Form.useForm();
   const [users, setUsers] = useState([]);
@@ -1289,6 +1033,8 @@ function UserPanel({ client }) {
   );
 }
 
+// 文件快传模块：电脑端上传临时文件，手机扫码下载或回传文件。
+// 常改位置：过期时间、文件大小限制、文件预览与下载展示方式。
 function FileTransferPanel({ client }) {
   const [transfers, setTransfers] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -1437,6 +1183,8 @@ function FileTransferPanel({ client }) {
   );
 }
 
+// 手机扫码公开页面：不进入后台菜单，只根据 token 访问临时文件。
+// 常改位置：手机端文案、上传入口、下载按钮和预览区域。
 function PublicTransferPage({ token }) {
   const client = useMemo(() => apiClient(), []);
   const [item, setItem] = useState(null);
@@ -1521,6 +1269,8 @@ function PublicTransferPage({ token }) {
   );
 }
 
+// 执行详情组件：展示一次测试任务的日志、断言、截图和错误信息。
+// 常改位置：详情抽屉布局、刷新按钮、截图展示、报告字段。
 function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
   const report = run?.report || {};
   const events = report.events || [];
@@ -1594,6 +1344,8 @@ function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
   );
 }
 
+// 执行记录模块：展示历史执行任务，并打开详情抽屉。
+// 常改位置：列表列配置、筛选条件、刷新策略、详情入口。
 function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun }) {
   const selectedRun = runs.find((run) => run.id === selectedRunId) || null;
   const summary = {
@@ -1634,6 +1386,8 @@ function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun }) {
   );
 }
 
+// 测试报告模块：面向结果复盘，支持查看详情和导出 HTML 报告。
+// 常改位置：报告筛选、报告列、导出模板在 shared/reportExport.js。
 function ReportsPanel({ reports, reload, refreshing }) {
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -1724,6 +1478,8 @@ function ReportsPanel({ reports, reload, refreshing }) {
   );
 }
 
+// JSON 工具模块：纯浏览器本地处理，不向服务器上传内容。
+// 常改位置：对比算法在 shared/jsonTools.js，页面只负责输入和结果展示。
 function JsonToolsPanel() {
   const [leftJson, setLeftJson] = useState('{\n  "name": "demo",\n  "enabled": true\n}');
   const [rightJson, setRightJson] = useState('{\n  "name": "demo",\n  "enabled": false,\n  "version": 1\n}');
@@ -1806,6 +1562,8 @@ function JsonToolsPanel() {
   );
 }
 
+// 转码工具模块：纯浏览器本地处理，适合处理接口参数和日志片段。
+// 常改位置：转码算法在 shared/codec.js，页面 options 只负责展示名称。
 function CodecPanel() {
   const [operation, setOperation] = useState('url_encode');
   const [input, setInput] = useState('中文参数 test=123');
@@ -1880,6 +1638,8 @@ function CodecPanel() {
   );
 }
 
+// UI 实时执行窗口：新窗口展示 UI 自动化运行过程和最新截图。
+// 常改位置：轮询间隔、截图区域、步骤条展示、错误提示。
 function LiveRunWindow({ token, runId }) {
   const client = useMemo(() => apiClient(token), [token]);
   const [run, setRun] = useState(null);
@@ -1954,6 +1714,8 @@ function LiveRunWindow({ token, runId }) {
   );
 }
 
+// 应用总入口：负责登录态、权限菜单、全局数据加载和模块切换。
+// 常改位置：左侧菜单、reload 数据源、tab 到页面组件的映射。
 function PlatformApp() {
   const params = new URLSearchParams(window.location.search);
   const initialRunId = Number(params.get('runId')) || null;
@@ -2133,3 +1895,4 @@ createRoot(document.getElementById('root')).render(
     </AntApp>
   </ConfigProvider>,
 );
+
