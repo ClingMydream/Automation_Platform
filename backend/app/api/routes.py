@@ -48,6 +48,7 @@ MENU_OPTIONS = [
     {"key": "files", "label": "文件快传"},
     {"key": "images", "label": "图片工具"},
     {"key": "runs", "label": "执行记录"},
+    {"key": "reports", "label": "测试报告"},
 ]
 ADMIN_MENU = {"key": "users", "label": "用户管理"}
 ALL_MENU_KEYS = {item["key"] for item in MENU_OPTIONS} | {ADMIN_MENU["key"]}
@@ -99,7 +100,7 @@ def _normalize_menu_permissions(values: list[str]) -> list[str]:
 
 
 def _user_response(user: AppUser) -> dict:
-    permissions = ["projects", "api", "ui", "files", "images", "runs", "users"] if user.is_admin else list(user.menu_permissions or [])
+    permissions = ["projects", "api", "ui", "files", "images", "runs", "reports", "users"] if user.is_admin else list(user.menu_permissions or [])
     return {
         "id": user.id,
         "username": user.username,
@@ -108,6 +109,42 @@ def _user_response(user: AppUser) -> dict:
         "is_active": user.is_active,
         "menu_permissions": permissions,
         "created_at": user.created_at,
+    }
+
+
+def _case_name_for_run(db: Session, run: TestRun) -> str:
+    model = ApiCase if run.case_type == "api" else UiCase
+    case = db.get(model, run.case_id)
+    return case.name if case else f"已删除用例 #{run.case_id}"
+
+
+def _report_summary(run: TestRun, case_name: str) -> dict:
+    report = run.report or {}
+    checks = report.get("checks") or []
+    events = report.get("events") or []
+    screenshots = report.get("screenshots") or []
+    return {
+        "id": run.id,
+        "case_type": run.case_type,
+        "case_id": run.case_id,
+        "case_name": case_name,
+        "status": run.status,
+        "passed": report.get("passed") if report else run.status == "passed",
+        "duration_ms": run.duration_ms,
+        "logs": run.logs,
+        "error": run.error,
+        "created_at": run.created_at,
+        "updated_at": run.updated_at,
+        "check_count": len(checks),
+        "event_count": len(events),
+        "screenshot_count": len(screenshots),
+        "summary": {
+            "request": report.get("request"),
+            "response_status": (report.get("response") or {}).get("status_code"),
+            "current_step": report.get("current_step"),
+            "total_steps": report.get("total_steps"),
+        },
+        "report": report,
     }
 
 
@@ -388,7 +425,7 @@ def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(veri
     if user.is_admin:
         user.display_name = payload.display_name or user.display_name
         user.is_active = True
-        user.menu_permissions = ["projects", "api", "ui", "files", "images", "runs", "users"]
+        user.menu_permissions = ["projects", "api", "ui", "files", "images", "runs", "reports", "users"]
     else:
         user.display_name = payload.display_name
         user.is_active = payload.is_active
@@ -769,9 +806,15 @@ def get_run(run_id: int, _: AuthContext = Depends(require_menu("runs")), db: Ses
     return run
 
 
+@router.get("/reports")
+def list_reports(_: AuthContext = Depends(require_menu("reports")), db: Session = Depends(get_db)):
+    runs = db.query(TestRun).order_by(TestRun.id.desc()).limit(200).all()
+    return [_report_summary(run, _case_name_for_run(db, run)) for run in runs]
+
+
 @router.get("/reports/{run_id}")
-def get_report(run_id: int, _: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
+def get_report(run_id: int, _: AuthContext = Depends(require_menu("reports")), db: Session = Depends(get_db)):
     run = db.get(TestRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Report not found")
-    return run.report or {}
+    return _report_summary(run, _case_name_for_run(db, run))

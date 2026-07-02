@@ -38,6 +38,7 @@ import {
   DownloadOutlined,
   EditOutlined,
   EyeOutlined,
+  FileDoneOutlined,
   FolderOutlined,
   InboxOutlined,
   LogoutOutlined,
@@ -191,6 +192,64 @@ function downloadBlob(blob, fallbackName, onPreview) {
   onPreview?.(objectUrl);
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function downloadReportHtml(report) {
+  const detail = report?.report || {};
+  const checks = detail.checks || [];
+  const events = detail.events || [];
+  const html = `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>测试报告 #${report.id}</title>
+  <style>
+    body { margin: 0; padding: 28px; font-family: "Segoe UI", Arial, sans-serif; color: #17202a; background: #eef2f5; }
+    main { max-width: 980px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 8px; }
+    h1 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+    th, td { border: 1px solid #d7e2e8; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f3f7f8; }
+    pre { white-space: pre-wrap; background: #142028; color: #e7f3f4; padding: 12px; border-radius: 6px; overflow: auto; }
+    .passed { color: #15803d; font-weight: 700; }
+    .failed { color: #b91c1c; font-weight: 700; }
+    img { max-width: 100%; border: 1px solid #d7e2e8; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>测试报告 #${report.id}</h1>
+    <p>用例：${escapeHtml(report.case_name)} ｜ 类型：${escapeHtml(report.case_type)} ｜ 状态：<span class="${report.status === 'passed' ? 'passed' : 'failed'}">${escapeHtml(report.status)}</span></p>
+    <table>
+      <tbody>
+        <tr><th>创建时间</th><td>${escapeHtml(formatTime(report.created_at))}</td></tr>
+        <tr><th>更新时间</th><td>${escapeHtml(formatTime(report.updated_at))}</td></tr>
+        <tr><th>耗时</th><td>${escapeHtml(formatDuration(report.duration_ms))}</td></tr>
+        <tr><th>错误信息</th><td>${escapeHtml(report.error || '-')}</td></tr>
+      </tbody>
+    </table>
+    <h2>断言检查</h2>
+    ${checks.length ? `<table><thead><tr><th>名称</th><th>结果</th><th>期望</th><th>实际</th></tr></thead><tbody>${checks.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.passed ? '通过' : '失败'}</td><td>${escapeHtml(item.expected)}</td><td>${escapeHtml(item.actual)}</td></tr>`).join('')}</tbody></table>` : '<p>无断言检查。</p>'}
+    <h2>UI 步骤</h2>
+    ${events.length ? `<table><thead><tr><th>步骤</th><th>动作</th><th>目标</th><th>值</th><th>耗时</th></tr></thead><tbody>${events.map((item) => `<tr><td>${escapeHtml(item.step)}</td><td>${escapeHtml(item.action)}</td><td>${escapeHtml(item.target || '-')}</td><td>${escapeHtml(item.value || '-')}</td><td>${escapeHtml(formatDuration(item.elapsed_ms))}</td></tr>`).join('')}</tbody></table>` : '<p>无 UI 步骤。</p>'}
+    ${detail.response ? `<h2>接口响应</h2><pre>${escapeHtml(JSON.stringify(detail.response, null, 2))}</pre>` : ''}
+    ${detail.latest_screenshot ? `<h2>最新截图</h2><img src="${detail.latest_screenshot}" alt="latest screenshot" />` : ''}
+    <h2>原始报告 JSON</h2>
+    <pre>${escapeHtml(JSON.stringify(detail, null, 2))}</pre>
+  </main>
+</body>
+</html>`;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  downloadBlob(blob, `test-report-${report.id}.html`);
+}
+
 function statusColor(status) {
   return {
     queued: 'gold',
@@ -225,6 +284,11 @@ function PageGuide({ tab }) {
       title: '执行记录',
       description: '查看任务状态、耗时、执行时间、接口断言、UI 步骤和截图。',
       steps: ['点击详情查看报告', '运行中自动刷新', '失败时查看错误信息'],
+    },
+    reports: {
+      title: '测试报告',
+      description: '汇总接口和 UI 自动化的执行结果，查看通过率、失败原因、断言明细、UI 步骤和截图。',
+      steps: ['筛选报告', '查看详情', '导出 HTML 报告'],
     },
     files: {
       title: '文件快传',
@@ -1423,6 +1487,96 @@ function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun }) {
   );
 }
 
+function ReportsPanel({ reports, reload, refreshing }) {
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedReportId, setSelectedReportId] = useState(null);
+  const filtered = reports.filter((item) => {
+    if (typeFilter !== 'all' && item.case_type !== typeFilter) return false;
+    if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+    return true;
+  });
+  const completed = reports.filter((item) => ['passed', 'failed'].includes(item.status));
+  const passed = reports.filter((item) => item.status === 'passed').length;
+  const failed = reports.filter((item) => item.status === 'failed').length;
+  const avgDuration = completed.length
+    ? Math.round(completed.reduce((sum, item) => sum + (item.duration_ms || 0), 0) / completed.length)
+    : null;
+  const selectedReport = reports.find((item) => item.id === selectedReportId) || null;
+
+  return (
+    <Space direction="vertical" size={16} className="full-width">
+      <Row gutter={[16, 16]}>
+        <Col xs={12} lg={6}><Card><Statistic title="报告总数" value={reports.length} prefix={<ClockCircleOutlined />} /></Card></Col>
+        <Col xs={12} lg={6}><Card><Statistic title="通过" value={passed} valueStyle={{ color: '#16a34a' }} /></Card></Col>
+        <Col xs={12} lg={6}><Card><Statistic title="失败" value={failed} valueStyle={{ color: '#dc2626' }} /></Card></Col>
+        <Col xs={12} lg={6}><Card><Statistic title="平均耗时" value={avgDuration === null ? '-' : formatDuration(avgDuration)} /></Card></Col>
+      </Row>
+      <Card
+        title="测试报告列表"
+        extra={(
+          <Space wrap>
+            <Select
+              value={typeFilter}
+              onChange={setTypeFilter}
+              style={{ width: 130 }}
+              options={[
+                { value: 'all', label: '全部类型' },
+                { value: 'api', label: '接口测试' },
+                { value: 'ui', label: 'UI 测试' },
+              ]}
+            />
+            <Select
+              value={statusFilter}
+              onChange={setStatusFilter}
+              style={{ width: 130 }}
+              options={[
+                { value: 'all', label: '全部状态' },
+                { value: 'passed', label: '通过' },
+                { value: 'failed', label: '失败' },
+                { value: 'running', label: '运行中' },
+                { value: 'queued', label: '排队中' },
+              ]}
+            />
+            <Button icon={<ReloadOutlined />} loading={refreshing} onClick={reload}>刷新</Button>
+          </Space>
+        )}
+      >
+        <Table
+          rowKey="id"
+          dataSource={filtered}
+          pagination={{ pageSize: 10 }}
+          scroll={{ x: 1180 }}
+          columns={[
+            { title: '报告 ID', dataIndex: 'id', width: 90 },
+            { title: '类型', dataIndex: 'case_type', width: 100, render: (value) => <Tag>{value === 'api' ? '接口' : 'UI'}</Tag> },
+            { title: '用例名称', dataIndex: 'case_name', ellipsis: true },
+            { title: '状态', dataIndex: 'status', width: 110, render: (value) => <StatusTag status={value} /> },
+            { title: '耗时', dataIndex: 'duration_ms', width: 110, render: formatDuration },
+            { title: '断言', dataIndex: 'check_count', width: 90, render: (value) => value || 0 },
+            { title: '步骤', dataIndex: 'event_count', width: 90, render: (value) => value || 0 },
+            { title: '截图', dataIndex: 'screenshot_count', width: 90, render: (value) => value || 0 },
+            { title: '完成时间', dataIndex: 'updated_at', width: 180, render: formatTime },
+            { title: '错误', dataIndex: 'error', ellipsis: true, render: (value) => value || '-' },
+            {
+              title: '操作',
+              width: 190,
+              fixed: 'right',
+              render: (_, record) => (
+                <Space className="table-actions" size={6} wrap>
+                  <Button icon={<EyeOutlined />} onClick={() => setSelectedReportId(record.id)}>详情</Button>
+                  <Button icon={<DownloadOutlined />} onClick={() => downloadReportHtml(record)}>导出</Button>
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </Card>
+      <RunDetail run={selectedReport} open={Boolean(selectedReportId)} onClose={() => setSelectedReportId(null)} onRefresh={reload} refreshing={refreshing} />
+    </Space>
+  );
+}
+
 function LiveRunWindow({ token, runId }) {
   const client = useMemo(() => apiClient(token), [token]);
   const [run, setRun] = useState(null);
@@ -1505,7 +1659,7 @@ function PlatformApp() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
-  const [data, setData] = useState({ projects: [], apiCases: [], uiCases: [], runs: [] });
+  const [data, setData] = useState({ projects: [], apiCases: [], uiCases: [], runs: [], reports: [] });
   const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loginNotice, setLoginNotice] = useState('');
@@ -1524,7 +1678,7 @@ function PlatformApp() {
     setToken('');
     setTab('projects');
     setSelectedRunId(null);
-    setData({ projects: [], apiCases: [], uiCases: [], runs: [] });
+    setData({ projects: [], apiCases: [], uiCases: [], runs: [], reports: [] });
     setCurrentUser(null);
     setLoginNotice('登录已过期，请重新登录');
     const url = new URL(window.location.href);
@@ -1543,14 +1697,15 @@ function PlatformApp() {
     try {
       const me = await client.get('/auth/me');
       setCurrentUser(me);
-      const allowed = new Set(me.is_admin ? ['projects', 'api', 'ui', 'files', 'images', 'runs', 'users'] : me.menu_permissions || []);
-      const [projects, apiCases, uiCases, runs] = await Promise.all([
+      const allowed = new Set(me.is_admin ? ['projects', 'api', 'ui', 'files', 'images', 'runs', 'reports', 'users'] : me.menu_permissions || []);
+      const [projects, apiCases, uiCases, runs, reports] = await Promise.all([
         allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
         allowed.has('api') ? client.get('/api-cases') : Promise.resolve([]),
         allowed.has('ui') ? client.get('/ui-cases') : Promise.resolve([]),
         allowed.has('runs') ? client.get('/runs') : Promise.resolve([]),
+        allowed.has('reports') ? client.get('/reports') : Promise.resolve([]),
       ]);
-      setData({ projects, apiCases, uiCases, runs });
+      setData({ projects, apiCases, uiCases, runs, reports });
       const availableTabs = menuItemsForUser(me).map((item) => item.key);
       if (availableTabs.length > 0 && !availableTabs.includes(tab)) {
         setTab(availableTabs[0]);
@@ -1607,6 +1762,7 @@ function PlatformApp() {
     { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
     { key: 'images', icon: <PictureOutlined />, label: '图片工具' },
     { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
+    { key: 'reports', icon: <FileDoneOutlined />, label: '测试报告' },
     { key: 'users', icon: <SafetyCertificateOutlined />, label: '用户管理' },
   ];
   function menuItemsForUser(user) {
@@ -1647,6 +1803,7 @@ function PlatformApp() {
           {tab === 'images' && <ImageToolPanel token={token} />}
           {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
           {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
+          {tab === 'reports' && <ReportsPanel reports={data.reports} reload={reload} refreshing={refreshing} />}
         </Content>
       </Layout>
     </Layout>
