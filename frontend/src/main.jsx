@@ -5,6 +5,7 @@ import {
   App as AntApp,
   Button,
   Card,
+  Checkbox,
   Col,
   ConfigProvider,
   Descriptions,
@@ -234,6 +235,11 @@ function PageGuide({ tab }) {
       title: '图片工具',
       description: '自定义生成图片，也可以上传图片后裁剪尺寸、缩放大小、叠加文案并转换格式。',
       steps: ['填写尺寸和文案生成图片', '上传原图裁剪或缩放', '选择格式并下载结果'],
+    },
+    users: {
+      title: '用户管理',
+      description: '管理员可以添加登录人员，并为每个人配置可操作菜单。普通用户不会看到本模块。',
+      steps: ['新增登录账号', '勾选可操作菜单', '保存后让用户重新登录'],
     },
   };
   const guide = guides[tab] || guides.projects;
@@ -917,6 +923,161 @@ function ImageToolPanel({ token }) {
   );
 }
 
+function UserPanel({ client }) {
+  const [form] = Form.useForm();
+  const [users, setUsers] = useState([]);
+  const [menuOptions, setMenuOptions] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { message, modal } = AntApp.useApp();
+
+  async function loadUsers() {
+    setLoading(true);
+    try {
+      const [userRows, menus] = await Promise.all([
+        client.get('/users'),
+        client.get('/menu-options'),
+      ]);
+      setUsers(userRows);
+      setMenuOptions(menus.map((item) => ({ label: item.label, value: item.key })));
+    } catch (err) {
+      if (!err.authExpired) message.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  function resetForm() {
+    setEditingId(null);
+    form.resetFields();
+    form.setFieldsValue({ is_active: true, menu_permissions: [] });
+  }
+
+  function startEdit(user) {
+    setEditingId(user.id);
+    form.setFieldsValue({
+      username: user.username,
+      display_name: user.display_name || '',
+      password: '',
+      is_active: user.is_active,
+      menu_permissions: user.is_admin ? menuOptions.map((item) => item.value) : user.menu_permissions || [],
+    });
+  }
+
+  async function submit(values) {
+    setSaving(true);
+    try {
+      const payload = {
+        display_name: values.display_name || null,
+        is_active: values.is_active !== false,
+        menu_permissions: values.menu_permissions || [],
+      };
+      if (values.password) payload.password = values.password;
+      if (editingId) {
+        await client.put(`/users/${editingId}`, payload);
+        message.success('用户已更新');
+      } else {
+        await client.post('/users', { ...payload, username: values.username, password: values.password });
+        message.success('用户已创建');
+      }
+      resetForm();
+      await loadUsers();
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function remove(user) {
+    modal.confirm({
+      title: `删除用户「${user.username}」？`,
+      content: '删除后该用户将无法继续登录平台。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        await client.delete(`/users/${user.id}`);
+        message.success('用户已删除');
+        if (editingId === user.id) resetForm();
+        await loadUsers();
+      },
+    });
+  }
+
+  const editingUser = users.find((user) => user.id === editingId);
+
+  return (
+    <Row gutter={[16, 16]}>
+      <Col xs={24} xl={9}>
+        <Card title={editingId ? '修改登录人员' : '新增登录人员'} extra={editingId && <Button onClick={resetForm}>取消编辑</Button>}>
+          <Form form={form} layout="vertical" onFinish={submit} initialValues={{ is_active: true, menu_permissions: [] }}>
+            <Form.Item label="登录账号" name="username" rules={[{ required: !editingId, message: '请输入登录账号' }]}>
+              <Input disabled={Boolean(editingId)} placeholder="例如：tester01" />
+            </Form.Item>
+            <Form.Item label="姓名 / 备注" name="display_name">
+              <Input placeholder="例如：测试同事 A" />
+            </Form.Item>
+            <Form.Item label={editingId ? '新密码' : '登录密码'} name="password" rules={[{ required: !editingId, message: '请输入登录密码' }]}>
+              <Input.Password placeholder={editingId ? '不填则不修改密码' : '至少 6 位'} />
+            </Form.Item>
+            <Form.Item label="账号状态" name="is_active" valuePropName="checked">
+              <Checkbox disabled={editingUser?.is_admin}>启用该账号</Checkbox>
+            </Form.Item>
+            <Form.Item label="可操作菜单" name="menu_permissions" rules={[{ required: !editingUser?.is_admin, message: '请选择至少一个菜单' }]}>
+              <Checkbox.Group className="permission-checks" options={menuOptions} disabled={editingUser?.is_admin} />
+            </Form.Item>
+            {editingUser?.is_admin && <Alert type="info" showIcon message="系统管理员默认拥有全部菜单权限，不能在这里禁用或删除。" />}
+            <Button className="form-submit" type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新用户' : '创建用户'}</Button>
+          </Form>
+        </Card>
+      </Col>
+      <Col xs={24} xl={15}>
+        <Card title="登录人员列表" extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={loadUsers}>刷新</Button>}>
+          <Table
+            rowKey="id"
+            dataSource={users}
+            loading={loading}
+            pagination={{ pageSize: 8 }}
+            scroll={{ x: 920 }}
+            columns={[
+              { title: '账号', dataIndex: 'username', width: 130 },
+              { title: '姓名 / 备注', dataIndex: 'display_name', render: (value) => value || '-' },
+              { title: '角色', dataIndex: 'is_admin', width: 100, render: (value) => value ? <Tag color="gold">管理员</Tag> : <Tag>普通用户</Tag> },
+              { title: '状态', dataIndex: 'is_active', width: 90, render: (value) => value ? <Tag color="success">启用</Tag> : <Tag color="error">禁用</Tag> },
+              {
+                title: '菜单权限',
+                dataIndex: 'menu_permissions',
+                render: (value) => (
+                  <Space size={4} wrap>
+                    {(value || []).map((key) => <Tag key={key}>{menuOptions.find((item) => item.value === key)?.label || key}</Tag>)}
+                  </Space>
+                ),
+              },
+              {
+                title: '操作',
+                width: 150,
+                fixed: 'right',
+                render: (_, record) => (
+                  <Space className="table-actions" size={6} wrap>
+                    <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
+                    <Button danger icon={<DeleteOutlined />} disabled={record.is_admin} onClick={() => remove(record)}>删除</Button>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      </Col>
+    </Row>
+  );
+}
+
 function FileTransferPanel({ client }) {
   const [transfers, setTransfers] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -1345,6 +1506,7 @@ function PlatformApp() {
   const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
   const [data, setData] = useState({ projects: [], apiCases: [], uiCases: [], runs: [] });
+  const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loginNotice, setLoginNotice] = useState('');
   const authExpiredShownRef = useRef(false);
@@ -1363,6 +1525,7 @@ function PlatformApp() {
     setTab('projects');
     setSelectedRunId(null);
     setData({ projects: [], apiCases: [], uiCases: [], runs: [] });
+    setCurrentUser(null);
     setLoginNotice('登录已过期，请重新登录');
     const url = new URL(window.location.href);
     url.searchParams.delete('runId');
@@ -1378,13 +1541,20 @@ function PlatformApp() {
     if (!token) return;
     setRefreshing(true);
     try {
+      const me = await client.get('/auth/me');
+      setCurrentUser(me);
+      const allowed = new Set(me.is_admin ? ['projects', 'api', 'ui', 'files', 'images', 'runs', 'users'] : me.menu_permissions || []);
       const [projects, apiCases, uiCases, runs] = await Promise.all([
-        client.get('/projects'),
-        client.get('/api-cases'),
-        client.get('/ui-cases'),
-        client.get('/runs'),
+        allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
+        allowed.has('api') ? client.get('/api-cases') : Promise.resolve([]),
+        allowed.has('ui') ? client.get('/ui-cases') : Promise.resolve([]),
+        allowed.has('runs') ? client.get('/runs') : Promise.resolve([]),
       ]);
       setData({ projects, apiCases, uiCases, runs });
+      const availableTabs = menuItemsForUser(me).map((item) => item.key);
+      if (availableTabs.length > 0 && !availableTabs.includes(tab)) {
+        setTab(availableTabs[0]);
+      }
     } catch (err) {
       if (err.authExpired) return;
       message.error(err.message);
@@ -1430,15 +1600,22 @@ function PlatformApp() {
   if (!token) return <Login onLogin={handleLogin} notice={loginNotice} />;
   if (liveRunId) return <LiveRunWindow token={token} runId={liveRunId} />;
 
-  const menuItems = [
+  const allMenuItems = [
     { key: 'projects', icon: <FolderOutlined />, label: '项目' },
     { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
     { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
     { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
     { key: 'images', icon: <PictureOutlined />, label: '图片工具' },
     { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
+    { key: 'users', icon: <SafetyCertificateOutlined />, label: '用户管理' },
   ];
-  const currentTitle = menuItems.find((item) => item.key === tab)?.label;
+  function menuItemsForUser(user) {
+    if (!user) return [];
+    const allowed = new Set(user.is_admin ? allMenuItems.map((item) => item.key) : user.menu_permissions || []);
+    return allMenuItems.filter((item) => allowed.has(item.key));
+  }
+  const menuItems = menuItemsForUser(currentUser);
+  const currentTitle = menuItems.find((item) => item.key === tab)?.label || '加载中';
 
   return (
     <Layout className="app-layout">
@@ -1451,7 +1628,7 @@ function PlatformApp() {
           </div>
         </div>
         <Menu theme="dark" mode="inline" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
-        <Button className="logout-button" icon={<LogoutOutlined />} onClick={() => { localStorage.removeItem('token'); setToken(''); }}>退出登录</Button>
+        <Button className="logout-button" icon={<LogoutOutlined />} onClick={() => { localStorage.removeItem('token'); setCurrentUser(null); setToken(''); }}>退出登录</Button>
       </Sider>
       <Layout>
         <Header className="app-header">
@@ -1468,6 +1645,7 @@ function PlatformApp() {
           {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
           {tab === 'files' && <FileTransferPanel client={client} />}
           {tab === 'images' && <ImageToolPanel token={token} />}
+          {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
           {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
         </Content>
       </Layout>

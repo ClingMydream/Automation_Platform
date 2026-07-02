@@ -160,6 +160,16 @@ body {
   padding-inline: 8px;
 }
 
+.permission-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.permission-checks .ant-checkbox-wrapper {
+  margin-inline-start: 0;
+}
+
 .form-submit {
   margin-top: 14px;
 }

@@ -12,17 +12,18 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.auth import create_access_token, verify_admin
+from app.core.auth import AuthContext, create_access_token, ensure_admin_user, get_current_user, hash_password, require_menu, verify_admin, verify_password
 from app.core.config import get_settings
 from app.core.target_guard import validate_public_http_url
 from app.db import get_db
-from app.models.entities import ApiCase, Environment, FileTransfer, Project, TestRun, UiCase
+from app.models.entities import ApiCase, AppUser, Environment, FileTransfer, Project, TestRun, UiCase
 from app.schemas.entities import (
     ApiCaseCreate,
     ApiCaseRead,
     EnvironmentCreate,
     EnvironmentRead,
     LoginRequest,
+    MeResponse,
     ProjectCreate,
     ProjectRead,
     RunCreate,
@@ -30,11 +31,26 @@ from app.schemas.entities import (
     TokenResponse,
     UiCaseCreate,
     UiCaseRead,
+    UserCreate,
+    UserRead,
+    UserUpdate,
 )
 from app.services.queue import enqueue_run
 
 
 router = APIRouter()
+
+
+MENU_OPTIONS = [
+    {"key": "projects", "label": "项目"},
+    {"key": "api", "label": "接口测试"},
+    {"key": "ui", "label": "UI 测试"},
+    {"key": "files", "label": "文件快传"},
+    {"key": "images", "label": "图片工具"},
+    {"key": "runs", "label": "执行记录"},
+]
+ADMIN_MENU = {"key": "users", "label": "用户管理"}
+ALL_MENU_KEYS = {item["key"] for item in MENU_OPTIONS} | {ADMIN_MENU["key"]}
 
 
 IMAGE_FORMATS = {
@@ -70,6 +86,29 @@ def _transfer_dir() -> Path:
 def _clean_filename(name: str) -> str:
     cleaned = Path(name or "file").name.strip().replace("\x00", "")
     return cleaned[:255] or "file"
+
+
+def _normalize_menu_permissions(values: list[str]) -> list[str]:
+    seen = []
+    for value in values or []:
+        if value in ALL_MENU_KEYS and value != "users" and value not in seen:
+            seen.append(value)
+    if ("api" in seen or "ui" in seen) and "projects" not in seen:
+        seen.insert(0, "projects")
+    return seen
+
+
+def _user_response(user: AppUser) -> dict:
+    permissions = ["projects", "api", "ui", "files", "images", "runs", "users"] if user.is_admin else list(user.menu_permissions or [])
+    return {
+        "id": user.id,
+        "username": user.username,
+        "display_name": user.display_name,
+        "is_admin": user.is_admin,
+        "is_active": user.is_active,
+        "menu_permissions": permissions,
+        "created_at": user.created_at,
+    }
 
 
 def _image_format(format_name: str) -> dict:
@@ -282,30 +321,104 @@ def health():
 
 
 @router.post("/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest):
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
     settings = get_settings()
-    if payload.username != settings.admin_username or payload.password != settings.admin_password:
+    if payload.username == settings.admin_username and payload.password == settings.admin_password:
+        admin = ensure_admin_user(db)
+        return TokenResponse(access_token=create_access_token(admin.username, is_admin=True))
+    user = db.query(AppUser).filter(AppUser.username == payload.username).first()
+    if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    return TokenResponse(access_token=create_access_token(payload.username))
+    return TokenResponse(access_token=create_access_token(user.username, is_admin=user.is_admin))
 
 
 @router.post("/auth/logout")
-def logout(_: str = Depends(verify_admin)):
+def logout(_: AuthContext = Depends(get_current_user)):
     return {"status": "ok"}
 
 
-@router.get("/auth/me")
-def me(username: str = Depends(verify_admin)):
-    return {"username": username}
+@router.get("/auth/me", response_model=MeResponse)
+def me(current_user: AuthContext = Depends(get_current_user)):
+    return {
+        "username": current_user.username,
+        "display_name": current_user.display_name,
+        "is_admin": current_user.is_admin,
+        "menu_permissions": current_user.menu_permissions,
+    }
+
+
+@router.get("/menu-options")
+def menu_options(_: AuthContext = Depends(verify_admin)):
+    return MENU_OPTIONS
+
+
+@router.get("/users", response_model=list[UserRead])
+def list_users(_: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    ensure_admin_user(db)
+    users = db.query(AppUser).order_by(AppUser.is_admin.desc(), AppUser.id.desc()).all()
+    return [_user_response(user) for user in users]
+
+
+@router.post("/users", response_model=UserRead)
+def create_user(payload: UserCreate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    username = payload.username.strip()
+    if username == get_settings().admin_username:
+        raise HTTPException(status_code=400, detail="This username is reserved")
+    if db.query(AppUser).filter(AppUser.username == username).first() is not None:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    user = AppUser(
+        username=username,
+        display_name=payload.display_name,
+        password_hash=hash_password(payload.password),
+        is_admin=False,
+        is_active=payload.is_active,
+        menu_permissions=_normalize_menu_permissions(payload.menu_permissions),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return _user_response(user)
+
+
+@router.put("/users/{user_id}", response_model=UserRead)
+def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    user = db.get(AppUser, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.is_admin:
+        user.display_name = payload.display_name or user.display_name
+        user.is_active = True
+        user.menu_permissions = ["projects", "api", "ui", "files", "images", "runs", "users"]
+    else:
+        user.display_name = payload.display_name
+        user.is_active = payload.is_active
+        user.menu_permissions = _normalize_menu_permissions(payload.menu_permissions)
+    if payload.password:
+        user.password_hash = hash_password(payload.password)
+    db.commit()
+    db.refresh(user)
+    return _user_response(user)
+
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    user = db.get(AppUser, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.is_admin:
+        raise HTTPException(status_code=400, detail="Admin user cannot be deleted")
+    db.delete(user)
+    db.commit()
+    return {"status": "ok"}
 
 
 @router.get("/projects", response_model=list[ProjectRead])
-def list_projects(_: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def list_projects(_: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
     return db.query(Project).order_by(Project.id.desc()).all()
 
 
 @router.post("/projects", response_model=ProjectRead)
-def create_project(payload: ProjectCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def create_project(payload: ProjectCreate, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
     project = Project(**payload.model_dump())
     db.add(project)
     db.commit()
@@ -314,7 +427,7 @@ def create_project(payload: ProjectCreate, _: str = Depends(verify_admin), db: S
 
 
 @router.put("/projects/{project_id}", response_model=ProjectRead)
-def update_project(project_id: int, payload: ProjectCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def update_project(project_id: int, payload: ProjectCreate, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -326,7 +439,7 @@ def update_project(project_id: int, payload: ProjectCreate, _: str = Depends(ver
 
 
 @router.delete("/projects/{project_id}")
-def delete_project(project_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def delete_project(project_id: int, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -344,12 +457,12 @@ def delete_project(project_id: int, _: str = Depends(verify_admin), db: Session 
 
 
 @router.get("/environments", response_model=list[EnvironmentRead])
-def list_environments(_: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def list_environments(_: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
     return db.query(Environment).order_by(Environment.id.desc()).all()
 
 
 @router.post("/environments", response_model=EnvironmentRead)
-def create_environment(payload: EnvironmentCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def create_environment(payload: EnvironmentCreate, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
     validate_public_http_url(payload.base_url)
     environment = Environment(**payload.model_dump())
     db.add(environment)
@@ -359,12 +472,12 @@ def create_environment(payload: EnvironmentCreate, _: str = Depends(verify_admin
 
 
 @router.get("/api-cases", response_model=list[ApiCaseRead])
-def list_api_cases(_: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def list_api_cases(_: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
     return db.query(ApiCase).order_by(ApiCase.id.desc()).all()
 
 
 @router.post("/api-cases", response_model=ApiCaseRead)
-def create_api_case(payload: ApiCaseCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def create_api_case(payload: ApiCaseCreate, _: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
     validate_public_http_url(payload.url)
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -376,7 +489,7 @@ def create_api_case(payload: ApiCaseCreate, _: str = Depends(verify_admin), db: 
 
 
 @router.put("/api-cases/{case_id}", response_model=ApiCaseRead)
-def update_api_case(case_id: int, payload: ApiCaseCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def update_api_case(case_id: int, payload: ApiCaseCreate, _: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
     validate_public_http_url(payload.url)
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -391,7 +504,7 @@ def update_api_case(case_id: int, payload: ApiCaseCreate, _: str = Depends(verif
 
 
 @router.delete("/api-cases/{case_id}")
-def delete_api_case(case_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def delete_api_case(case_id: int, _: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
     case = db.get(ApiCase, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -402,12 +515,12 @@ def delete_api_case(case_id: int, _: str = Depends(verify_admin), db: Session = 
 
 
 @router.get("/ui-cases", response_model=list[UiCaseRead])
-def list_ui_cases(_: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def list_ui_cases(_: AuthContext = Depends(require_menu("ui")), db: Session = Depends(get_db)):
     return db.query(UiCase).order_by(UiCase.id.desc()).all()
 
 
 @router.post("/ui-cases", response_model=UiCaseRead)
-def create_ui_case(payload: UiCaseCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def create_ui_case(payload: UiCaseCreate, _: AuthContext = Depends(require_menu("ui")), db: Session = Depends(get_db)):
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
     for step in payload.steps:
@@ -421,7 +534,7 @@ def create_ui_case(payload: UiCaseCreate, _: str = Depends(verify_admin), db: Se
 
 
 @router.put("/ui-cases/{case_id}", response_model=UiCaseRead)
-def update_ui_case(case_id: int, payload: UiCaseCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def update_ui_case(case_id: int, payload: UiCaseCreate, _: AuthContext = Depends(require_menu("ui")), db: Session = Depends(get_db)):
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
     for step in payload.steps:
@@ -439,7 +552,7 @@ def update_ui_case(case_id: int, payload: UiCaseCreate, _: str = Depends(verify_
 
 
 @router.delete("/ui-cases/{case_id}")
-def delete_ui_case(case_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def delete_ui_case(case_id: int, _: AuthContext = Depends(require_menu("ui")), db: Session = Depends(get_db)):
     case = db.get(UiCase, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -450,7 +563,7 @@ def delete_ui_case(case_id: int, _: str = Depends(verify_admin), db: Session = D
 
 
 @router.get("/file-transfers")
-def list_file_transfers(_: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def list_file_transfers(_: AuthContext = Depends(require_menu("files")), db: Session = Depends(get_db)):
     _cleanup_expired(db)
     items = db.query(FileTransfer).order_by(FileTransfer.id.desc()).limit(100).all()
     return [_file_response(item) for item in items]
@@ -460,7 +573,7 @@ def list_file_transfers(_: str = Depends(verify_admin), db: Session = Depends(ge
 def upload_file_transfer(
     file: UploadFile = File(...),
     expires_hours: int = Query(default=24, ge=1, le=168),
-    _: str = Depends(verify_admin),
+    _: AuthContext = Depends(require_menu("files")),
     db: Session = Depends(get_db),
 ):
     _cleanup_expired(db)
@@ -474,7 +587,7 @@ def upload_file_transfer(
 
 
 @router.delete("/file-transfers/{transfer_id}")
-def delete_file_transfer(transfer_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def delete_file_transfer(transfer_id: int, _: AuthContext = Depends(require_menu("files")), db: Session = Depends(get_db)):
     item = db.get(FileTransfer, transfer_id)
     if item is None:
         raise HTTPException(status_code=404, detail="File not found")
@@ -548,7 +661,7 @@ def upload_public_file_transfer(token: str, file: UploadFile = File(...), db: Se
 
 
 @router.get("/image-tools/formats")
-def list_image_formats(_: str = Depends(verify_admin)):
+def list_image_formats(_: AuthContext = Depends(require_menu("images"))):
     return [
         {
             "value": key,
@@ -561,7 +674,7 @@ def list_image_formats(_: str = Depends(verify_admin)):
 
 
 @router.post("/image-tools/generate")
-def generate_image(payload: ImageGenerateRequest, _: str = Depends(verify_admin)):
+def generate_image(payload: ImageGenerateRequest, _: AuthContext = Depends(require_menu("images"))):
     config = _image_format(payload.format)
     background = _safe_color(payload.background_color, "#ffffff")
     text_color = _safe_color(payload.text_color, "#17202a")
@@ -593,7 +706,7 @@ def process_image(
     format: str = Form(default="png"),
     quality: int = Form(default=92, ge=1, le=100),
     max_kb: int | None = Form(default=None, ge=10, le=1024 * 20),
-    _: str = Depends(verify_admin),
+    _: AuthContext = Depends(require_menu("images")),
 ):
     settings = get_settings()
     max_bytes = settings.file_transfer_max_mb * 1024 * 1024
@@ -628,12 +741,15 @@ def process_image(
 
 
 @router.get("/runs", response_model=list[RunRead])
-def list_runs(_: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def list_runs(_: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
     return db.query(TestRun).order_by(TestRun.id.desc()).limit(100).all()
 
 
 @router.post("/runs", response_model=RunRead)
-def create_run(payload: RunCreate, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def create_run(payload: RunCreate, current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    required_menu = "api" if payload.case_type == "api" else "ui"
+    if not current_user.is_admin and required_menu not in current_user.menu_permissions:
+        raise HTTPException(status_code=403, detail="Menu permission required")
     model = ApiCase if payload.case_type == "api" else UiCase
     if db.get(model, payload.case_id) is None:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -646,7 +762,7 @@ def create_run(payload: RunCreate, _: str = Depends(verify_admin), db: Session =
 
 
 @router.get("/runs/{run_id}", response_model=RunRead)
-def get_run(run_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def get_run(run_id: int, _: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
     run = db.get(TestRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -654,7 +770,7 @@ def get_run(run_id: int, _: str = Depends(verify_admin), db: Session = Depends(g
 
 
 @router.get("/reports/{run_id}")
-def get_report(run_id: int, _: str = Depends(verify_admin), db: Session = Depends(get_db)):
+def get_report(run_id: int, _: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
     run = db.get(TestRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Report not found")
