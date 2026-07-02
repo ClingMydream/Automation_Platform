@@ -8,6 +8,7 @@ import { formatBytes, formatTime } from '../../shared/formatters';
 const { Text, Title } = Typography;
 const { Dragger } = Upload;
 
+// Public mobile transfer page: downloads a shared file or uploads a return file.
 export function PublicTransferPage({ token }) {
   const client = useMemo(() => apiClient(), []);
   const [item, setItem] = useState(null);
@@ -16,6 +17,7 @@ export function PublicTransferPage({ token }) {
   const [returnedFile, setReturnedFile] = useState(null);
   const { message } = AntApp.useApp();
 
+  // Load public transfer metadata for the scanned token.
   async function loadTransfer() {
     try {
       const data = await client.get(`/file-transfers/public/${token}`);
@@ -30,6 +32,7 @@ export function PublicTransferPage({ token }) {
     loadTransfer();
   }, [token]);
 
+  // Upload a mobile-side return file through the public token.
   async function uploadBack({ file, onSuccess, onError }) {
     setUploading(true);
     try {

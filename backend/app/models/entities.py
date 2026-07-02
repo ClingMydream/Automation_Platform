@@ -8,11 +8,13 @@ from app.db import Base
 
 
 class TimestampMixin:
+    """Add created_at and updated_at columns to database models."""
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class AppUser(Base, TimestampMixin):
+    """Store login users, password hashes, roles, and menu permissions."""
     __tablename__ = "app_users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -25,6 +27,7 @@ class AppUser(Base, TimestampMixin):
 
 
 class Project(Base, TimestampMixin):
+    """Store project records that group test cases."""
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -35,6 +38,7 @@ class Project(Base, TimestampMixin):
 
 
 class Environment(Base, TimestampMixin):
+    """Store project environment configuration."""
     __tablename__ = "environments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -47,6 +51,7 @@ class Environment(Base, TimestampMixin):
 
 
 class ApiCase(Base, TimestampMixin):
+    """Store API test request and assertion settings."""
     __tablename__ = "api_cases"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -63,6 +68,7 @@ class ApiCase(Base, TimestampMixin):
 
 
 class UiCase(Base, TimestampMixin):
+    """Store low-code UI automation steps."""
     __tablename__ = "ui_cases"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -72,6 +78,7 @@ class UiCase(Base, TimestampMixin):
 
 
 class TestRun(Base, TimestampMixin):
+    """Store one execution task, status, logs, report, and errors."""
     __tablename__ = "test_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -85,6 +92,7 @@ class TestRun(Base, TimestampMixin):
 
 
 class FileTransfer(Base, TimestampMixin):
+    """Store temporary file transfer metadata and share tokens."""
     __tablename__ = "file_transfers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)

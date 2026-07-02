@@ -6,6 +6,7 @@ import { StatusTag } from '../../shared/StatusTag.jsx';
 import { RunDetail } from './RunDetail.jsx';
 import { buildRunSummary, findRunById } from './runHistoryFeature.js';
 
+// Run history page: shows run statistics, run table, and detail drawer entry.
 export function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun }) {
   const selectedRun = findRunById(runs, selectedRunId);
   const summary = buildRunSummary(runs);

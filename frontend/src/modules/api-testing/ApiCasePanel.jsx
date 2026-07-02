@@ -7,23 +7,27 @@ import { buildApiCaseFormValues, createApiCaseRun, deleteApiCase, saveApiCase } 
 
 const { TextArea } = Input;
 
+// API testing page: renders the case form, case table, and run action.
 export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const { message, modal } = AntApp.useApp();
 
+  // Reset edit state and restore default form values.
   function resetForm() {
     setEditingId(null);
     form.resetFields();
     form.setFieldsValue({ method: 'GET', headers: '{}', assert_status: 200 });
   }
 
+  // Fill the form with an existing record so the user can edit it.
   function startEdit(item) {
     setEditingId(item.id);
     form.setFieldsValue(buildApiCaseFormValues(item));
   }
 
+  // Submit the current form and refresh the list after saving.
   async function submit(values) {
     setSaving(true);
     try {
@@ -38,6 +42,7 @@ export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated 
     }
   }
 
+  // Confirm deletion, call the delete API, and refresh the list.
   function remove(item) {
     modal.confirm({
       title: `删除接口用例「${item.name}」？`,
@@ -54,6 +59,7 @@ export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated 
     });
   }
 
+  // Create an execution task for the selected test case.
   async function runCase(record) {
     try {
       const run = await createApiCaseRun(client, record.id);

@@ -1,6 +1,7 @@
 // UI test feature functions.
 // UI pages should describe the workflow; parsing, saving, deleting, and run creation live here.
 
+// Convert UI case form values into the backend request payload.
 export function buildUiCasePayload(values) {
   return {
     project_id: Number(values.project_id),
@@ -9,6 +10,7 @@ export function buildUiCasePayload(values) {
   };
 }
 
+// Convert a UI case record into form values for editing.
 export function buildUiCaseFormValues(item) {
   return {
     project_id: item.project_id,
@@ -17,6 +19,7 @@ export function buildUiCaseFormValues(item) {
   };
 }
 
+// Create or update a UI test case depending on edit state.
 export async function saveUiCase(client, editingId, values) {
   const payload = buildUiCasePayload(values);
   if (editingId) {
@@ -27,14 +30,17 @@ export async function saveUiCase(client, editingId, values) {
   return 'created';
 }
 
+// Delete one UI test case.
 export async function deleteUiCase(client, caseId) {
   await client.delete(`/ui-cases/${caseId}`);
 }
 
+// Create an execution run for one UI test case.
 export async function createUiCaseRun(client, caseId) {
   return client.post('/runs', { case_type: 'ui', case_id: caseId });
 }
 
+// Open a live UI automation window with a startup placeholder.
 export function openLiveRunWindow() {
   const detailWindow = window.open('', `ui-run-${Date.now()}`, 'width=1200,height=860');
   if (detailWindow) {
@@ -43,6 +49,7 @@ export function openLiveRunWindow() {
   return detailWindow;
 }
 
+// Navigate the live run window to a specific run ID.
 export function navigateLiveRunWindow(detailWindow, runId) {
   if (!detailWindow) return;
   detailWindow.location.href = `${window.location.origin}${window.location.pathname}?liveRunId=${runId}`;

@@ -56,6 +56,7 @@ router = APIRouter()
 # 登录认证：只负责登录、退出、当前用户信息，不放业务功能。
 @router.post("/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    """Validate credentials and return an access token."""
     settings = get_settings()
     if payload.username == settings.admin_username and payload.password == settings.admin_password:
         admin = ensure_admin_user(db)
@@ -68,11 +69,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/auth/logout")
 def logout(_: AuthContext = Depends(get_current_user)):
+    """Provide a logout endpoint; the frontend clears local token state."""
     return {"status": "ok"}
 
 
 @router.get("/auth/me", response_model=MeResponse)
 def me(current_user: AuthContext = Depends(get_current_user)):
+    """Return current user profile and menu permissions."""
     return {
         "username": current_user.username,
         "display_name": current_user.display_name,

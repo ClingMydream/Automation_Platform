@@ -20,6 +20,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 @dataclass
 class AuthContext:
+    """Carry the authenticated user identity and menu permissions through a request."""
     username: str
     display_name: str | None
     is_admin: bool
@@ -27,12 +28,14 @@ class AuthContext:
 
 
 def hash_password(password: str) -> str:
+    """Hash a password with PBKDF2 before storing it."""
     salt = secrets.token_hex(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 200_000)
     return f"pbkdf2_sha256${salt}${digest.hex()}"
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
+    """Compare a plain password with the stored PBKDF2 hash."""
     try:
         algorithm, salt, digest = stored_hash.split("$", 2)
     except ValueError:
@@ -44,6 +47,7 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
 
 def create_access_token(subject: str, *, is_admin: bool = False) -> str:
+    """Create a JWT access token for a logged-in user."""
     settings = get_settings()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
     payload = {"sub": subject, "is_admin": is_admin, "exp": expires_at}
@@ -51,6 +55,7 @@ def create_access_token(subject: str, *, is_admin: bool = False) -> str:
 
 
 def _decode_subject(credentials: HTTPAuthorizationCredentials | None) -> str:
+    """Decode the bearer token and extract the username subject."""
     settings = get_settings()
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
@@ -65,6 +70,7 @@ def _decode_subject(credentials: HTTPAuthorizationCredentials | None) -> str:
 
 
 def ensure_admin_user(db: Session) -> AppUser:
+    """Create or repair the configured administrator account."""
     settings = get_settings()
     user = db.query(AppUser).filter(AppUser.username == settings.admin_username).first()
     if user is None:
@@ -92,6 +98,7 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> AuthContext:
+    """Load the current active user from the bearer token."""
     subject = _decode_subject(credentials)
     user = db.query(AppUser).filter(AppUser.username == subject).first()
     if user is None:
@@ -112,13 +119,16 @@ def get_current_user(
 
 
 def verify_admin(current_user: AuthContext = Depends(get_current_user)) -> AuthContext:
+    """Require the current user to be an administrator."""
     if not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin permission required")
     return current_user
 
 
 def require_menu(menu_key: str):
+    """Build a FastAPI dependency that requires access to one menu key."""
     def dependency(current_user: AuthContext = Depends(get_current_user)) -> AuthContext:
+        """Validate that the current user can access the configured menu key."""
         if current_user.is_admin or menu_key in current_user.menu_permissions:
             return current_user
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Menu permission required")

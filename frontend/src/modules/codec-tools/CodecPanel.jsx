@@ -5,6 +5,7 @@ import { runCodec } from '../../shared/codec';
 
 const { TextArea } = Input;
 
+// Codec tool page: runs common encode and decode operations locally.
 export function CodecPanel() {
   const [operation, setOperation] = useState('url_encode');
   const [input, setInput] = useState('中文参数 test=123');
@@ -27,6 +28,7 @@ export function CodecPanel() {
     { value: 'json_unescape', label: 'JSON 字符串反转义' },
   ];
 
+  // Run the selected codec operation and write the output.
   function convert() {
     try {
       setOutput(runCodec(operation, input));
@@ -36,10 +38,12 @@ export function CodecPanel() {
     }
   }
 
+  // Copy text to the clipboard and show feedback.
   function copy(text) {
     navigator.clipboard.writeText(text).then(() => message.success('已复制')).catch(() => message.warning('复制失败，请手动复制'));
   }
 
+  // Swap input and output values in the codec tool.
   function swap() {
     setInput(output);
     setOutput(input);

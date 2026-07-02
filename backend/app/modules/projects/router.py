@@ -56,11 +56,13 @@ router = APIRouter()
 # 项目与环境：接口用例和 UI 用例都依赖项目，所以权限归到 projects。
 @router.get("/projects", response_model=list[ProjectRead])
 def list_projects(_: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+    """List projects."""
     return db.query(Project).order_by(Project.id.desc()).all()
 
 
 @router.post("/projects", response_model=ProjectRead)
 def create_project(payload: ProjectCreate, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+    """Create a project."""
     project = Project(**payload.model_dump())
     db.add(project)
     db.commit()
@@ -70,6 +72,7 @@ def create_project(payload: ProjectCreate, _: AuthContext = Depends(require_menu
 
 @router.put("/projects/{project_id}", response_model=ProjectRead)
 def update_project(project_id: int, payload: ProjectCreate, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+    """Update a project."""
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -82,6 +85,7 @@ def update_project(project_id: int, payload: ProjectCreate, _: AuthContext = Dep
 
 @router.delete("/projects/{project_id}")
 def delete_project(project_id: int, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+    """Delete a project and its related cases and runs."""
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -100,11 +104,13 @@ def delete_project(project_id: int, _: AuthContext = Depends(require_menu("proje
 
 @router.get("/environments", response_model=list[EnvironmentRead])
 def list_environments(_: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+    """List environment records."""
     return db.query(Environment).order_by(Environment.id.desc()).all()
 
 
 @router.post("/environments", response_model=EnvironmentRead)
 def create_environment(payload: EnvironmentCreate, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+    """Create an environment record."""
     validate_public_http_url(payload.base_url)
     environment = Environment(**payload.model_dump())
     db.add(environment)

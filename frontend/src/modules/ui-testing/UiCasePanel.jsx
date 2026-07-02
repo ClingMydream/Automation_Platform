@@ -14,6 +14,7 @@ import {
 
 const { TextArea } = Input;
 
+// UI testing page: edits low-code steps, saves cases, and starts runs.
 export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
@@ -21,17 +22,20 @@ export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated })
   const [runningId, setRunningId] = useState(null);
   const { message, modal } = AntApp.useApp();
 
+  // Reset edit state and restore default form values.
   function resetForm() {
     setEditingId(null);
     form.resetFields();
     form.setFieldsValue({ steps: DEFAULT_UI_STEPS });
   }
 
+  // Fill the form with an existing record so the user can edit it.
   function startEdit(item) {
     setEditingId(item.id);
     form.setFieldsValue(buildUiCaseFormValues(item));
   }
 
+  // Submit the current form and refresh the list after saving.
   async function submit(values) {
     setSaving(true);
     try {
@@ -46,6 +50,7 @@ export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated })
     }
   }
 
+  // Confirm deletion, call the delete API, and refresh the list.
   function remove(item) {
     modal.confirm({
       title: `删除 UI 用例「${item.name}」？`,
@@ -62,6 +67,7 @@ export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated })
     });
   }
 
+  // Create an execution task for the selected test case.
   async function runCase(record) {
     const detailWindow = openLiveRunWindow();
     setRunningId(record.id);

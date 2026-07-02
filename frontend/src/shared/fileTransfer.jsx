@@ -3,6 +3,7 @@ import React from 'react';
 // 文件快传前端辅助模块。
 // 修改建议：文件类型识别、预览方式、下载行为都集中在这里，页面组件只负责列表和表单。
 
+// Detect the file transfer type from MIME type and file name.
 export function transferKind(item) {
   const contentType = (item?.content_type || '').toLowerCase();
   const name = (item?.original_name || '').toLowerCase();
@@ -11,10 +12,12 @@ export function transferKind(item) {
   return 'file';
 }
 
+// Convert a transfer type into display text.
 export function transferKindLabel(item) {
   return { image: '图片', video: '视频', file: '文件' }[transferKind(item)];
 }
 
+// Render image, video, or generic file preview for transfers.
 export function TransferPreview({ item }) {
   if (!item) return null;
   const kind = transferKind(item);
@@ -37,6 +40,7 @@ export function TransferPreview({ item }) {
   return null;
 }
 
+// Create a temporary object URL and trigger browser download.
 export function downloadBlob(blob, fallbackName, onPreview) {
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement('a');

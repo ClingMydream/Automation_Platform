@@ -94,12 +94,14 @@ function PlatformApp() {
   const { message } = AntApp.useApp();
   const client = useMemo(() => apiClient(token), [token]);
 
+  // Store the new token after login and load protected data.
   function handleLogin(nextToken) {
     authExpiredShownRef.current = false;
     setLoginNotice('');
     setToken(nextToken);
   }
 
+  // Clear local login state when the API reports an expired token.
   function logoutExpired() {
     localStorage.removeItem('token');
     setToken('');
@@ -118,6 +120,7 @@ function PlatformApp() {
     }
   }
 
+  // Reload all dashboard data that is shared by multiple pages.
   async function reload() {
     if (!token) return;
     setRefreshing(true);
@@ -145,6 +148,7 @@ function PlatformApp() {
     }
   }
 
+  // Select a run and switch to the run-history page when needed.
   function handleSelectRun(runId) {
     setSelectedRunId(runId);
     const url = new URL(window.location.href);
@@ -153,6 +157,7 @@ function PlatformApp() {
     window.history.replaceState(null, '', url);
   }
 
+  // Handle a newly created run and optionally open the history view.
   function handleRunCreated(run, type, detailWindowOpened) {
     setTab('runs');
     handleSelectRun(run.id);
@@ -194,6 +199,7 @@ function PlatformApp() {
     { key: 'reports', icon: <FileDoneOutlined />, label: '测试报告' },
     { key: 'users', icon: <SafetyCertificateOutlined />, label: '用户管理' },
   ];
+  // Build sidebar menu items from the current user permissions.
   function menuItemsForUser(user) {
     if (!user) return [];
     const allowed = new Set(user.is_admin ? allMenuItems.map((item) => item.key) : user.menu_permissions || []);

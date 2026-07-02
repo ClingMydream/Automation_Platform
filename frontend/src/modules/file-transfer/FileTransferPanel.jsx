@@ -6,6 +6,7 @@ import { formatBytes, formatTime } from '../../shared/formatters';
 
 const { Dragger } = Upload;
 
+// File transfer admin page: uploads temporary files and manages QR download links.
 export function FileTransferPanel({ client }) {
   const [transfers, setTransfers] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -14,6 +15,7 @@ export function FileTransferPanel({ client }) {
   const [uploading, setUploading] = useState(false);
   const { message, modal } = AntApp.useApp();
 
+  // Load temporary file transfer records from the backend.
   async function loadTransfers() {
     setLoading(true);
     try {
@@ -31,6 +33,7 @@ export function FileTransferPanel({ client }) {
     loadTransfers();
   }, []);
 
+  // Upload one admin-side temporary file and refresh the transfer list.
   async function uploadFile({ file, onSuccess, onError }) {
     setUploading(true);
     try {
@@ -49,6 +52,7 @@ export function FileTransferPanel({ client }) {
     }
   }
 
+  // Copy a share URL to the clipboard.
   async function copyText(text) {
     try {
       await navigator.clipboard.writeText(text);
@@ -58,6 +62,7 @@ export function FileTransferPanel({ client }) {
     }
   }
 
+  // Confirm deletion, call the delete API, and refresh the list.
   function remove(item) {
     modal.confirm({
       title: `删除临时文件「${item.original_name}」？`,

@@ -56,11 +56,13 @@ router = APIRouter()
 # 用户管理：管理员专属，用来维护登录账号和菜单权限。
 @router.get("/menu-options")
 def menu_options(_: AuthContext = Depends(verify_admin)):
+    """Return menu options that administrators can assign to users."""
     return MENU_OPTIONS
 
 
 @router.get("/users", response_model=list[UserRead])
 def list_users(_: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    """List all login users for administrator management."""
     ensure_admin_user(db)
     users = db.query(AppUser).order_by(AppUser.is_admin.desc(), AppUser.id.desc()).all()
     return [_user_response(user) for user in users]
@@ -68,6 +70,7 @@ def list_users(_: AuthContext = Depends(verify_admin), db: Session = Depends(get
 
 @router.post("/users", response_model=UserRead)
 def create_user(payload: UserCreate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    """Create a non-admin login user with menu permissions."""
     username = payload.username.strip()
     if username == get_settings().admin_username:
         raise HTTPException(status_code=400, detail="This username is reserved")
@@ -89,6 +92,7 @@ def create_user(payload: UserCreate, _: AuthContext = Depends(verify_admin), db:
 
 @router.put("/users/{user_id}", response_model=UserRead)
 def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    """Update a user password, active flag, and menu permissions."""
     user = db.get(AppUser, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -109,6 +113,7 @@ def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(veri
 
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    """Delete a non-admin login user."""
     user = db.get(AppUser, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")

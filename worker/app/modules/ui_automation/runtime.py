@@ -15,6 +15,7 @@ UI_STEP_VISUAL_DELAY_MS = int(os.getenv("UI_STEP_VISUAL_DELAY_MS", "700"))
 
 
 def _screenshot_data_url(page) -> str:
+    """Capture the current Playwright page as a data URL."""
     image = page.screenshot(type="jpeg", quality=70, full_page=False)
     allure.attach(image, "browser screenshot", allure.attachment_type.JPG)
     return "data:image/jpeg;base64," + base64.b64encode(image).decode("ascii")
@@ -30,6 +31,7 @@ def _live_report(
     screenshots: list[dict[str, Any]],
     latest_screenshot: str | None,
 ) -> dict[str, Any]:
+    """Write live UI execution status, events, and screenshots back to the run record."""
     return {
         "passed": passed,
         "running": not passed,

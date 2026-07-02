@@ -56,11 +56,13 @@ router = APIRouter()
 # 接口测试用例：这里只保存用例配置，真正执行由 worker 完成。
 @router.get("/api-cases", response_model=list[ApiCaseRead])
 def list_api_cases(_: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
+    """List API test cases."""
     return db.query(ApiCase).order_by(ApiCase.id.desc()).all()
 
 
 @router.post("/api-cases", response_model=ApiCaseRead)
 def create_api_case(payload: ApiCaseCreate, _: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
+    """Create an API test case after validating the target URL."""
     validate_public_http_url(payload.url)
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -73,6 +75,7 @@ def create_api_case(payload: ApiCaseCreate, _: AuthContext = Depends(require_men
 
 @router.put("/api-cases/{case_id}", response_model=ApiCaseRead)
 def update_api_case(case_id: int, payload: ApiCaseCreate, _: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
+    """Update an API test case after validating the target URL."""
     validate_public_http_url(payload.url)
     if db.get(Project, payload.project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -88,6 +91,7 @@ def update_api_case(case_id: int, payload: ApiCaseCreate, _: AuthContext = Depen
 
 @router.delete("/api-cases/{case_id}")
 def delete_api_case(case_id: int, _: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
+    """Delete an API test case and its run history."""
     case = db.get(ApiCase, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")

@@ -5,6 +5,7 @@ import { compareJsonValues, parseJsonInput, stableStringifyJson } from '../../sh
 
 const { TextArea } = Input;
 
+// JSON tool page: formats, minifies, and compares JSON locally in the browser.
 export function JsonToolsPanel() {
   const [leftJson, setLeftJson] = useState('{\n  "name": "demo",\n  "enabled": true\n}');
   const [rightJson, setRightJson] = useState('{\n  "name": "demo",\n  "enabled": false,\n  "version": 1\n}');
@@ -12,6 +13,7 @@ export function JsonToolsPanel() {
   const [summary, setSummary] = useState('');
   const { message } = AntApp.useApp();
 
+  // Format one side of the JSON editor.
   function formatSide(side) {
     try {
       const value = parseJsonInput(side === 'left' ? leftJson : rightJson);
@@ -24,6 +26,7 @@ export function JsonToolsPanel() {
     }
   }
 
+  // Minify one side of the JSON editor.
   function minifySide(side) {
     try {
       const value = parseJsonInput(side === 'left' ? leftJson : rightJson);
@@ -36,6 +39,7 @@ export function JsonToolsPanel() {
     }
   }
 
+  // Compare the left and right JSON values and update the diff table.
   function compare() {
     try {
       const left = parseJsonInput(leftJson);
@@ -49,6 +53,7 @@ export function JsonToolsPanel() {
     }
   }
 
+  // Copy text to the clipboard and show feedback.
   function copy(text) {
     navigator.clipboard.writeText(text).then(() => message.success('已复制')).catch(() => message.warning('复制失败，请手动复制'));
   }

@@ -19,6 +19,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup() -> None:
+    """Create database tables and ensure the default administrator account exists."""
     Base.metadata.create_all(bind=engine)
 
 

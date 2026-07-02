@@ -1,6 +1,7 @@
 // Interface test feature functions.
 // Keep request payload shaping and backend calls here so the UI stays easy to edit.
 
+// Convert API case form values into the backend request payload.
 export function buildApiCasePayload(values) {
   return {
     ...values,
@@ -14,6 +15,7 @@ export function buildApiCasePayload(values) {
   };
 }
 
+// Convert an API case record into form values for editing.
 export function buildApiCaseFormValues(item) {
   return {
     project_id: item.project_id,
@@ -29,6 +31,7 @@ export function buildApiCaseFormValues(item) {
   };
 }
 
+// Create or update an API test case depending on edit state.
 export async function saveApiCase(client, editingId, values) {
   const payload = buildApiCasePayload(values);
   if (editingId) {
@@ -39,10 +42,12 @@ export async function saveApiCase(client, editingId, values) {
   return 'created';
 }
 
+// Delete one API test case.
 export async function deleteApiCase(client, caseId) {
   await client.delete(`/api-cases/${caseId}`);
 }
 
+// Create an execution run for one API test case.
 export async function createApiCaseRun(client, caseId) {
   return client.post('/runs', { case_type: 'api', case_id: caseId });
 }

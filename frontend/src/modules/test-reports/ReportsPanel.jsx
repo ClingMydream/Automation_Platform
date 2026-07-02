@@ -7,6 +7,7 @@ import { StatusTag } from '../../shared/StatusTag.jsx';
 import { RunDetail } from '../run-history/RunDetail.jsx';
 import { buildReportSummary, filterReports, findReportById } from './testReportFeature.js';
 
+// Reports page: shows report statistics, filters, details, and export action.
 export function ReportsPanel({ reports, reload, refreshing }) {
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');

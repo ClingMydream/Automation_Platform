@@ -4,6 +4,7 @@ import { formatDuration, formatTime } from './formatters';
 // 测试报告导出模块。
 // 修改建议：如果要调整 HTML 报告样式，优先改这里；不要把导出模板散落在页面组件里。
 
+// Build and download an HTML test report file.
 export function downloadReportHtml(report) {
   const detail = report?.report || {};
   const checks = detail.checks || [];

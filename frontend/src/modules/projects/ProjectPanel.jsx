@@ -5,22 +5,26 @@ import { buildProjectFormValues, deleteProject, saveProject } from './projectFea
 
 const { TextArea } = Input;
 
+// Project page: manages project form and project table.
 export function ProjectPanel({ client, projects, reload }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const { message, modal } = AntApp.useApp();
 
+  // Reset edit state and restore default form values.
   function resetForm() {
     setEditingId(null);
     form.resetFields();
   }
 
+  // Fill the form with an existing record so the user can edit it.
   function startEdit(item) {
     setEditingId(item.id);
     form.setFieldsValue(buildProjectFormValues(item));
   }
 
+  // Submit the current form and refresh the list after saving.
   async function submit(values) {
     setSaving(true);
     try {
@@ -35,6 +39,7 @@ export function ProjectPanel({ client, projects, reload }) {
     }
   }
 
+  // Confirm deletion, call the delete API, and refresh the list.
   function remove(item) {
     modal.confirm({
       title: `删除项目「${item.name}」？`,

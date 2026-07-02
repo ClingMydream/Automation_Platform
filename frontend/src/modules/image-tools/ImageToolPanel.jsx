@@ -8,6 +8,7 @@ import { downloadBlob } from '../../shared/fileTransfer.jsx';
 const { TextArea } = Input;
 const { Dragger } = Upload;
 
+// Image tool page: generates, crops, resizes, annotates, and converts images.
 export function ImageToolPanel({ token }) {
   const [formats, setFormats] = useState([]);
   const [generating, setGenerating] = useState(false);
@@ -29,12 +30,14 @@ export function ImageToolPanel({ token }) {
     apiClient(token).get('/image-tools/formats').then(setFormats).catch(() => {});
   }, [token]);
 
+  // Read the download filename from response headers.
   function filenameFromResponse(res, fallback) {
     const disposition = res.headers.get('content-disposition') || '';
     const match = disposition.match(/filename="?([^"]+)"?/i);
     return match?.[1] || fallback;
   }
 
+  // Call an image endpoint and return the resulting blob metadata.
   async function fetchImage(path, options, fallbackName) {
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
@@ -55,6 +58,7 @@ export function ImageToolPanel({ token }) {
     return { blob, filename: filenameFromResponse(res, fallbackName), type: res.headers.get('content-type') || blob.type };
   }
 
+  // Preview the generated image and trigger download.
   function showResult(result) {
     if (preview?.url) URL.revokeObjectURL(preview.url);
     const nextUrl = URL.createObjectURL(result.blob);
@@ -62,6 +66,7 @@ export function ImageToolPanel({ token }) {
     downloadBlob(result.blob, result.filename);
   }
 
+  // Generate a new image from the form settings.
   async function generate(values) {
     setGenerating(true);
     try {
@@ -89,6 +94,7 @@ export function ImageToolPanel({ token }) {
     }
   }
 
+  // Process an uploaded image with crop, resize, text, and format settings.
   async function process(values) {
     if (!sourceFile) {
       message.warning('请先上传需要裁剪或转换的图片');

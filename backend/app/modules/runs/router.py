@@ -56,11 +56,13 @@ router = APIRouter()
 # 执行任务：创建任务后进入 Redis 队列，worker 异步执行并回写结果。
 @router.get("/runs", response_model=list[RunRead])
 def list_runs(_: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
+    """List recent test execution records."""
     return db.query(TestRun).order_by(TestRun.id.desc()).limit(100).all()
 
 
 @router.post("/runs", response_model=RunRead)
 def create_run(payload: RunCreate, current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Create a test run and enqueue it for worker execution."""
     required_menu = "api" if payload.case_type == "api" else "ui"
     if not current_user.is_admin and required_menu not in current_user.menu_permissions:
         raise HTTPException(status_code=403, detail="Menu permission required")
@@ -77,6 +79,7 @@ def create_run(payload: RunCreate, current_user: AuthContext = Depends(get_curre
 
 @router.get("/runs/{run_id}", response_model=RunRead)
 def get_run(run_id: int, _: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
+    """Return one test run with its report details."""
     run = db.get(TestRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")

@@ -16,6 +16,7 @@ from app.modules.api_automation.runtime import execute_api_case
 
 
 def test_api_case():
+    # Pytest entry point for executing the API case passed through environment variables.
     case = json.loads(Path(r"{case_file}").read_text(encoding="utf-8"))
     report = execute_api_case(case)
     Path(r"{result_file}").write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")

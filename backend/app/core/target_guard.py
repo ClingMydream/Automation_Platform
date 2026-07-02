@@ -12,6 +12,7 @@ BLOCKED_IPS = {ipaddress.ip_address("169.254.169.254")}
 
 
 def _is_blocked_ip(value: str) -> bool:
+    """Check whether an IP address belongs to blocked network ranges."""
     ip = ipaddress.ip_address(value)
     if ip in BLOCKED_IPS:
         return True
@@ -19,6 +20,7 @@ def _is_blocked_ip(value: str) -> bool:
 
 
 def validate_public_http_url(url: str) -> None:
+    """Allow only public HTTP or HTTPS target URLs."""
     settings = get_settings()
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:

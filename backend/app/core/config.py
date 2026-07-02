@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Define environment-based backend configuration."""
     app_name: str = "Automation Platform"
     app_env: str = "development"
     app_secret_key: str = "dev-secret-change-me"
@@ -23,4 +24,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Return cached backend settings."""
     return Settings()

@@ -1,17 +1,20 @@
 // 通用显示格式化函数。
 // 修改建议：这里只处理“如何显示”，不要在这里写接口请求或页面状态逻辑。
 
+// Format backend timestamps for local display.
 export function formatTime(value) {
   if (!value) return '-';
   return new Date(value).toLocaleString('zh-CN', { hour12: false });
 }
 
+// Format millisecond duration as milliseconds or seconds.
 export function formatDuration(ms) {
   if (ms === null || ms === undefined) return '-';
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(2)} s`;
 }
 
+// Format byte counts as B, KB, MB, or GB.
 export function formatBytes(value) {
   if (!value && value !== 0) return '-';
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -24,6 +27,7 @@ export function formatBytes(value) {
   return `${size.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+// Map run status to an Ant Design tag color.
 export function statusColor(status) {
   return {
     queued: 'default',

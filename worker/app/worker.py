@@ -38,6 +38,7 @@ def process_run(run_id: int) -> None:
 
 
 def main() -> None:
+    """Start the worker loop and continuously consume queued run IDs from Redis."""
     redis = Redis.from_url(REDIS_URL, decode_responses=True)
     while True:
         _, payload = redis.blpop(QUEUE_NAME)

@@ -56,6 +56,7 @@ router = APIRouter()
 # 图片工具：后端负责真实图片处理，前端只负责收集参数和下载结果。
 @router.get("/image-tools/formats")
 def list_image_formats(_: AuthContext = Depends(require_menu("images"))):
+    """Return image formats supported by the platform."""
     return [
         {
             "value": key,
@@ -69,6 +70,7 @@ def list_image_formats(_: AuthContext = Depends(require_menu("images"))):
 
 @router.post("/image-tools/generate")
 def generate_image(payload: ImageGenerateRequest, _: AuthContext = Depends(require_menu("images"))):
+    """Generate an image from size, color, text, and format settings."""
     config = _image_format(payload.format)
     background = _safe_color(payload.background_color, "#ffffff")
     text_color = _safe_color(payload.text_color, "#17202a")
@@ -102,6 +104,7 @@ def process_image(
     max_kb: int | None = Form(default=None, ge=10, le=1024 * 20),
     _: AuthContext = Depends(require_menu("images")),
 ):
+    """Crop, resize, annotate, and convert an uploaded image."""
     settings = get_settings()
     max_bytes = settings.file_transfer_max_mb * 1024 * 1024
     content = file.file.read(max_bytes + 1)

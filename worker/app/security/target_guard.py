@@ -9,6 +9,7 @@ ALLOW_PRIVATE_TARGETS = os.getenv("ALLOW_PRIVATE_TARGETS", "false").lower() == "
 
 
 def is_blocked_url(url: str) -> bool:
+    """Return whether a target URL points to localhost, private networks, or metadata services."""
     if ALLOW_PRIVATE_TARGETS:
         return False
     parsed = urlparse(url)
@@ -31,6 +32,7 @@ def is_blocked_url(url: str) -> bool:
 
 
 def json_path(data: Any, path: str | None) -> Any:
+    """Read a simple JSON path from response data for assertions."""
     if not path:
         return None
     current = data

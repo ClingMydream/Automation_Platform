@@ -3,17 +3,21 @@ import { API_BASE, AUTH_EXPIRED_EVENT } from './constants';
 // 前端 API 客户端。
 // 页面模块只调用 get/post/put/delete，不直接拼 fetch，方便以后统一加日志、重试或错误提示。
 
+// Create a marked error so callers can detect expired authentication.
 function authExpiredError() {
   const err = new Error('登录已过期，请重新登录');
   err.authExpired = true;
   return err;
 }
 
+// Broadcast the auth-expired event so the app returns to login.
 function notifyAuthExpired() {
   window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
 }
 
+// Create a shared API client that attaches tokens and handles expired sessions.
 export function apiClient(token) {
+  // Send one HTTP request, parse the response, and normalize API errors.
   async function request(path, options = {}) {
     const isFormData = options.body instanceof FormData;
     const res = await fetch(`${API_BASE}${path}`, {

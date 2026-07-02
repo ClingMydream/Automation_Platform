@@ -4,6 +4,7 @@ import { RocketOutlined } from '@ant-design/icons';
 
 const { Title, Paragraph } = Typography;
 
+// Render the operation guide for the active menu tab.
 export function PageGuide({ tab }) {
   const guides = {
     projects: {

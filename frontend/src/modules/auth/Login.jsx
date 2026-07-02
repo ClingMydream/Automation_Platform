@@ -5,10 +5,12 @@ import { apiClient } from '../../shared/apiClient';
 
 const { Text, Title } = Typography;
 
+// Login page: submits credentials and stores the returned token.
 export function Login({ onLogin, notice }) {
   const [loading, setLoading] = useState(false);
   const { message } = AntApp.useApp();
 
+  // Submit the current form and refresh the list after saving.
   async function submit(values) {
     setLoading(true);
     try {

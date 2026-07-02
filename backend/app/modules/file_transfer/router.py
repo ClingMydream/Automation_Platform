@@ -56,6 +56,7 @@ router = APIRouter()
 # 文件快传：后台上传文件生成二维码，公开 token 页面用于手机下载/回传。
 @router.get("/file-transfers")
 def list_file_transfers(_: AuthContext = Depends(require_menu("files")), db: Session = Depends(get_db)):
+    """List non-expired temporary file transfers."""
     _cleanup_expired(db)
     items = db.query(FileTransfer).order_by(FileTransfer.id.desc()).limit(100).all()
     return [_file_response(item) for item in items]
@@ -68,6 +69,7 @@ def upload_file_transfer(
     _: AuthContext = Depends(require_menu("files")),
     db: Session = Depends(get_db),
 ):
+    """Upload a temporary file from the admin console."""
     _cleanup_expired(db)
     item = _create_transfer(
         db,
@@ -80,6 +82,7 @@ def upload_file_transfer(
 
 @router.delete("/file-transfers/{transfer_id}")
 def delete_file_transfer(transfer_id: int, _: AuthContext = Depends(require_menu("files")), db: Session = Depends(get_db)):
+    """Delete a temporary transfer file and database record."""
     item = db.get(FileTransfer, transfer_id)
     if item is None:
         raise HTTPException(status_code=404, detail="File not found")
@@ -93,6 +96,7 @@ def delete_file_transfer(transfer_id: int, _: AuthContext = Depends(require_menu
 
 @router.get("/file-transfers/public/{token}")
 def get_public_file_transfer(token: str, db: Session = Depends(get_db)):
+    """Read temporary file metadata by public token."""
     _cleanup_expired(db)
     item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
     if item is None:
@@ -102,6 +106,7 @@ def get_public_file_transfer(token: str, db: Session = Depends(get_db)):
 
 @router.get("/file-transfers/public/{token}/download")
 def download_public_file_transfer(token: str, db: Session = Depends(get_db)):
+    """Download a temporary file by public token."""
     _cleanup_expired(db)
     item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
     if item is None:
@@ -118,6 +123,7 @@ def download_public_file_transfer(token: str, db: Session = Depends(get_db)):
 
 @router.get("/file-transfers/public/{token}/preview")
 def preview_public_file_transfer(token: str, db: Session = Depends(get_db)):
+    """Preview an image or video transfer by public token."""
     _cleanup_expired(db)
     item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
     if item is None:
@@ -138,6 +144,7 @@ def preview_public_file_transfer(token: str, db: Session = Depends(get_db)):
 
 @router.post("/file-transfers/public/{token}/upload")
 def upload_public_file_transfer(token: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Upload a return file from the public mobile page."""
     _cleanup_expired(db)
     parent = db.query(FileTransfer).filter(FileTransfer.token == token).first()
     if parent is None:

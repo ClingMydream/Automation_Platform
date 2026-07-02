@@ -4,6 +4,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { formatDuration, formatTime } from '../../shared/formatters';
 import { StatusTag } from '../../shared/StatusTag.jsx';
 
+// Run detail drawer: shows logs, assertions, screenshots, errors, and response data.
 export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
   const report = run?.report || {};
   const events = report.events || [];

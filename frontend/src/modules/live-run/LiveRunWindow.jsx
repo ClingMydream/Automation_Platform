@@ -4,11 +4,13 @@ import { ThunderboltOutlined } from '@ant-design/icons';
 import { apiClient } from '../../shared/apiClient';
 import { formatDuration } from '../../shared/formatters';
 
+// Live run window: shows UI automation progress, current step, and latest screenshot.
 export function LiveRunWindow({ token, runId }) {
   const client = useMemo(() => apiClient(token), [token]);
   const [run, setRun] = useState(null);
   const [error, setError] = useState('');
 
+  // Reload live run status for the execution window.
   async function loadRun() {
     try {
       const data = await client.get(`/runs/${runId}`);

@@ -29,6 +29,7 @@ IMAGE_FORMATS = {
 
 
 class ImageGenerateRequest(BaseModel):
+    """Define request fields for generated images."""
     width: int = Field(default=1080, ge=32, le=8192)
     height: int = Field(default=1080, ge=32, le=8192)
     background_color: str = "#ffffff"
@@ -41,6 +42,7 @@ class ImageGenerateRequest(BaseModel):
 
 
 def _transfer_dir() -> Path:
+    """Return and create the directory used for temporary transfer files."""
     settings = get_settings()
     path = Path(settings.file_transfer_dir)
     path.mkdir(parents=True, exist_ok=True)
@@ -48,11 +50,13 @@ def _transfer_dir() -> Path:
 
 
 def _clean_filename(name: str) -> str:
+    """Sanitize uploaded file names before storing them."""
     cleaned = Path(name or "file").name.strip().replace("\x00", "")
     return cleaned[:255] or "file"
 
 
 def _normalize_menu_permissions(values: list[str]) -> list[str]:
+    """Filter and de-duplicate menu permission keys."""
     seen = []
     for value in values or []:
         if value in ALL_MENU_KEYS and value != "users" and value not in seen:
@@ -63,6 +67,7 @@ def _normalize_menu_permissions(values: list[str]) -> list[str]:
 
 
 def _user_response(user: AppUser) -> dict:
+    """Convert a user model into the frontend response shape."""
     permissions = ADMIN_MENU_KEYS if user.is_admin else list(user.menu_permissions or [])
     return {
         "id": user.id,
@@ -76,12 +81,14 @@ def _user_response(user: AppUser) -> dict:
 
 
 def _case_name_for_run(db: Session, run: TestRun) -> str:
+    """Resolve the display case name for a run."""
     model = ApiCase if run.case_type == "api" else UiCase
     case = db.get(model, run.case_id)
     return case.name if case else f"已删除用例 #{run.case_id}"
 
 
 def _report_summary(run: TestRun, case_name: str) -> dict:
+    """Convert a run into a report-list summary object."""
     report = run.report or {}
     checks = report.get("checks") or []
     events = report.get("events") or []
@@ -112,6 +119,7 @@ def _report_summary(run: TestRun, case_name: str) -> dict:
 
 
 def _image_format(format_name: str) -> dict:
+    """Validate and return supported image format metadata."""
     key = (format_name or "png").lower().strip()
     if key == "jpg":
         key = "jpeg"
@@ -122,6 +130,7 @@ def _image_format(format_name: str) -> dict:
 
 
 def _safe_color(value: str, fallback: str) -> str:
+    """Validate a hex color and fall back when it is invalid."""
     value = (value or "").strip()
     if value.startswith("#") and len(value) in {4, 7}:
         return value
@@ -129,6 +138,7 @@ def _safe_color(value: str, fallback: str) -> str:
 
 
 def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load a font for drawing image text, falling back to Pillow default."""
     candidates = [
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
@@ -144,6 +154,7 @@ def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 
 
 def _draw_center_text(image: Image.Image, text: str, color: str, font_size: int) -> None:
+    """Draw multi-line text centered inside an image."""
     if not text:
         return
     draw = ImageDraw.Draw(image)
@@ -162,6 +173,7 @@ def _draw_center_text(image: Image.Image, text: str, color: str, font_size: int)
 
 
 def _svg_response(width: int, height: int, background: str, text: str, text_color: str, font_size: int) -> bytes:
+    """Generate an SVG text image response."""
     lines = text.splitlines() or [""]
     spacing = max(8, font_size // 3)
     total_height = font_size * len(lines) + spacing * (len(lines) - 1)
@@ -182,6 +194,7 @@ def _svg_response(width: int, height: int, background: str, text: str, text_colo
 
 
 def _image_as_svg(image: Image.Image, filename: str) -> bytes:
+    """Wrap a raster image in an SVG response."""
     buffer = BytesIO()
     image.save(buffer, format="PNG")
     data = b64encode(buffer.getvalue()).decode("ascii")
@@ -195,6 +208,7 @@ def _image_as_svg(image: Image.Image, filename: str) -> bytes:
 
 
 def _serialize_image(image: Image.Image, format_name: str, quality: int, max_kb: int | None, filename: str) -> Response:
+    """Serialize an image with requested format, quality, and size limit."""
     config = _image_format(format_name)
     if config["key"] == "svg":
         payload = _image_as_svg(image, filename)
@@ -232,6 +246,7 @@ def _serialize_image(image: Image.Image, format_name: str, quality: int, max_kb:
 
 
 def _file_response(item: FileTransfer) -> dict:
+    """Convert a file transfer model into frontend URLs and metadata."""
     settings = get_settings()
     base_url = settings.public_base_url.rstrip("/")
     return {
@@ -252,6 +267,7 @@ def _file_response(item: FileTransfer) -> dict:
 
 
 def _cleanup_expired(db: Session) -> None:
+    """Delete expired transfer files and records."""
     now = datetime.utcnow()
     expired = db.query(FileTransfer).filter(FileTransfer.expires_at <= now).all()
     if not expired:
@@ -266,6 +282,7 @@ def _cleanup_expired(db: Session) -> None:
 
 
 def _save_upload(upload: UploadFile, destination: Path, max_bytes: int) -> int:
+    """Save an uploaded file while enforcing the maximum size."""
     size = 0
     with destination.open("wb") as output:
         while True:
@@ -289,6 +306,7 @@ def _create_transfer(
     parent_token: str | None = None,
     expires_at: datetime | None = None,
 ) -> FileTransfer:
+    """Create a temporary file transfer record and store its upload."""
     settings = get_settings()
     max_bytes = settings.file_transfer_max_mb * 1024 * 1024
     token = secrets.token_urlsafe(24)

@@ -16,6 +16,7 @@ from app.modules.ui_automation.runtime import execute_ui_case
 
 
 def test_ui_case():
+    # Pytest entry point for executing the UI case passed through environment variables.
     case = json.loads(Path(r"{case_file}").read_text(encoding="utf-8"))
     report = execute_ui_case(case, run_id={run_id})
     Path(r"{result_file}").write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")

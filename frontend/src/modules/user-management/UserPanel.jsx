@@ -3,6 +3,7 @@ import { Alert, App as AntApp, Button, Card, Checkbox, Col, Form, Input, Row, Sp
 import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { buildUserFormValues, deleteUser, fetchUserManagementData, saveUser } from './userManagementFeature.js';
 
+// User management page: edits login users, active state, and menu permissions.
 export function UserPanel({ client }) {
   const [form] = Form.useForm();
   const [users, setUsers] = useState([]);
@@ -12,6 +13,7 @@ export function UserPanel({ client }) {
   const [saving, setSaving] = useState(false);
   const { message, modal } = AntApp.useApp();
 
+  // Load users and menu options for the user-management page.
   async function loadUsers() {
     setLoading(true);
     try {
@@ -29,17 +31,20 @@ export function UserPanel({ client }) {
     loadUsers();
   }, []);
 
+  // Reset edit state and restore default form values.
   function resetForm() {
     setEditingId(null);
     form.resetFields();
     form.setFieldsValue({ is_active: true, menu_permissions: [] });
   }
 
+  // Fill the form with an existing record so the user can edit it.
   function startEdit(user) {
     setEditingId(user.id);
     form.setFieldsValue(buildUserFormValues(user, menuOptions));
   }
 
+  // Submit the current form and refresh the list after saving.
   async function submit(values) {
     setSaving(true);
     try {
@@ -54,6 +59,7 @@ export function UserPanel({ client }) {
     }
   }
 
+  // Confirm deletion, call the delete API, and refresh the list.
   function remove(user) {
     modal.confirm({
       title: `删除用户「${user.username}」？`,
