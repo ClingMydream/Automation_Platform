@@ -1,67 +1,10 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  App as AntApp,
-  Button,
-  Card,
-  Checkbox,
-  Col,
-  Descriptions,
-  Drawer,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  QRCode,
-  Row,
-  Select,
-  Space,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-  Upload,
-} from 'antd';
-import {
-  ApiOutlined,
-  BugOutlined,
-  CloudUploadOutlined,
-  CopyOutlined,
-  ClockCircleOutlined,
-  CloseOutlined,
-  CodeOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
-  FileDoneOutlined,
-  FolderOutlined,
-  InboxOutlined,
-  LogoutOutlined,
-  PictureOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  RocketOutlined,
-  SafetyCertificateOutlined,
-  SwapOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
-import { apiClient } from '../../../shared/apiClient';
-import { runCodec } from '../../../shared/codec';
-import { API_BASE, API_JSON_EXAMPLE, DEFAULT_UI_STEPS, UI_STEPS_EXAMPLE } from '../../../shared/constants';
-import { downloadBlob, transferKind, transferKindLabel, TransferPreview } from '../../../shared/fileTransfer.jsx';
-import { formatBytes, formatDuration, formatTime } from '../../../shared/formatters';
+import React, { useState } from 'react';
+import { Alert, App as AntApp, Button, Card, Col, Input, Row, Space, Table, Tag } from 'antd';
+import { CodeOutlined, CopyOutlined } from '@ant-design/icons';
 import { compareJsonValues, parseJsonInput, stableStringifyJson } from '../../../shared/jsonTools';
-import { downloadReportHtml } from '../../../shared/reportExport';
-import { JsonHelpCard } from '../../../shared/JsonHelpCard.jsx';
-import { StatusTag } from '../../../shared/StatusTag.jsx';
 
-const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
-const { Dragger } = Upload;
 
-// 常改位置：对比算法在 shared/jsonTools.js，页面只负责输入和结果展示。
 export function JsonToolsPanel() {
   const [leftJson, setLeftJson] = useState('{\n  "name": "demo",\n  "enabled": true\n}');
   const [rightJson, setRightJson] = useState('{\n  "name": "demo",\n  "enabled": false,\n  "version": 1\n}');

@@ -1,68 +1,10 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  App as AntApp,
-  Button,
-  Card,
-  Checkbox,
-  Col,
-  Descriptions,
-  Drawer,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  QRCode,
-  Row,
-  Select,
-  Space,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-  Upload,
-} from 'antd';
-import {
-  ApiOutlined,
-  BugOutlined,
-  CloudUploadOutlined,
-  CopyOutlined,
-  ClockCircleOutlined,
-  CloseOutlined,
-  CodeOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
-  FileDoneOutlined,
-  FolderOutlined,
-  InboxOutlined,
-  LogoutOutlined,
-  PictureOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  RocketOutlined,
-  SafetyCertificateOutlined,
-  SwapOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
-import { apiClient } from '../../../shared/apiClient';
-import { runCodec } from '../../../shared/codec';
-import { API_BASE, API_JSON_EXAMPLE, DEFAULT_UI_STEPS, UI_STEPS_EXAMPLE } from '../../../shared/constants';
-import { downloadBlob, transferKind, transferKindLabel, TransferPreview } from '../../../shared/fileTransfer.jsx';
-import { formatBytes, formatDuration, formatTime } from '../../../shared/formatters';
-import { compareJsonValues, parseJsonInput, stableStringifyJson } from '../../../shared/jsonTools';
-import { downloadReportHtml } from '../../../shared/reportExport';
-import { JsonHelpCard } from '../../../shared/JsonHelpCard.jsx';
-import { StatusTag } from '../../../shared/StatusTag.jsx';
+import React, { useState } from 'react';
+import { App as AntApp, Button, Card, Col, Form, Input, Row, Space, Table } from 'antd';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { buildProjectFormValues, deleteProject, saveProject } from '../feature/projectFeature.js';
 
-const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
-const { Dragger } = Upload;
 
-// 常改位置：表单字段、项目列表列配置、创建/编辑/删除按钮逻辑。
 export function ProjectPanel({ client, projects, reload }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
