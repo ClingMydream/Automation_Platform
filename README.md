@@ -18,5 +18,9 @@ docker compose up -d --build
 如果你想自己参与编写和改造代码，先看：
 
 - `docs/代码改造指南.md`
+- `docs/模块化架构说明.md`
+- `frontend/src/modules/README.md`
 - `frontend/src/shared/README.md`
+- `backend/app/modules/README.md`
+- `worker/app/modules/README.md`
 - `backend/app/core/README.md`
