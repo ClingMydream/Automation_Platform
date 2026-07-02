@@ -47,6 +47,8 @@ MENU_OPTIONS = [
     {"key": "ui", "label": "UI 测试"},
     {"key": "files", "label": "文件快传"},
     {"key": "images", "label": "图片工具"},
+    {"key": "json_tools", "label": "JSON 工具"},
+    {"key": "codec", "label": "转码工具"},
     {"key": "runs", "label": "执行记录"},
     {"key": "reports", "label": "测试报告"},
 ]
@@ -100,7 +102,7 @@ def _normalize_menu_permissions(values: list[str]) -> list[str]:
 
 
 def _user_response(user: AppUser) -> dict:
-    permissions = ["projects", "api", "ui", "files", "images", "runs", "reports", "users"] if user.is_admin else list(user.menu_permissions or [])
+    permissions = ["projects", "api", "ui", "files", "images", "json_tools", "codec", "runs", "reports", "users"] if user.is_admin else list(user.menu_permissions or [])
     return {
         "id": user.id,
         "username": user.username,
@@ -425,7 +427,7 @@ def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(veri
     if user.is_admin:
         user.display_name = payload.display_name or user.display_name
         user.is_active = True
-        user.menu_permissions = ["projects", "api", "ui", "files", "images", "runs", "reports", "users"]
+        user.menu_permissions = ["projects", "api", "ui", "files", "images", "json_tools", "codec", "runs", "reports", "users"]
     else:
         user.display_name = payload.display_name
         user.is_active = payload.is_active

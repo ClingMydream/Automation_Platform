@@ -34,6 +34,7 @@ import {
   CopyOutlined,
   ClockCircleOutlined,
   CloseOutlined,
+  CodeOutlined,
   DeleteOutlined,
   DownloadOutlined,
   EditOutlined,
@@ -48,6 +49,7 @@ import {
   ReloadOutlined,
   RocketOutlined,
   SafetyCertificateOutlined,
+  SwapOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import 'antd/dist/reset.css';
@@ -201,6 +203,141 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
+function parseJsonInput(text) {
+  return JSON.parse(text || 'null');
+}
+
+function stableStringifyJson(value, compact = false) {
+  return JSON.stringify(value, null, compact ? 0 : 2);
+}
+
+function valueType(value) {
+  if (Array.isArray(value)) return 'array';
+  if (value === null) return 'null';
+  return typeof value;
+}
+
+function previewValue(value) {
+  if (value === undefined) return '不存在';
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+}
+
+function compareJsonValues(left, right, path = '$') {
+  const diffs = [];
+  const leftType = valueType(left);
+  const rightType = valueType(right);
+  if (leftType !== rightType) {
+    return [{ path, type: '类型不同', left: previewValue(left), right: previewValue(right) }];
+  }
+  if (leftType === 'object') {
+    const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+    [...keys].sort().forEach((key) => {
+      const nextPath = `${path}.${key}`;
+      if (!(key in left)) diffs.push({ path: nextPath, type: '右侧新增', left: '不存在', right: previewValue(right[key]) });
+      else if (!(key in right)) diffs.push({ path: nextPath, type: '左侧独有', left: previewValue(left[key]), right: '不存在' });
+      else diffs.push(...compareJsonValues(left[key], right[key], nextPath));
+    });
+    return diffs;
+  }
+  if (leftType === 'array') {
+    const max = Math.max(left.length, right.length);
+    for (let index = 0; index < max; index += 1) {
+      const nextPath = `${path}[${index}]`;
+      if (index >= left.length) diffs.push({ path: nextPath, type: '右侧新增', left: '不存在', right: previewValue(right[index]) });
+      else if (index >= right.length) diffs.push({ path: nextPath, type: '左侧独有', left: previewValue(left[index]), right: '不存在' });
+      else diffs.push(...compareJsonValues(left[index], right[index], nextPath));
+    }
+    return diffs;
+  }
+  if (left !== right) {
+    diffs.push({ path, type: '值不同', left: previewValue(left), right: previewValue(right) });
+  }
+  return diffs;
+}
+
+function utf8ToBase64(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary);
+}
+
+function base64ToUtf8(text) {
+  const binary = atob(text.trim());
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function textToHex(text) {
+  return [...new TextEncoder().encode(text)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToText(text) {
+  const cleaned = text.replace(/[^0-9a-fA-F]/g, '');
+  if (cleaned.length % 2 !== 0) throw new Error('Hex 长度必须是偶数');
+  const bytes = new Uint8Array(cleaned.match(/.{2}/g)?.map((part) => parseInt(part, 16)) || []);
+  return new TextDecoder().decode(bytes);
+}
+
+function unicodeEscape(text) {
+  return Array.from(text).map((char) => {
+    const code = char.codePointAt(0);
+    if (code <= 0x7f) return char;
+    if (code <= 0xffff) return `\\u${code.toString(16).padStart(4, '0')}`;
+    return `\\u{${code.toString(16)}}`;
+  }).join('');
+}
+
+function unicodeUnescape(text) {
+  return text
+    .replace(/\\u\{([0-9a-fA-F]+)\}/g, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(parseInt(code, 16)));
+}
+
+function htmlEntityEncode(text) {
+  return escapeHtml(text).replaceAll('\n', '&#10;');
+}
+
+function htmlEntityDecode(text) {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+}
+
+function base64UrlEncode(text) {
+  return utf8ToBase64(text).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/g, '');
+}
+
+function base64UrlDecode(text) {
+  const normalized = text.trim().replaceAll('-', '+').replaceAll('_', '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+  return base64ToUtf8(padded);
+}
+
+function runCodec(operation, input) {
+  const operations = {
+    url_encode: () => encodeURIComponent(input),
+    url_decode: () => decodeURIComponent(input),
+    base64_encode: () => utf8ToBase64(input),
+    base64_decode: () => base64ToUtf8(input),
+    base64url_encode: () => base64UrlEncode(input),
+    base64url_decode: () => base64UrlDecode(input),
+    unicode_escape: () => unicodeEscape(input),
+    unicode_unescape: () => unicodeUnescape(input),
+    html_encode: () => htmlEntityEncode(input),
+    html_decode: () => htmlEntityDecode(input),
+    hex_encode: () => textToHex(input),
+    hex_decode: () => hexToText(input),
+    json_escape: () => JSON.stringify(input),
+    json_unescape: () => {
+      const value = JSON.parse(input);
+      return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    },
+  };
+  return operations[operation]?.() ?? input;
+}
+
 function downloadReportHtml(report) {
   const detail = report?.report || {};
   const checks = detail.checks || [];
@@ -299,6 +436,16 @@ function PageGuide({ tab }) {
       title: '图片工具',
       description: '自定义生成图片，也可以上传图片后裁剪尺寸、缩放大小、叠加文案并转换格式。',
       steps: ['填写尺寸和文案生成图片', '上传原图裁剪或缩放', '选择格式并下载结果'],
+    },
+    json_tools: {
+      title: 'JSON 工具',
+      description: '格式化、压缩、校验 JSON，并对比两段 JSON 的字段和值差异。',
+      steps: ['粘贴 JSON', '格式化或压缩', '左右对比查看差异'],
+    },
+    codec: {
+      title: '转码工具',
+      description: '提供 URL、Base64、Unicode、HTML 实体、Hex、JSON 字符串等常用编码转换。',
+      steps: ['选择转码类型', '输入原文', '转换后复制结果'],
     },
     users: {
       title: '用户管理',
@@ -1577,6 +1724,162 @@ function ReportsPanel({ reports, reload, refreshing }) {
   );
 }
 
+function JsonToolsPanel() {
+  const [leftJson, setLeftJson] = useState('{\n  "name": "demo",\n  "enabled": true\n}');
+  const [rightJson, setRightJson] = useState('{\n  "name": "demo",\n  "enabled": false,\n  "version": 1\n}');
+  const [diffs, setDiffs] = useState([]);
+  const [summary, setSummary] = useState('');
+  const { message } = AntApp.useApp();
+
+  function formatSide(side) {
+    try {
+      const value = parseJsonInput(side === 'left' ? leftJson : rightJson);
+      const formatted = stableStringifyJson(value);
+      if (side === 'left') setLeftJson(formatted);
+      else setRightJson(formatted);
+      message.success('JSON 已格式化');
+    } catch (err) {
+      message.error(`JSON 格式错误：${err.message}`);
+    }
+  }
+
+  function minifySide(side) {
+    try {
+      const value = parseJsonInput(side === 'left' ? leftJson : rightJson);
+      const formatted = stableStringifyJson(value, true);
+      if (side === 'left') setLeftJson(formatted);
+      else setRightJson(formatted);
+      message.success('JSON 已压缩');
+    } catch (err) {
+      message.error(`JSON 格式错误：${err.message}`);
+    }
+  }
+
+  function compare() {
+    try {
+      const left = parseJsonInput(leftJson);
+      const right = parseJsonInput(rightJson);
+      const result = compareJsonValues(left, right);
+      setDiffs(result);
+      setSummary(result.length === 0 ? '两段 JSON 完全一致' : `发现 ${result.length} 处差异`);
+      message.success(result.length === 0 ? '两段 JSON 一致' : `发现 ${result.length} 处差异`);
+    } catch (err) {
+      message.error(`JSON 格式错误：${err.message}`);
+    }
+  }
+
+  function copy(text) {
+    navigator.clipboard.writeText(text).then(() => message.success('已复制')).catch(() => message.warning('复制失败，请手动复制'));
+  }
+
+  return (
+    <Space direction="vertical" size={16} className="full-width">
+      <Alert type="info" showIcon message="JSON 内容只在当前浏览器处理，不会上传到服务器。对比会按字段路径递归检查对象、数组和值。" />
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={12}>
+          <Card title="左侧 JSON" extra={<Space><Button onClick={() => formatSide('left')}>格式化</Button><Button onClick={() => minifySide('left')}>压缩</Button><Button icon={<CopyOutlined />} onClick={() => copy(leftJson)}>复制</Button></Space>}>
+            <TextArea rows={18} className="code-input" value={leftJson} onChange={(event) => setLeftJson(event.target.value)} />
+          </Card>
+        </Col>
+        <Col xs={24} xl={12}>
+          <Card title="右侧 JSON" extra={<Space><Button onClick={() => formatSide('right')}>格式化</Button><Button onClick={() => minifySide('right')}>压缩</Button><Button icon={<CopyOutlined />} onClick={() => copy(rightJson)}>复制</Button></Space>}>
+            <TextArea rows={18} className="code-input" value={rightJson} onChange={(event) => setRightJson(event.target.value)} />
+          </Card>
+        </Col>
+      </Row>
+      <Card title="对比结果" extra={<Button type="primary" icon={<CodeOutlined />} onClick={compare}>开始对比</Button>}>
+        {summary && <Alert className="tool-summary" type={diffs.length === 0 ? 'success' : 'warning'} showIcon message={summary} />}
+        <Table
+          rowKey={(record) => `${record.path}-${record.type}`}
+          dataSource={diffs}
+          pagination={{ pageSize: 10 }}
+          scroll={{ x: 900 }}
+          columns={[
+            { title: '路径', dataIndex: 'path', width: 260 },
+            { title: '差异类型', dataIndex: 'type', width: 120, render: (value) => <Tag color={value === '值不同' ? 'volcano' : 'blue'}>{value}</Tag> },
+            { title: '左侧值', dataIndex: 'left', render: (value) => <pre className="inline-code">{value}</pre> },
+            { title: '右侧值', dataIndex: 'right', render: (value) => <pre className="inline-code">{value}</pre> },
+          ]}
+        />
+      </Card>
+    </Space>
+  );
+}
+
+function CodecPanel() {
+  const [operation, setOperation] = useState('url_encode');
+  const [input, setInput] = useState('中文参数 test=123');
+  const [output, setOutput] = useState('');
+  const { message } = AntApp.useApp();
+  const options = [
+    { value: 'url_encode', label: 'URL 编码' },
+    { value: 'url_decode', label: 'URL 解码' },
+    { value: 'base64_encode', label: 'Base64 编码' },
+    { value: 'base64_decode', label: 'Base64 解码' },
+    { value: 'base64url_encode', label: 'Base64URL 编码' },
+    { value: 'base64url_decode', label: 'Base64URL 解码' },
+    { value: 'unicode_escape', label: 'Unicode 转义' },
+    { value: 'unicode_unescape', label: 'Unicode 反转义' },
+    { value: 'html_encode', label: 'HTML 实体编码' },
+    { value: 'html_decode', label: 'HTML 实体解码' },
+    { value: 'hex_encode', label: 'Hex 编码' },
+    { value: 'hex_decode', label: 'Hex 解码' },
+    { value: 'json_escape', label: 'JSON 字符串转义' },
+    { value: 'json_unescape', label: 'JSON 字符串反转义' },
+  ];
+
+  function convert() {
+    try {
+      setOutput(runCodec(operation, input));
+      message.success('转码完成');
+    } catch (err) {
+      message.error(`转码失败：${err.message}`);
+    }
+  }
+
+  function copy(text) {
+    navigator.clipboard.writeText(text).then(() => message.success('已复制')).catch(() => message.warning('复制失败，请手动复制'));
+  }
+
+  function swap() {
+    setInput(output);
+    setOutput(input);
+  }
+
+  return (
+    <Space direction="vertical" size={16} className="full-width">
+      <Alert type="info" showIcon message="转码内容只在当前浏览器处理，不会上传到服务器。适合处理接口参数、Token 片段、日志文本和配置片段。" />
+      <Card title="通用转码">
+        <Space direction="vertical" size={14} className="full-width">
+          <Row gutter={[12, 12]}>
+            <Col xs={24} md={12}>
+              <Select className="full-width" value={operation} onChange={setOperation} options={options} />
+            </Col>
+            <Col xs={24} md={12}>
+              <Space wrap>
+                <Button type="primary" icon={<SwapOutlined />} onClick={convert}>执行转码</Button>
+                <Button icon={<SwapOutlined />} onClick={swap} disabled={!output}>输入/输出互换</Button>
+              </Space>
+            </Col>
+          </Row>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} xl={12}>
+              <Card size="small" title="输入" extra={<Button icon={<CopyOutlined />} onClick={() => copy(input)}>复制</Button>}>
+                <TextArea rows={15} className="code-input" value={input} onChange={(event) => setInput(event.target.value)} />
+              </Card>
+            </Col>
+            <Col xs={24} xl={12}>
+              <Card size="small" title="输出" extra={<Button icon={<CopyOutlined />} disabled={!output} onClick={() => copy(output)}>复制</Button>}>
+                <TextArea rows={15} className="code-input" value={output} onChange={(event) => setOutput(event.target.value)} />
+              </Card>
+            </Col>
+          </Row>
+        </Space>
+      </Card>
+    </Space>
+  );
+}
+
 function LiveRunWindow({ token, runId }) {
   const client = useMemo(() => apiClient(token), [token]);
   const [run, setRun] = useState(null);
@@ -1697,7 +2000,7 @@ function PlatformApp() {
     try {
       const me = await client.get('/auth/me');
       setCurrentUser(me);
-      const allowed = new Set(me.is_admin ? ['projects', 'api', 'ui', 'files', 'images', 'runs', 'reports', 'users'] : me.menu_permissions || []);
+      const allowed = new Set(me.is_admin ? ['projects', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'users'] : me.menu_permissions || []);
       const [projects, apiCases, uiCases, runs, reports] = await Promise.all([
         allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
         allowed.has('api') ? client.get('/api-cases') : Promise.resolve([]),
@@ -1761,6 +2064,8 @@ function PlatformApp() {
     { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
     { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
     { key: 'images', icon: <PictureOutlined />, label: '图片工具' },
+    { key: 'json_tools', icon: <CodeOutlined />, label: 'JSON 工具' },
+    { key: 'codec', icon: <SwapOutlined />, label: '转码工具' },
     { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
     { key: 'reports', icon: <FileDoneOutlined />, label: '测试报告' },
     { key: 'users', icon: <SafetyCertificateOutlined />, label: '用户管理' },
@@ -1801,6 +2106,8 @@ function PlatformApp() {
           {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
           {tab === 'files' && <FileTransferPanel client={client} />}
           {tab === 'images' && <ImageToolPanel token={token} />}
+          {tab === 'json_tools' && <JsonToolsPanel />}
+          {tab === 'codec' && <CodecPanel />}
           {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
           {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
           {tab === 'reports' && <ReportsPanel reports={data.reports} reload={reload} refreshing={refreshing} />}

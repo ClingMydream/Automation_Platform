@@ -488,6 +488,25 @@ body {
   margin-top: 12px;
 }
 
+.tool-summary {
+  margin-bottom: 12px;
+}
+
+.inline-code {
+  max-height: 132px;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  border-radius: 6px;
+  background: #f7faf9;
+  color: #18312f;
+  font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 @media (max-width: 900px) {
   .app-sider {
     position: static;

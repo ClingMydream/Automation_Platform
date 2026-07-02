@@ -73,7 +73,7 @@ def ensure_admin_user(db: Session) -> AppUser:
             password_hash=hash_password(settings.admin_password),
             is_admin=True,
             is_active=True,
-            menu_permissions=["projects", "api", "ui", "files", "images", "runs", "reports", "users"],
+            menu_permissions=["projects", "api", "ui", "files", "images", "json_tools", "codec", "runs", "reports", "users"],
         )
         db.add(user)
         db.commit()
@@ -81,7 +81,7 @@ def ensure_admin_user(db: Session) -> AppUser:
     elif not user.is_admin:
         user.is_admin = True
         user.is_active = True
-        user.menu_permissions = ["projects", "api", "ui", "files", "images", "runs", "reports", "users"]
+        user.menu_permissions = ["projects", "api", "ui", "files", "images", "json_tools", "codec", "runs", "reports", "users"]
         db.commit()
         db.refresh(user)
     return user
@@ -101,7 +101,7 @@ def get_current_user(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is disabled")
-    permissions = ["projects", "api", "ui", "files", "images", "runs", "reports", "users"] if user.is_admin else list(user.menu_permissions or [])
+    permissions = ["projects", "api", "ui", "files", "images", "json_tools", "codec", "runs", "reports", "users"] if user.is_admin else list(user.menu_permissions or [])
     return AuthContext(
         username=user.username,
         display_name=user.display_name,
