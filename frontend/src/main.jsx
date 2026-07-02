@@ -3,19 +3,19 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Login } from './modules/auth/Login.jsx';
-import { ApiCasePanel } from './modules/api-testing/ApiCasePanel.jsx';
-import { CodecPanel } from './modules/codec-tools/CodecPanel.jsx';
-import { FileTransferPanel } from './modules/file-transfer/FileTransferPanel.jsx';
-import { PublicTransferPage } from './modules/file-transfer/PublicTransferPage.jsx';
-import { ImageToolPanel } from './modules/image-tools/ImageToolPanel.jsx';
-import { JsonToolsPanel } from './modules/json-tools/JsonToolsPanel.jsx';
-import { LiveRunWindow } from './modules/live-run/LiveRunWindow.jsx';
-import { ProjectPanel } from './modules/projects/ProjectPanel.jsx';
-import { ReportsPanel } from './modules/test-reports/ReportsPanel.jsx';
-import { RunsPanel } from './modules/run-history/RunsPanel.jsx';
-import { UiCasePanel } from './modules/ui-testing/UiCasePanel.jsx';
-import { UserPanel } from './modules/user-management/UserPanel.jsx';
+import { Login } from './modules/00-auth/Login.jsx';
+import { ProjectPanel } from './modules/01-projects/ProjectPanel.jsx';
+import { ApiCasePanel } from './modules/02-api-testing/ApiCasePanel.jsx';
+import { UiCasePanel } from './modules/03-ui-testing/UiCasePanel.jsx';
+import { FileTransferPanel } from './modules/04-file-transfer/FileTransferPanel.jsx';
+import { PublicTransferPage } from './modules/04-file-transfer/PublicTransferPage.jsx';
+import { ImageToolPanel } from './modules/05-image-tools/ImageToolPanel.jsx';
+import { JsonToolsPanel } from './modules/06-json-tools/JsonToolsPanel.jsx';
+import { CodecPanel } from './modules/07-codec-tools/CodecPanel.jsx';
+import { RunsPanel } from './modules/08-run-history/RunsPanel.jsx';
+import { ReportsPanel } from './modules/09-test-reports/ReportsPanel.jsx';
+import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
+import { LiveRunWindow } from './modules/90-live-run/LiveRunWindow.jsx';
 import { apiClient } from './shared/apiClient';
 import { PageGuide } from './shared/PageGuide.jsx';
 import { AUTH_EXPIRED_EVENT } from './shared/constants';
@@ -213,9 +213,9 @@ function PlatformApp() {
           {tab === 'images' && <ImageToolPanel token={token} />}
           {tab === 'json_tools' && <JsonToolsPanel />}
           {tab === 'codec' && <CodecPanel />}
-          {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
           {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
           {tab === 'reports' && <ReportsPanel reports={data.reports} reload={reload} refreshing={refreshing} />}
+          {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
         </Content>
       </Layout>
     </Layout>

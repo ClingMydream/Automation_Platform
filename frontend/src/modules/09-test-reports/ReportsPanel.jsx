@@ -7,7 +7,7 @@ import { ClockCircleOutlined, DownloadOutlined, EyeOutlined, ReloadOutlined } fr
 import { formatDuration, formatTime } from '../../shared/formatters';
 import { downloadReportHtml } from '../../shared/reportExport';
 import { StatusTag } from '../../shared/StatusTag.jsx';
-import { RunDetail } from '../run-history/RunDetail.jsx';
+import { RunDetail } from '../08-run-history/RunDetail.jsx';
 import { buildReportSummary, filterReports, findReportById } from './testReportFeature.js';
 
 // Reports page: shows report statistics, filters, details, and export action.
@@ -94,5 +94,4 @@ export function ReportsPanel({ reports, reload, refreshing }) {
   );
 }
 
-// JSON 工具模块：纯浏览器本地处理，不向服务器上传内容。
-
+// Test reports module: supports result review, detail viewing, and HTML export.

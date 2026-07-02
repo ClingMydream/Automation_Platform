@@ -97,5 +97,4 @@ export function JsonToolsPanel() {
   );
 }
 
-// 转码工具模块：纯浏览器本地处理，适合处理接口参数和日志片段。
-
+// JSON tools module: formats, compresses, and compares JSON locally in the browser.

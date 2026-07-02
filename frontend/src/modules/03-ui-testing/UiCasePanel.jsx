@@ -155,5 +155,4 @@ export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated })
   );
 }
 
-// 图片工具模块：调用后端图片接口完成生成、裁剪、格式转换。
-
+// UI testing module: maintains low-code UI steps and starts live browser runs.

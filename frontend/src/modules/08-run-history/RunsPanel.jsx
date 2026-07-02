@@ -46,5 +46,4 @@ export function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun
   );
 }
 
-// 测试报告模块：面向结果复盘，支持查看详情和导出 HTML 报告。
-
+// Run history module: reviews execution tasks and opens detailed logs/screenshots.

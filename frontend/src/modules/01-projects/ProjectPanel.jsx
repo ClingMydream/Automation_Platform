@@ -105,5 +105,4 @@ export function ProjectPanel({ client, projects, reload }) {
   );
 }
 
-// 接口测试模块：维护接口用例，并向后端创建执行任务。
-
+// Projects module: maintains project and environment records.

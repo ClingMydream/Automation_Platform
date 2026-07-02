@@ -204,5 +204,4 @@ export function ImageToolPanel({ token }) {
   );
 }
 
-// 用户管理模块：管理员维护登录人员和可见菜单权限。
-
+// Image tools module: calls backend image APIs for generation, cropping, and format conversion.

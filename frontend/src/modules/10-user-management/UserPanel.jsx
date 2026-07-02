@@ -150,5 +150,4 @@ export function UserPanel({ client }) {
   );
 }
 
-// 文件快传模块：电脑端上传临时文件，手机扫码下载或回传文件。
-
+// User management module: lets admins maintain login users and visible menu permissions.
