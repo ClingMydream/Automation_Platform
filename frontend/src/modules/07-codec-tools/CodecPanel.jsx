@@ -88,5 +88,4 @@ export function CodecPanel() {
   );
 }
 
-// UI 实时执行窗口：新窗口展示 UI 自动化运行过程和最新截图。
-
+// Codec tools module: converts text locally for common API, log, and configuration formats.

@@ -1,3 +1,4 @@
+/* Global page defaults shared by every frontend screen. */
 :root {
   color: #17202a;
   background: #eef2f5;
@@ -13,6 +14,7 @@ body {
 
 .full-width { width: 100%; }
 
+/* Login page layout and brand styling. */
 .login-screen {
   min-height: 100vh;
   display: grid;
@@ -52,6 +54,7 @@ body {
   margin: 0;
 }
 
+/* Main application shell: sidebar, brand, logout button, header, and content area. */
 .app-layout {
   min-height: 100vh;
 }
@@ -121,6 +124,7 @@ body {
   overflow: auto;
 }
 
+/* Page guide card shown above each menu page. */
 .guide-card {
   margin-bottom: 16px;
   border-color: #b7d9d5;
@@ -143,6 +147,7 @@ body {
   color: #52616b;
 }
 
+/* Shared code and JSON display styles. */
 .code-input,
 .json-report {
   font-family: Consolas, "Courier New", monospace;
@@ -213,6 +218,7 @@ body {
   white-space: pre;
 }
 
+/* Report screenshots and thumbnail grids. */
 .report-image {
   display: block;
   width: 100%;
@@ -233,6 +239,7 @@ body {
   border-radius: 6px;
 }
 
+/* File transfer cards, QR code area, previews, and action column sizing. */
 .share-card {
   margin-top: 16px;
 }
@@ -269,6 +276,7 @@ body {
   background: #0b1117;
 }
 
+/* Image tool preview surfaces for generated or transformed files. */
 .image-tool-preview,
 .image-tool-preview-frame {
   display: block;
@@ -284,6 +292,7 @@ body {
   height: 520px;
 }
 
+/* Public phone transfer page used by QR-code links. */
 .public-transfer-screen {
   min-height: 100vh;
   display: grid;
@@ -320,6 +329,7 @@ body {
   margin: 0;
 }
 
+/* Live UI automation execution window. */
 .live-shell {
   min-height: 100vh;
   padding: 18px;
@@ -488,6 +498,7 @@ body {
   margin-top: 12px;
 }
 
+/* Utility styles used by tool pages and inline formatted text. */
 .tool-summary {
   margin-bottom: 12px;
 }
@@ -507,6 +518,7 @@ body {
   word-break: break-word;
 }
 
+/* Mobile and narrow-screen adjustments for the shell and live window. */
 @media (max-width: 900px) {
   .app-sider {
     position: static;

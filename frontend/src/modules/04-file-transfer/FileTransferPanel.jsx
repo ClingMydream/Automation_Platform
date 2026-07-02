@@ -165,5 +165,4 @@ export function FileTransferPanel({ client }) {
   );
 }
 
-// 手机扫码公开页面：不进入后台菜单，只根据 token 访问临时文件。
-
+// File transfer module: manages desktop uploads, QR links, previews, and temporary file records.

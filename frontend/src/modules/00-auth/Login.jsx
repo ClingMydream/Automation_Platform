@@ -57,5 +57,4 @@ export function Login({ onLogin, notice }) {
   );
 }
 
-// 项目管理模块：维护项目基础信息。
-
+// Auth module: owns the login screen and token handoff after successful login.

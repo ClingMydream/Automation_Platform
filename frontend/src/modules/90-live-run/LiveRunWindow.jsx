@@ -86,4 +86,4 @@ export function LiveRunWindow({ token, runId }) {
   );
 }
 
-// 应用总入口：负责登录态、权限菜单、全局数据加载和模块切换。
+// Live run module: shows UI automation progress in a separate execution window.

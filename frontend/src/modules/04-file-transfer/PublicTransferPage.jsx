@@ -101,5 +101,4 @@ export function PublicTransferPage({ token }) {
   );
 }
 
-// 执行详情组件：展示一次测试任务的日志、断言、截图和错误信息。
-
+// Public transfer module: lets mobile devices download shared files or upload return files by token.
