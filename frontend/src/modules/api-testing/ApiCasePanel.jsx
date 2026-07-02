@@ -2,7 +2,7 @@
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
 import React, { useState } from 'react';
-import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table } from 'antd';
+import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { API_JSON_EXAMPLE } from '../../shared/constants';
 import { JsonHelpCard } from '../../shared/JsonHelpCard.jsx';
@@ -172,5 +172,4 @@ export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated 
   );
 }
 
-// UI 测试模块：维护低代码 UI 步骤，并打开实时执行窗口。
-
+// API testing module: this file only owns the interface-test page UI.
