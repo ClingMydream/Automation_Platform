@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Alert,
@@ -58,6 +58,17 @@ const { Dragger } = Upload;
 
 const API_BASE = '/api';
 const DEFAULT_UI_STEPS = '[{"action":"goto","value":"https://example.com"},{"action":"assert_text","value":"Example Domain"},{"action":"screenshot"}]';
+const AUTH_EXPIRED_EVENT = 'automation-auth-expired';
+
+function authExpiredError() {
+  const err = new Error('登录已过期，请重新登录');
+  err.authExpired = true;
+  return err;
+}
+
+function notifyAuthExpired() {
+  window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+}
 
 function apiClient(token) {
   async function request(path, options = {}) {
@@ -71,6 +82,10 @@ function apiClient(token) {
       },
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && token) {
+      notifyAuthExpired();
+      throw authExpiredError();
+    }
     if (!res.ok) throw new Error(data.detail || '请求失败');
     return data;
   }
@@ -212,7 +227,7 @@ function PageGuide({ tab }) {
   );
 }
 
-function Login({ onLogin }) {
+function Login({ onLogin, notice }) {
   const [loading, setLoading] = useState(false);
   const { message } = AntApp.useApp();
 
@@ -241,6 +256,7 @@ function Login({ onLogin }) {
               <Text type="secondary">接口测试与低代码 UI 自动化控制台</Text>
             </div>
           </div>
+          {notice && <Alert type="warning" showIcon message={notice} />}
           <Form layout="vertical" initialValues={{ username: 'admin', password: '' }} onFinish={submit}>
             <Form.Item label="管理员账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
               <Input size="large" />
@@ -690,6 +706,10 @@ function ImageToolPanel({ token }) {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        notifyAuthExpired();
+        throw authExpiredError();
+      }
       throw new Error(data.detail || '图片处理失败');
     }
     const blob = await res.blob();
@@ -1262,8 +1282,33 @@ function PlatformApp() {
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
   const [data, setData] = useState({ projects: [], apiCases: [], uiCases: [], runs: [] });
   const [refreshing, setRefreshing] = useState(false);
+  const [loginNotice, setLoginNotice] = useState('');
+  const authExpiredShownRef = useRef(false);
   const { message } = AntApp.useApp();
   const client = useMemo(() => apiClient(token), [token]);
+
+  function handleLogin(nextToken) {
+    authExpiredShownRef.current = false;
+    setLoginNotice('');
+    setToken(nextToken);
+  }
+
+  function logoutExpired() {
+    localStorage.removeItem('token');
+    setToken('');
+    setTab('projects');
+    setSelectedRunId(null);
+    setData({ projects: [], apiCases: [], uiCases: [], runs: [] });
+    setLoginNotice('登录已过期，请重新登录');
+    const url = new URL(window.location.href);
+    url.searchParams.delete('runId');
+    url.searchParams.delete('liveRunId');
+    window.history.replaceState(null, '', url);
+    if (!authExpiredShownRef.current) {
+      authExpiredShownRef.current = true;
+      message.warning('登录已过期，请重新登录');
+    }
+  }
 
   async function reload() {
     if (!token) return;
@@ -1277,6 +1322,7 @@ function PlatformApp() {
       ]);
       setData({ projects, apiCases, uiCases, runs });
     } catch (err) {
+      if (err.authExpired) return;
       message.error(err.message);
     } finally {
       setRefreshing(false);
@@ -1304,6 +1350,11 @@ function PlatformApp() {
   useEffect(() => { reload(); }, [token]);
 
   useEffect(() => {
+    window.addEventListener(AUTH_EXPIRED_EVENT, logoutExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, logoutExpired);
+  }, []);
+
+  useEffect(() => {
     if (!token || tab !== 'runs') return undefined;
     const selected = data.runs.find((run) => run.id === selectedRunId);
     if (!selected || !['queued', 'running'].includes(selected.status)) return undefined;
@@ -1312,7 +1363,7 @@ function PlatformApp() {
   }, [token, tab, selectedRunId, data.runs]);
 
   if (transferToken) return <PublicTransferPage token={transferToken} />;
-  if (!token) return <Login onLogin={setToken} />;
+  if (!token) return <Login onLogin={handleLogin} notice={loginNotice} />;
   if (liveRunId) return <LiveRunWindow token={token} runId={liveRunId} />;
 
   const menuItems = [
