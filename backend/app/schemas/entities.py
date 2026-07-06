@@ -94,6 +94,7 @@ class EnvironmentRead(EnvironmentCreate):
 class ApiCaseCreate(BaseModel):
     """Request body for creating or updating an API test case."""
     project_id: int = Field(description="所属项目 ID", examples=[1])
+    environment_id: int | None = Field(default=None, description="?????? ID???? URL ???? /path ????", examples=[1])
     name: str = Field(description="接口用例名称", examples=["查询示例接口"])
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = Field(description="HTTP 请求方法", examples=["GET"])
     url: str = Field(description="完整请求地址，只允许公网 HTTP/HTTPS", examples=["https://httpbin.org/get"])

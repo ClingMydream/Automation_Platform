@@ -1001,3 +1001,261 @@ body {
     margin-bottom: 4px;
   }
 }
+
+/* MeterSphere-like quality console refresh: restrained purple accent, dense tables, and clearer hierarchy. */
+:root {
+  --console-accent: #6f42e8;
+  --console-accent-weak: #f2efff;
+  --console-sidebar: #2f2460;
+  --console-sidebar-deep: #251b52;
+  --console-border: #e7eaf2;
+  --console-text: #1f2937;
+  --console-muted: #667085;
+  --console-page: #f5f6fa;
+}
+
+body,
+.app-layout,
+.app-content {
+  background: var(--console-page);
+}
+
+.app-sider {
+  width: 248px !important;
+  min-width: 248px !important;
+  max-width: 248px !important;
+  background: var(--console-sidebar) !important;
+  border-right: 0;
+  box-shadow: 6px 0 24px rgba(47, 36, 96, 0.16);
+}
+
+.brand {
+  height: 68px;
+  padding: 0 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.brand-mark {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #7c5cff;
+  box-shadow: 0 10px 22px rgba(124, 92, 255, 0.28);
+}
+
+.brand strong {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.brand span {
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.workspace-switcher {
+  margin: 14px 14px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--console-sidebar-deep);
+}
+
+.workspace-switcher span {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.workspace-switcher strong {
+  color: #ffffff;
+}
+
+.app-menu.ant-menu {
+  max-height: calc(100vh - 178px);
+  padding: 0 10px 82px;
+  overflow-y: auto;
+  background: transparent;
+  scrollbar-width: thin;
+}
+
+.app-menu .ant-menu-item-group-title {
+  height: 30px;
+  padding: 10px 12px 4px;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.app-menu .ant-menu-item {
+  height: 36px;
+  margin: 2px 0;
+  color: rgba(255, 255, 255, 0.74);
+  border-radius: 6px;
+  font-weight: 650;
+}
+
+.app-menu .ant-menu-item .anticon {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.app-menu .ant-menu-item:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.app-menu .ant-menu-item:hover .anticon {
+  color: #ffffff;
+}
+
+.app-menu .ant-menu-item-selected {
+  color: #ffffff !important;
+  background: #7c5cff !important;
+  box-shadow: inset 3px 0 0 #ffffff;
+}
+
+.app-menu .ant-menu-item-selected .anticon {
+  color: #ffffff;
+}
+
+.logout-button {
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.logout-button:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.13) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+.app-header {
+  min-height: 66px;
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--console-border);
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.02);
+}
+
+.module-eyebrow {
+  color: var(--console-accent);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.app-header h3 {
+  margin: 0;
+  color: var(--console-text);
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.header-stat {
+  min-width: 82px;
+  padding: 6px 10px;
+  border: 1px solid var(--console-border);
+  background: #fafbff;
+}
+
+.header-stat strong {
+  color: var(--console-accent);
+}
+
+.refresh-button {
+  border-color: #dcd7ff;
+  color: var(--console-accent);
+}
+
+.content-shell {
+  max-width: 1720px;
+  padding-bottom: 24px;
+}
+
+.guide-card {
+  border: 1px solid #e2dcff;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(47, 36, 96, 0.06);
+}
+
+.guide-icon {
+  color: var(--console-accent);
+  background: var(--console-accent-weak);
+}
+
+.guide-card .ant-tag {
+  border-color: #e2dcff;
+  color: var(--console-accent);
+  background: var(--console-accent-weak);
+}
+
+.ant-card {
+  border-color: var(--console-border);
+  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.05);
+}
+
+.ant-card-head {
+  min-height: 46px;
+  background: #ffffff;
+}
+
+.ant-card-head-title {
+  color: var(--console-text);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.ant-table-wrapper .ant-table {
+  border: 1px solid var(--console-border);
+  border-radius: 8px;
+}
+
+.ant-table-thead > tr > th {
+  background: #f7f8fc !important;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.ant-table-tbody > tr > td {
+  color: #344054;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #f7f5ff !important;
+}
+
+.ant-btn-primary {
+  background: var(--console-accent);
+  box-shadow: 0 8px 16px rgba(111, 66, 232, 0.18);
+}
+
+.ant-btn-primary:not(:disabled):hover {
+  background: #5f35d6 !important;
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-select-focused .ant-select-selector,
+.ant-input-number-focused {
+  border-color: var(--console-accent) !important;
+  box-shadow: 0 0 0 2px rgba(111, 66, 232, 0.12) !important;
+}
+
+.json-help-card {
+  border-color: #e2dcff;
+  background: #ffffff;
+}
+
+.json-report,
+.json-help-code {
+  border-color: #25213f;
+  background: #151225;
+}
+
+@media (max-width: 900px) {
+  .app-sider {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    box-shadow: none;
+  }
+
+  .app-menu.ant-menu {
+    max-height: 260px;
+    padding-bottom: 10px;
+  }
+}

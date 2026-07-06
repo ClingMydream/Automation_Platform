@@ -1,7 +1,7 @@
-// File purpose: API testing page. Edit API cases, explain JSON fields, and start API runs.
-// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
+// File purpose: API testing page. Edit API cases, reuse environments, explain JSON fields, and start API runs.
+// How to change: edit visual layout here; keep payload shaping and backend calls in apiCaseFeature.js.
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { API_JSON_EXAMPLE } from '../../shared/constants';
@@ -10,17 +10,24 @@ import { buildApiCaseFormValues, createApiCaseRun, deleteApiCase, saveApiCase } 
 
 const { TextArea } = Input;
 
-// API testing page: renders the case form, case table, and run action.
-export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated }) {
-  // State block: values here control loading, selection, form state, and visible page data.
+// API testing page: renders the case form, environment selector, case table, and run action.
+export function ApiCasePanel({ client, projects, environments = [], apiCases, reload, onRunCreated }) {
+  // State block: values here control edit mode, selected project, and save/run loading.
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [saving, setSaving] = useState(false);
   const { message, modal } = AntApp.useApp();
+
+  // Build quick lookup maps so table renderers stay simple and cheap.
+  const projectNameById = useMemo(() => new Map(projects.map((item) => [item.id, item.name])), [projects]);
+  const environmentById = useMemo(() => new Map(environments.map((item) => [item.id, item])), [environments]);
+  const availableEnvironments = environments.filter((item) => !selectedProjectId || item.project_id === selectedProjectId);
 
   // Reset edit state and restore default form values.
   function resetForm() {
     setEditingId(null);
+    setSelectedProjectId(null);
     form.resetFields();
     form.setFieldsValue({ method: 'GET', headers: '{}', assert_status: 200 });
   }
@@ -28,7 +35,14 @@ export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated 
   // Fill the form with an existing record so the user can edit it.
   function startEdit(item) {
     setEditingId(item.id);
+    setSelectedProjectId(item.project_id);
     form.setFieldsValue(buildApiCaseFormValues(item));
+  }
+
+  // Keep environment options scoped to the selected project.
+  function handleProjectChange(projectId) {
+    setSelectedProjectId(projectId);
+    form.setFieldValue('environment_id', undefined);
   }
 
   // Submit the current form and refresh the list after saving.
@@ -83,18 +97,29 @@ export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated 
           <JsonHelpCard
             title="接口 JSON 使用说明"
             tips={[
+              '选择环境后，URL 可以只填相对路径，例如 /api/users；不选环境时必须填写完整公网 URL。',
               '请求头 JSON 必须是对象格式，最简单可以填 {}。',
-              'POST/PUT/PATCH 的请求体可以填 JSON，也可以留空；GET 通常不用填请求体。',
-              '响应包含文本用于检查返回内容里有没有某段文字。',
+              '请求头、请求体和 URL 支持 {{变量名}}，会从环境变量 JSON 中取值替换。',
               'JSON 路径用于检查返回 JSON 的字段，格式类似 $.data.name 或 $.items.0.id。',
-              'JSON 期望值会按文本比较，例如接口返回 200，期望值就填 200。',
+              '响应包含文本用于检查返回内容里有没有某段文字。',
             ]}
             example={API_JSON_EXAMPLE}
           />
           <Card title={editingId ? '修改接口用例' : '接口用例'} extra={editingId && <Button onClick={resetForm}>取消编辑</Button>}>
             <Form form={form} layout="vertical" onFinish={submit} initialValues={{ method: 'GET', headers: '{}', assert_status: 200 }}>
               <Form.Item label="所属项目" name="project_id" rules={[{ required: true, message: '请选择项目' }]}>
-                <Select placeholder="选择项目" options={projects.map((project) => ({ value: project.id, label: project.name }))} />
+                <Select
+                  placeholder="选择项目"
+                  options={projects.map((project) => ({ value: project.id, label: project.name }))}
+                  onChange={handleProjectChange}
+                />
+              </Form.Item>
+              <Form.Item label="测试环境" name="environment_id">
+                <Select
+                  allowClear
+                  placeholder="可选；选择后 URL 可填写 /path"
+                  options={availableEnvironments.map((item) => ({ value: item.id, label: `${item.name} - ${item.base_url}` }))}
+                />
               </Form.Item>
               <Form.Item label="用例名称" name="name" rules={[{ required: true, message: '请输入用例名称' }]}>
                 <Input placeholder="例如：检查首页可访问" />
@@ -111,14 +136,14 @@ export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated 
                   </Form.Item>
                 </Col>
               </Row>
-              <Form.Item label="完整 URL" name="url" rules={[{ required: true, message: '请输入 URL' }]}>
-                <Input placeholder="https://example.com" />
+              <Form.Item label="URL 或路径" name="url" rules={[{ required: true, message: '请输入 URL 或 /path' }]}>
+                <Input placeholder="例如：https://example.com/api/users 或 /api/users" />
               </Form.Item>
               <Form.Item label="请求头 JSON" name="headers">
                 <TextArea rows={4} className="code-input" />
               </Form.Item>
               <Form.Item label="请求体" name="body">
-                <TextArea rows={4} className="code-input" />
+                <TextArea rows={4} className="code-input" placeholder='例如：{"name":"{{username}}"}' />
               </Form.Item>
               <Row gutter={12}>
                 <Col span={12}>
@@ -135,7 +160,9 @@ export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated 
               <Form.Item label="JSON 期望值" name="assert_json_value">
                 <Input />
               </Form.Item>
-              <Button type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新接口用例' : '保存接口用例'}</Button>
+              <Button type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>
+                {editingId ? '更新接口用例' : '保存接口用例'}
+              </Button>
             </Form>
           </Card>
         </Space>
@@ -146,15 +173,17 @@ export function ApiCasePanel({ client, projects, apiCases, reload, onRunCreated 
             rowKey="id"
             dataSource={apiCases}
             pagination={{ pageSize: 8 }}
-            scroll={{ x: 980 }}
+            scroll={{ x: 1120 }}
             columns={[
               { title: 'ID', dataIndex: 'id', width: 70 },
-              { title: '名称', dataIndex: 'name' },
+              { title: '名称', dataIndex: 'name', width: 180 },
+              { title: '项目', dataIndex: 'project_id', width: 130, render: (value) => projectNameById.get(value) || value },
+              { title: '环境', dataIndex: 'environment_id', width: 160, render: (value) => value ? environmentById.get(value)?.name || value : <Tag>完整 URL</Tag> },
               { title: '方法', dataIndex: 'method', width: 90, render: (value) => <Tag color="blue">{value}</Tag> },
-              { title: 'URL', dataIndex: 'url', ellipsis: true },
+              { title: 'URL / 路径', dataIndex: 'url', ellipsis: true },
               {
                 title: '操作',
-                width: 180,
+                width: 210,
                 fixed: 'right',
                 render: (_, record) => (
                   <Space className="table-actions" size={6} wrap>

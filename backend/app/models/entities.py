@@ -278,6 +278,7 @@ class ApiCase(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    environment_id: Mapped[int | None] = mapped_column(ForeignKey("environments.id"))
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     method: Mapped[str] = mapped_column(String(12), nullable=False)
     url: Mapped[str] = mapped_column(String(1000), nullable=False)

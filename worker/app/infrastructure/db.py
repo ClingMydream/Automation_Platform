@@ -69,4 +69,9 @@ def fetch_run_case(run_id: int) -> tuple[dict[str, Any], dict[str, Any]]:
         table = "api_cases" if run["case_type"] == "api" else "ui_cases"
         cur.execute(f"SELECT * FROM {table} WHERE id=%s", [run["case_id"]])
         case = cur.fetchone()
+        if run["case_type"] == "api" and case and case.get("environment_id"):
+            cur.execute("SELECT id, name, base_url, variables FROM environments WHERE id=%s", [case["environment_id"]])
+            environment = cur.fetchone()
+            if environment:
+                case["environment"] = environment
     return run, case

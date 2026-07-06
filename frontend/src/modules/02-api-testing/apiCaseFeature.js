@@ -10,6 +10,7 @@ export function buildApiCasePayload(values) {
   return {
     ...values,
     project_id: Number(values.project_id),
+    environment_id: values.environment_id ? Number(values.environment_id) : null,
     headers: JSON.parse(values.headers || '{}'),
     assert_status: Number(values.assert_status) || null,
     body: values.body || null,
@@ -23,6 +24,7 @@ export function buildApiCasePayload(values) {
 export function buildApiCaseFormValues(item) {
   return {
     project_id: item.project_id,
+    environment_id: item.environment_id || undefined,
     name: item.name,
     method: item.method,
     url: item.url,

@@ -166,7 +166,7 @@ function PlatformApp() {
         allowed.has('reports') ? client.get('/reports') : Promise.resolve([]),
       ]);
       setData({ projects, environments, testObjects, testTasks, batches, results, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports });
-      const availableTabs = menuItemsForUser(me).map((item) => item.key);
+      const availableTabs = menuItemsForUser(me).flatMap((section) => section.children.map((item) => item.key));
       if (availableTabs.length > 0 && !availableTabs.includes(tab)) {
         setTab(availableTabs[0]);
       }
@@ -218,34 +218,72 @@ function PlatformApp() {
   if (!token) return <Login onLogin={handleLogin} notice={loginNotice} />;
   if (liveRunId) return <LiveRunWindow token={token} runId={liveRunId} />;
 
-  const allMenuItems = [
-    { key: 'projects', icon: <FolderOutlined />, label: '项目' },
-    { key: 'test_objects', icon: <AimOutlined />, label: '测试对象' },
-    { key: 'capabilities', icon: <DeploymentUnitOutlined />, label: '测试能力' },
-    { key: 'test_tasks', icon: <ProfileOutlined />, label: '测试任务' },
-    { key: 'results', icon: <NodeIndexOutlined />, label: '结果中心' },
-    { key: 'diagnosis', icon: <WarningOutlined />, label: '问题定位' },
-    { key: 'quality', icon: <LineChartOutlined />, label: '质量分析' },
-    { key: 'datasets', icon: <DatabaseOutlined />, label: '测试数据' },
-    { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
-    { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
-    { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
-    { key: 'images', icon: <PictureOutlined />, label: '图片工具' },
-    { key: 'json_tools', icon: <CodeOutlined />, label: 'JSON 工具' },
-    { key: 'codec', icon: <SwapOutlined />, label: '转码工具' },
-    { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
-    { key: 'reports', icon: <FileDoneOutlined />, label: '测试报告' },
-    { key: 'integrations', icon: <DeploymentUnitOutlined />, label: '集成配置' },
-    { key: 'users', icon: <SafetyCertificateOutlined />, label: '用户管理' },
+  const menuSections = [
+    {
+      key: 'workspace',
+      label: '测试工作台',
+      children: [
+        { key: 'projects', icon: <FolderOutlined />, label: '项目' },
+        { key: 'test_objects', icon: <AimOutlined />, label: '测试对象' },
+        { key: 'test_tasks', icon: <ProfileOutlined />, label: '测试任务' },
+      ],
+    },
+    {
+      key: 'automation',
+      label: '自动化测试',
+      children: [
+        { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
+        { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
+        { key: 'capabilities', icon: <DeploymentUnitOutlined />, label: '测试能力' },
+        { key: 'datasets', icon: <DatabaseOutlined />, label: '测试数据' },
+      ],
+    },
+    {
+      key: 'quality',
+      label: '质量分析',
+      children: [
+        { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
+        { key: 'reports', icon: <FileDoneOutlined />, label: '测试报告' },
+        { key: 'results', icon: <NodeIndexOutlined />, label: '结果中心' },
+        { key: 'diagnosis', icon: <WarningOutlined />, label: '问题定位' },
+        { key: 'quality', icon: <LineChartOutlined />, label: '质量分析' },
+      ],
+    },
+    {
+      key: 'tools',
+      label: '效率工具',
+      children: [
+        { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
+        { key: 'images', icon: <PictureOutlined />, label: '图片工具' },
+        { key: 'json_tools', icon: <CodeOutlined />, label: 'JSON 工具' },
+        { key: 'codec', icon: <SwapOutlined />, label: '转码工具' },
+      ],
+    },
+    {
+      key: 'settings',
+      label: '系统配置',
+      children: [
+        { key: 'integrations', icon: <DeploymentUnitOutlined />, label: '集成配置' },
+        { key: 'users', icon: <SafetyCertificateOutlined />, label: '用户管理' },
+      ],
+    },
   ];
+  const allMenuItems = menuSections.flatMap((section) => section.children);
   // Build sidebar menu items from the current user permissions.
   function menuItemsForUser(user) {
     if (!user) return [];
     const allowed = new Set(user.is_admin ? allMenuItems.map((item) => item.key) : user.menu_permissions || []);
-    return allMenuItems.filter((item) => allowed.has(item.key));
+    return menuSections
+      .map((section) => ({
+        key: section.key,
+        type: 'group',
+        label: section.label,
+        children: section.children.filter((item) => allowed.has(item.key)),
+      }))
+      .filter((section) => section.children.length > 0);
   }
   const menuItems = menuItemsForUser(currentUser);
-  const currentTitle = menuItems.find((item) => item.key === tab)?.label || '加载中';
+  const currentTitle = allMenuItems.find((item) => item.key === tab)?.label || '加载中';
   const headerStats = [
     { label: '项目', value: data.projects.length },
     { label: '用例', value: data.apiCases.length + data.uiCases.length },
@@ -299,7 +337,7 @@ function PlatformApp() {
             {tab === 'diagnosis' && <ProblemDiagnosisPanel client={client} results={data.results} findings={data.problemFindings} reload={reload} />}
             {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}
             {tab === 'datasets' && <TestDatasetPanel client={client} projects={data.projects} datasets={data.datasets} reload={reload} />}
-            {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
+            {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} environments={data.environments} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
             {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
             {tab === 'files' && <FileTransferPanel client={client} />}
             {tab === 'images' && <ImageToolPanel token={token} />}
@@ -321,12 +359,12 @@ createRoot(document.getElementById('root')).render(
     theme={{
       algorithm: theme.defaultAlgorithm,
       token: {
-        colorPrimary: '#2468f2',
-        colorInfo: '#2468f2',
+        colorPrimary: '#6f42e8',
+        colorInfo: '#6f42e8',
         colorSuccess: '#16a34a',
         colorWarning: '#d97706',
         colorError: '#dc2626',
-        colorBgLayout: '#f4f7fb',
+        colorBgLayout: '#f5f6fa',
         colorText: '#1f2937',
         colorTextSecondary: '#667085',
         borderRadius: 6,
@@ -336,7 +374,7 @@ createRoot(document.getElementById('root')).render(
       components: {
         Layout: {
           headerBg: '#ffffff',
-          siderBg: '#ffffff',
+          siderBg: '#2f2460',
         },
         Card: {
           headerBg: '#ffffff',
@@ -347,8 +385,8 @@ createRoot(document.getElementById('root')).render(
         },
         Menu: {
           itemBorderRadius: 6,
-          itemSelectedBg: '#eaf1ff',
-          itemSelectedColor: '#2468f2',
+          itemSelectedBg: '#7c5cff',
+          itemSelectedColor: '#ffffff',
         },
       },
     }}

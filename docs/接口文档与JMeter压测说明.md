@@ -22,6 +22,48 @@
 ```
 
 
+## 2026-07-06 补充：接口用例 environment_id 与相对路径
+
+接口用例现在支持绑定测试环境。绑定环境后，`url` 字段可以填写相对路径，执行时由 worker 拼接环境的 `base_url`。
+
+| 字段 | 类型 | 说明 | JMeter 关注点 |
+|---|---|---|---|
+| environment_id | number 或 null | 可选测试环境 ID | 建议参数化，方便同一批用例切换测试环境 |
+| url | string | 完整公网 URL，或选择环境后的 `/path` 相对路径 | 压测时可把路径拆成 CSV 参数 |
+| headers | object | 请求头 JSON | 可放 Authorization、Content-Type 等公共头 |
+| body | string 或 null | 请求体文本 | 可用 CSV 参数替换 body 中的变量 |
+
+创建接口用例请求体示例：
+
+```json
+{
+  "project_id": 1,
+  "environment_id": 1,
+  "name": "查询用户列表",
+  "method": "GET",
+  "url": "/api/users",
+  "headers": {
+    "Authorization": "Bearer {{token}}"
+  },
+  "body": null,
+  "assert_status": 200,
+  "assert_text": "success",
+  "assert_json_path": "$.data.0.id",
+  "assert_json_value": "1"
+}
+```
+
+JMeter 设计建议：
+
+```text
+1. 把 environment_id、url、method、assert_status 放入 CSV Data Set Config。
+2. 用一个线程组压测 GET /api/api-cases 列表查询。
+3. 用低并发线程组压测 POST /api/api-cases 创建用例，避免制造大量无用数据。
+4. 如果要压测执行链路，使用 POST /api/runs 创建执行任务，再轮询 GET /api/runs/{id}。
+5. 压测结束后清理测试用例，或使用独立压测项目避免污染真实项目。
+```
+
+
 ## 2026-07-06 补充：问题定位接口
 
 问题定位模块用于把失败结果转成可跟踪记录，适合 JMeter 或 CI 回传失败结果后继续做根因跟踪。

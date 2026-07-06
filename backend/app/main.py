@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.db import Base, engine
+from app.db_migrations import ensure_runtime_schema
 from app.models import entities  # noqa: F401
 
 
@@ -122,6 +123,7 @@ def on_startup() -> None:
     """Create database tables and ensure the default administrator account exists."""
     # SQLAlchemy creates missing tables at startup so a fresh Docker database can boot automatically.
     Base.metadata.create_all(bind=engine)
+    ensure_runtime_schema(engine)
 
 
 # All feature routers are grouped under /api for a clean Nginx reverse-proxy rule.
