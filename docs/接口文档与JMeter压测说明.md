@@ -72,6 +72,7 @@ Authorization: Bearer 登录接口返回的 access_token
 | 用户管理 | 管理用户和菜单权限 | 管理员 | 低频接口，不建议高并发写入 |
 | 项目与环境 | 项目、环境配置 | 是 | 列表查询、创建项目、创建环境 |
 | 测试对象 | 维护平台要测什么 | 是 | 对象查询、对象创建、标签和模块过滤 |
+| 测试能力 | 场景、Mock、性能、Runner | 是 | 性能场景配置、Runner 状态查询 |
 | 测试任务 | 维护任务和执行批次 | 是 | 创建批次、CI/API 触发、状态查询 |
 | 结果中心 | 统一沉淀结果和附件 | 是 | 批量回传、结果查询、附件上传 |
 | 质量分析 | 通过率、失败分布和趋势 | 是 | 汇总接口的响应时间和计算成本 |
@@ -107,6 +108,14 @@ Authorization: Bearer 登录接口返回的 access_token
 | POST | /api/v1/test-objects | 新增测试对象 | 参数化创建接口、页面、脚本、设备等对象 |
 | PUT | /api/v1/test-objects/{object_id} | 修改测试对象 | 低频写入 |
 | DELETE | /api/v1/test-objects/{object_id} | 删除测试对象 | 第一批不影响旧用例，仍需谨慎清理测试数据 |
+| GET | /api/v1/api-scenarios | API 场景列表 | 场景编排查询 |
+| POST | /api/v1/api-scenarios | 新增 API 场景 | 低频维护 |
+| GET | /api/v1/mock-rules | Mock 规则列表 | Mock 配置查询 |
+| POST | /api/v1/mock-rules | 新增 Mock 规则 | 低频维护 |
+| GET | /api/v1/performance-scenarios | 性能场景列表 | JMeter 场景配置来源 |
+| POST | /api/v1/performance-scenarios | 新增性能场景 | 参数化并发、时长、阈值 |
+| GET | /api/v1/runners | Runner 列表 | 执行机状态查询 |
+| POST | /api/v1/runners/{runner_id}/heartbeat | Runner 心跳 | 执行机心跳压测 |
 | GET | /api/v1/test-tasks | 测试任务列表 | 高频查询 |
 | POST | /api/v1/test-tasks | 新增测试任务 | 参数化任务编号、类型和配置 |
 | POST | /api/v1/test-tasks/{task_id}/run | 创建执行批次 | 观察批次创建吞吐 |

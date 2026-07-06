@@ -21,6 +21,11 @@ export function PageGuide({ tab }) {
       description: '测试对象用来沉淀平台到底要测什么，例如接口、页面、脚本、性能场景、设备或环境。',
       steps: ['创建唯一编号', '选择对象类型和所属项目', '用标签标记核心链路'],
     },
+    capabilities: {
+      title: '测试能力',
+      description: '测试能力用来维护怎么测，包括接口场景编排、Mock、性能场景和 Runner 执行机。',
+      steps: ['选择能力标签页', '保存配置', 'Runner 可发送心跳'],
+    },
     test_tasks: {
       title: '测试任务',
       description: '测试任务用来描述什么时候测、由谁测、怎么跑；每次执行都会生成独立批次。',

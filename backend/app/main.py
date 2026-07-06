@@ -31,6 +31,10 @@ OPENAPI_TAGS = [
         "description": "沉淀平台要测试的接口、页面、App、小程序、脚本、性能场景、设备和环境。",
     },
     {
+        "name": "测试能力",
+        "description": "维护接口场景编排、Mock、性能场景和执行机 Runner，不执行任意脚本。",
+    },
+    {
         "name": "测试任务",
         "description": "维护可手动、定时、CI 或 API 触发的测试任务，并为每次执行创建独立批次。",
     },

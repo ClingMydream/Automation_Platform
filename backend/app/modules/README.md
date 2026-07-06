@@ -8,6 +8,7 @@
 - `users/`：用户管理和菜单权限。
 - `projects/`：项目与环境。
 - `test_objects/`：测试对象层，沉淀平台要测什么。
+- `test_capabilities/`：测试能力层，维护场景、Mock、性能和 Runner。
 - `test_tasks/`：测试任务和执行批次。
 - `result_center/`：结果中心、结果回传和附件。
 - `quality_analysis/`：质量指标、质量趋势和任务质量报告。
@@ -36,6 +37,8 @@
 - 测试报告业务：`backend/app/modules/reports/service.py`
 - 测试对象业务：`backend/app/modules/test_objects/service.py`
 - 测试对象请求模型：`backend/app/modules/test_objects/schemas.py`
+- 测试能力业务：`backend/app/modules/test_capabilities/service.py`
+- 测试能力请求模型：`backend/app/modules/test_capabilities/schemas.py`
 - 测试任务业务：`backend/app/modules/test_tasks/service.py`
 - 结果中心业务：`backend/app/modules/result_center/service.py`
 - 文件快传业务：`backend/app/modules/file_transfer/service.py`

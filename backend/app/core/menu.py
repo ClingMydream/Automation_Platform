@@ -9,6 +9,7 @@
 MENU_OPTIONS = [
     {"key": "projects", "label": "项目"},
     {"key": "test_objects", "label": "测试对象"},
+    {"key": "capabilities", "label": "测试能力"},
     {"key": "test_tasks", "label": "测试任务"},
     {"key": "results", "label": "结果中心"},
     {"key": "quality", "label": "质量分析"},

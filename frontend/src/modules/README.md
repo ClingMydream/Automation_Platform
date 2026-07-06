@@ -22,6 +22,7 @@
 ```text
 01-projects/          项目
 01-test-objects/      测试对象
+02-test-capabilities/ 测试能力
 02-test-tasks/        测试任务
 03-result-center/     结果中心
 04-quality-analysis/  质量分析

@@ -16,6 +16,7 @@ import { RunsPanel } from './modules/08-run-history/RunsPanel.jsx';
 import { ReportsPanel } from './modules/09-test-reports/ReportsPanel.jsx';
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
 import { TestObjectPanel } from './modules/01-test-objects/TestObjectPanel.jsx';
+import { TestCapabilityPanel } from './modules/02-test-capabilities/TestCapabilityPanel.jsx';
 import { TestTaskPanel } from './modules/02-test-tasks/TestTaskPanel.jsx';
 import { ResultCenterPanel } from './modules/03-result-center/ResultCenterPanel.jsx';
 import { QualityAnalysisPanel } from './modules/04-quality-analysis/QualityAnalysisPanel.jsx';
@@ -140,7 +141,7 @@ function PlatformApp() {
     try {
       const me = await client.get('/auth/me');
       setCurrentUser(me);
-      const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'test_tasks', 'results', 'quality', 'datasets', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'integrations', 'users'] : me.menu_permissions || []);
+      const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'capabilities', 'test_tasks', 'results', 'quality', 'datasets', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'integrations', 'users'] : me.menu_permissions || []);
       const [projects, testObjects, testTasks, batches, results, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports] = await Promise.all([
         allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
         allowed.has('test_objects') ? client.get('/v1/test-objects') : Promise.resolve([]),
@@ -212,6 +213,7 @@ function PlatformApp() {
   const allMenuItems = [
     { key: 'projects', icon: <FolderOutlined />, label: '项目' },
     { key: 'test_objects', icon: <AimOutlined />, label: '测试对象' },
+    { key: 'capabilities', icon: <DeploymentUnitOutlined />, label: '测试能力' },
     { key: 'test_tasks', icon: <ProfileOutlined />, label: '测试任务' },
     { key: 'results', icon: <NodeIndexOutlined />, label: '结果中心' },
     { key: 'quality', icon: <LineChartOutlined />, label: '质量分析' },
@@ -262,6 +264,7 @@ function PlatformApp() {
           <PageGuide tab={tab} />
           {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
           {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
+          {tab === 'capabilities' && <TestCapabilityPanel client={client} projects={data.projects} />}
           {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} testObjects={data.testObjects} testTasks={data.testTasks} reload={reload} />}
           {tab === 'results' && <ResultCenterPanel batches={data.batches} results={data.results} />}
           {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}

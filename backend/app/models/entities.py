@@ -90,6 +90,79 @@ class TestTask(Base, TimestampMixin):
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
+class ApiScenario(Base, TimestampMixin):
+    """Store API scenario orchestration config without changing legacy API cases."""
+    __tablename__ = "api_scenarios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"))
+    environment_id: Mapped[int | None] = mapped_column(ForeignKey("environments.id"))
+    variables: Mapped[dict] = mapped_column(JSON, default=dict)
+    api_case_ids: Mapped[list] = mapped_column(JSON, default=list)
+    assertions: Mapped[list] = mapped_column(JSON, default=list)
+    pre_script: Mapped[str | None] = mapped_column(Text)
+    post_script: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+
+
+class MockRule(Base, TimestampMixin):
+    """Store API mock rules for future mock service routing."""
+    __tablename__ = "mock_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"))
+    method: Mapped[str] = mapped_column(String(12), default="GET", nullable=False)
+    path: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
+    status_code: Mapped[int] = mapped_column(Integer, default=200, nullable=False)
+    response_headers: Mapped[dict] = mapped_column(JSON, default=dict)
+    response_body: Mapped[str | None] = mapped_column(Text)
+    delay_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+
+
+class PerformanceScenario(Base, TimestampMixin):
+    """Store performance scenario definitions that can later feed JMeter or PTS adapters."""
+    __tablename__ = "performance_scenarios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"))
+    target_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    method: Mapped[str] = mapped_column(String(12), default="GET", nullable=False)
+    headers: Mapped[dict] = mapped_column(JSON, default=dict)
+    body: Mapped[str | None] = mapped_column(Text)
+    concurrency: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    duration_seconds: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
+    ramp_up_seconds: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    threshold_p95_ms: Mapped[int | None] = mapped_column(Integer)
+    threshold_error_rate: Mapped[int | None] = mapped_column(Integer)
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+
+
+class RunnerAgent(Base, TimestampMixin):
+    """Store runner or execution machine metadata."""
+    __tablename__ = "runner_agents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    runner_type: Mapped[str] = mapped_column(String(40), default="platform", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="offline", nullable=False)
+    base_url: Mapped[str | None] = mapped_column(String(1000))
+    capabilities: Mapped[list] = mapped_column(JSON, default=list)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+
+
 class ExecutionBatch(Base, TimestampMixin):
     """Store one independent execution batch for traceable task runs."""
     __tablename__ = "execution_batches"

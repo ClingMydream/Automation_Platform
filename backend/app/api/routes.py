@@ -14,6 +14,7 @@ from app.modules.reports.router import router as reports_router
 from app.modules.result_center.router import router as result_center_router
 from app.modules.runs.router import router as runs_router
 from app.modules.test_datasets.router import router as test_datasets_router
+from app.modules.test_capabilities.router import router as test_capabilities_router
 from app.modules.test_objects.router import router as test_objects_router
 from app.modules.test_tasks.router import router as test_tasks_router
 from app.modules.ui_testing.router import router as ui_testing_router
@@ -29,6 +30,7 @@ for module_router in [
     users_router,
     projects_router,
     test_objects_router,
+    test_capabilities_router,
     test_tasks_router,
     result_center_router,
     quality_analysis_router,
