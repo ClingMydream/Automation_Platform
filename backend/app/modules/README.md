@@ -7,6 +7,7 @@
 - `auth/`：登录、退出、当前用户。
 - `users/`：用户管理和菜单权限。
 - `projects/`：项目与环境。
+- `test_objects/`：测试对象层，沉淀平台要测什么。
 - `api_testing/`：接口测试用例。
 - `ui_testing/`：UI 测试用例。
 - `file_transfer/`：文件快传。
@@ -28,6 +29,8 @@
 - 地址安全校验：`backend/app/core/target_guard.py`
 - 用户管理业务：`backend/app/modules/users/service.py`
 - 测试报告业务：`backend/app/modules/reports/service.py`
+- 测试对象业务：`backend/app/modules/test_objects/service.py`
+- 测试对象请求模型：`backend/app/modules/test_objects/schemas.py`
 - 文件快传业务：`backend/app/modules/file_transfer/service.py`
 - 图片工具业务：`backend/app/modules/image_tools/service.py`
 - 图片工具请求模型：`backend/app/modules/image_tools/schemas.py`

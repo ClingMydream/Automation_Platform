@@ -15,6 +15,7 @@ import { CodecPanel } from './modules/07-codec-tools/CodecPanel.jsx';
 import { RunsPanel } from './modules/08-run-history/RunsPanel.jsx';
 import { ReportsPanel } from './modules/09-test-reports/ReportsPanel.jsx';
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
+import { TestObjectPanel } from './modules/01-test-objects/TestObjectPanel.jsx';
 import { LiveRunWindow } from './modules/90-live-run/LiveRunWindow.jsx';
 import { apiClient } from './shared/apiClient';
 import { PageGuide } from './shared/PageGuide.jsx';
@@ -30,6 +31,7 @@ import {
 } from 'antd';
 import {
   ApiOutlined,
+  AimOutlined,
   BugOutlined,
   CloudUploadOutlined,
   ClockCircleOutlined,
@@ -59,7 +61,7 @@ function PlatformApp() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
-  const [data, setData] = useState({ projects: [], apiCases: [], uiCases: [], runs: [], reports: [] });
+  const [data, setData] = useState({ projects: [], testObjects: [], apiCases: [], uiCases: [], runs: [], reports: [] });
   const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loginNotice, setLoginNotice] = useState('');
@@ -80,7 +82,7 @@ function PlatformApp() {
     setToken('');
     setTab('projects');
     setSelectedRunId(null);
-    setData({ projects: [], apiCases: [], uiCases: [], runs: [], reports: [] });
+    setData({ projects: [], testObjects: [], apiCases: [], uiCases: [], runs: [], reports: [] });
     setCurrentUser(null);
     setLoginNotice('登录已过期，请重新登录');
     const url = new URL(window.location.href);
@@ -100,15 +102,16 @@ function PlatformApp() {
     try {
       const me = await client.get('/auth/me');
       setCurrentUser(me);
-      const allowed = new Set(me.is_admin ? ['projects', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'users'] : me.menu_permissions || []);
-      const [projects, apiCases, uiCases, runs, reports] = await Promise.all([
+      const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'users'] : me.menu_permissions || []);
+      const [projects, testObjects, apiCases, uiCases, runs, reports] = await Promise.all([
         allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
+        allowed.has('test_objects') ? client.get('/v1/test-objects') : Promise.resolve([]),
         allowed.has('api') ? client.get('/api-cases') : Promise.resolve([]),
         allowed.has('ui') ? client.get('/ui-cases') : Promise.resolve([]),
         allowed.has('runs') ? client.get('/runs') : Promise.resolve([]),
         allowed.has('reports') ? client.get('/reports') : Promise.resolve([]),
       ]);
-      setData({ projects, apiCases, uiCases, runs, reports });
+      setData({ projects, testObjects, apiCases, uiCases, runs, reports });
       const availableTabs = menuItemsForUser(me).map((item) => item.key);
       if (availableTabs.length > 0 && !availableTabs.includes(tab)) {
         setTab(availableTabs[0]);
@@ -163,6 +166,7 @@ function PlatformApp() {
 
   const allMenuItems = [
     { key: 'projects', icon: <FolderOutlined />, label: '项目' },
+    { key: 'test_objects', icon: <AimOutlined />, label: '测试对象' },
     { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
     { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
     { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
@@ -207,6 +211,7 @@ function PlatformApp() {
         <Content className="app-content">
           <PageGuide tab={tab} />
           {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
+          {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
           {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
           {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
           {tab === 'files' && <FileTransferPanel client={client} />}

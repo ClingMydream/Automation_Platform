@@ -52,6 +52,21 @@ class Environment(Base, TimestampMixin):
     project = relationship("Project", back_populates="environments")
 
 
+class TestObject(Base, TimestampMixin):
+    """Store platform-level test objects that describe what should be tested."""
+    __tablename__ = "test_objects"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    object_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"))
+    business_module: Mapped[str | None] = mapped_column(String(120))
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+
+
 class ApiCase(Base, TimestampMixin):
     """Store API test request and assertion settings."""
     __tablename__ = "api_cases"

@@ -27,6 +27,10 @@ OPENAPI_TAGS = [
         "description": "维护项目和测试环境，是接口测试、UI 测试和执行记录的基础数据。",
     },
     {
+        "name": "测试对象",
+        "description": "沉淀平台要测试的接口、页面、App、小程序、脚本、性能场景、设备和环境。",
+    },
+    {
         "name": "接口测试",
         "description": "维护接口自动化用例配置，执行逻辑由 worker 中的 pytest + requests + allure 完成。",
     },

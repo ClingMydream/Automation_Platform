@@ -8,6 +8,7 @@
 
 MENU_OPTIONS = [
     {"key": "projects", "label": "项目"},
+    {"key": "test_objects", "label": "测试对象"},
     {"key": "api", "label": "接口测试"},
     {"key": "ui", "label": "UI 测试"},
     {"key": "files", "label": "文件快传"},

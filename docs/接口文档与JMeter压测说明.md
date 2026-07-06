@@ -71,6 +71,7 @@ Authorization: Bearer 登录接口返回的 access_token
 | 认证 | 登录、退出、当前用户 | 登录接口不需要 | token 提取、登录成功率 |
 | 用户管理 | 管理用户和菜单权限 | 管理员 | 低频接口，不建议高并发写入 |
 | 项目与环境 | 项目、环境配置 | 是 | 列表查询、创建项目、创建环境 |
+| 测试对象 | 维护平台要测什么 | 是 | 对象查询、对象创建、标签和模块过滤 |
 | 接口测试 | 接口用例增删改查 | 是 | 用例列表、用例创建、目标 URL 安全拦截 |
 | UI测试 | UI 用例增删改查 | 是 | 步骤 JSON 保存、目标 URL 安全拦截 |
 | 文件快传 | 临时文件上传、扫码下载 | 部分公开 | 上传大小、下载带宽、磁盘占用 |
@@ -97,6 +98,10 @@ Authorization: Bearer 登录接口返回的 access_token
 | DELETE | /api/projects/{project_id} | 删除项目 | 谨慎压测，会删除关联数据 |
 | GET | /api/environments | 环境列表 | 页面初始化 |
 | POST | /api/environments | 新增环境 | 校验公网 URL 拦截 |
+| GET | /api/v1/test-objects | 测试对象列表 | 高频查询，可按类型、项目、启用状态过滤 |
+| POST | /api/v1/test-objects | 新增测试对象 | 参数化创建接口、页面、脚本、设备等对象 |
+| PUT | /api/v1/test-objects/{object_id} | 修改测试对象 | 低频写入 |
+| DELETE | /api/v1/test-objects/{object_id} | 删除测试对象 | 第一批不影响旧用例，仍需谨慎清理测试数据 |
 | GET | /api/api-cases | 接口用例列表 | 高频查询 |
 | POST | /api/api-cases | 新增接口用例 | 参数化 URL、方法、断言 |
 | PUT | /api/api-cases/{case_id} | 修改接口用例 | 低频写入 |

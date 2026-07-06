@@ -21,6 +21,7 @@
 
 ```text
 01-projects/          项目
+01-test-objects/      测试对象
 02-api-testing/       接口测试
 03-ui-testing/        UI 测试
 04-file-transfer/     文件快传
