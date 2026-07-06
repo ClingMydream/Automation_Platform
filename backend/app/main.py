@@ -31,6 +31,22 @@ OPENAPI_TAGS = [
         "description": "沉淀平台要测试的接口、页面、App、小程序、脚本、性能场景、设备和环境。",
     },
     {
+        "name": "测试任务",
+        "description": "维护可手动、定时、CI 或 API 触发的测试任务，并为每次执行创建独立批次。",
+    },
+    {
+        "name": "结果中心",
+        "description": "统一接收平台执行器、自动化脚本、CI 和 JMeter 回传的执行结果和附件证据。",
+    },
+    {
+        "name": "质量分析",
+        "description": "汇总通过率、失败分布、响应时间、质量趋势和任务级质量报告。",
+    },
+    {
+        "name": "测试数据",
+        "description": "维护变量集、测试账号和参数化数据池，供接口测试、UI 测试和脚本接入复用。",
+    },
+    {
         "name": "接口测试",
         "description": "维护接口自动化用例配置，执行逻辑由 worker 中的 pytest + requests + allure 完成。",
     },
@@ -53,6 +69,10 @@ OPENAPI_TAGS = [
     {
         "name": "测试报告",
         "description": "从执行记录汇总测试报告，供页面展示和后续导出扩展。",
+    },
+    {
+        "name": "集成开放",
+        "description": "维护 CI、脚本仓库、钉钉、企微、飞书或通用 Webhook 等外部集成配置。",
     },
 ]
 

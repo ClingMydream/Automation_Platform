@@ -1,6 +1,7 @@
 """Project and environment API routes used by test case modules."""
 
 from fastapi import APIRouter, Depends, HTTPException
+import httpx
 from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, require_menu
@@ -113,3 +114,32 @@ def create_environment(payload: EnvironmentCreate, _: AuthContext = Depends(requ
     db.commit()
     db.refresh(environment)
     return environment
+
+
+@router.post(
+    "/v1/environments/{environment_id}/health-check",
+    summary="测试环境健康检查",
+    description="对环境 base_url 发起一次轻量请求，记录响应时间和状态，方便确认环境是否可用。",
+)
+def health_check_environment(environment_id: int, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+    """Call the environment base URL and return basic availability evidence."""
+    environment = db.get(Environment, environment_id)
+    if environment is None:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    validate_public_http_url(environment.base_url)
+    try:
+        response = httpx.get(environment.base_url, timeout=5.0, follow_redirects=True)
+        return {
+            "environment_id": environment.id,
+            "base_url": environment.base_url,
+            "status": "ok" if response.status_code < 500 else "warning",
+            "status_code": response.status_code,
+            "elapsed_ms": round(response.elapsed.total_seconds() * 1000),
+        }
+    except httpx.HTTPError as exc:
+        return {
+            "environment_id": environment.id,
+            "base_url": environment.base_url,
+            "status": "error",
+            "error": str(exc),
+        }

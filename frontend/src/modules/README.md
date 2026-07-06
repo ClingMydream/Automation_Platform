@@ -22,6 +22,10 @@
 ```text
 01-projects/          项目
 01-test-objects/      测试对象
+02-test-tasks/        测试任务
+03-result-center/     结果中心
+04-quality-analysis/  质量分析
+05-test-datasets/     测试数据
 02-api-testing/       接口测试
 03-ui-testing/        UI 测试
 04-file-transfer/     文件快传
@@ -30,6 +34,7 @@
 07-codec-tools/       转码工具
 08-run-history/       执行记录
 09-test-reports/      测试报告
+06-integrations/      集成配置
 10-user-management/   用户管理
 ```
 

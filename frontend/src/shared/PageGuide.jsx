@@ -21,6 +21,26 @@ export function PageGuide({ tab }) {
       description: '测试对象用来沉淀平台到底要测什么，例如接口、页面、脚本、性能场景、设备或环境。',
       steps: ['创建唯一编号', '选择对象类型和所属项目', '用标签标记核心链路'],
     },
+    test_tasks: {
+      title: '测试任务',
+      description: '测试任务用来描述什么时候测、由谁测、怎么跑；每次执行都会生成独立批次。',
+      steps: ['创建任务', '关联测试对象', '点击执行生成批次'],
+    },
+    results: {
+      title: '结果中心',
+      description: '结果中心统一沉淀执行证据，包括批次、状态、耗时、日志、错误、断言和性能指标。',
+      steps: ['查看执行批次', '点击结果行查看证据', '外部脚本可通过 API 回传'],
+    },
+    quality: {
+      title: '质量分析',
+      description: '基于结果中心计算通过率、失败分布、耗时指标和执行批次趋势，辅助判断发布风险。',
+      steps: ['查看通过率', '关注失败分类', '观察最近批次趋势'],
+    },
+    datasets: {
+      title: '测试数据',
+      description: '维护变量集、测试账号和参数化数据池，供接口测试、UI 自动化、脚本和 JMeter 复用。',
+      steps: ['创建变量 JSON', '维护数据行数组', '在任务配置中引用'],
+    },
     api: {
       title: '接口测试',
       description: '填写请求地址、方法、请求头和断言条件，保存后即可执行。',
@@ -40,6 +60,11 @@ export function PageGuide({ tab }) {
       title: '测试报告',
       description: '汇总接口和 UI 自动化的执行结果，查看通过率、失败原因、断言明细、UI 步骤和截图。',
       steps: ['筛选报告', '查看详情', '导出 HTML 报告'],
+    },
+    integrations: {
+      title: '集成配置',
+      description: '维护 CI、脚本仓库、钉钉、企微、飞书或通用 Webhook 的开放集成配置。',
+      steps: ['新增 Webhook', '订阅事件', '后续接入通知 worker'],
     },
     files: {
       title: '文件快传',

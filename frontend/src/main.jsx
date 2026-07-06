@@ -16,6 +16,11 @@ import { RunsPanel } from './modules/08-run-history/RunsPanel.jsx';
 import { ReportsPanel } from './modules/09-test-reports/ReportsPanel.jsx';
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
 import { TestObjectPanel } from './modules/01-test-objects/TestObjectPanel.jsx';
+import { TestTaskPanel } from './modules/02-test-tasks/TestTaskPanel.jsx';
+import { ResultCenterPanel } from './modules/03-result-center/ResultCenterPanel.jsx';
+import { QualityAnalysisPanel } from './modules/04-quality-analysis/QualityAnalysisPanel.jsx';
+import { TestDatasetPanel } from './modules/05-test-datasets/TestDatasetPanel.jsx';
+import { IntegrationPanel } from './modules/06-integrations/IntegrationPanel.jsx';
 import { LiveRunWindow } from './modules/90-live-run/LiveRunWindow.jsx';
 import { apiClient } from './shared/apiClient';
 import { PageGuide } from './shared/PageGuide.jsx';
@@ -36,10 +41,15 @@ import {
   CloudUploadOutlined,
   ClockCircleOutlined,
   CodeOutlined,
+  DatabaseOutlined,
+  DeploymentUnitOutlined,
   FileDoneOutlined,
   FolderOutlined,
+  LineChartOutlined,
   LogoutOutlined,
+  NodeIndexOutlined,
   PictureOutlined,
+  ProfileOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
   SwapOutlined,
@@ -61,7 +71,21 @@ function PlatformApp() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
-  const [data, setData] = useState({ projects: [], testObjects: [], apiCases: [], uiCases: [], runs: [], reports: [] });
+  const [data, setData] = useState({
+    projects: [],
+    testObjects: [],
+    testTasks: [],
+    batches: [],
+    results: [],
+    qualitySummary: {},
+    qualityTrend: [],
+    datasets: [],
+    integrations: [],
+    apiCases: [],
+    uiCases: [],
+    runs: [],
+    reports: [],
+  });
   const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loginNotice, setLoginNotice] = useState('');
@@ -82,7 +106,21 @@ function PlatformApp() {
     setToken('');
     setTab('projects');
     setSelectedRunId(null);
-    setData({ projects: [], testObjects: [], apiCases: [], uiCases: [], runs: [], reports: [] });
+    setData({
+      projects: [],
+      testObjects: [],
+      testTasks: [],
+      batches: [],
+      results: [],
+      qualitySummary: {},
+      qualityTrend: [],
+      datasets: [],
+      integrations: [],
+      apiCases: [],
+      uiCases: [],
+      runs: [],
+      reports: [],
+    });
     setCurrentUser(null);
     setLoginNotice('登录已过期，请重新登录');
     const url = new URL(window.location.href);
@@ -102,16 +140,23 @@ function PlatformApp() {
     try {
       const me = await client.get('/auth/me');
       setCurrentUser(me);
-      const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'users'] : me.menu_permissions || []);
-      const [projects, testObjects, apiCases, uiCases, runs, reports] = await Promise.all([
+      const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'test_tasks', 'results', 'quality', 'datasets', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'integrations', 'users'] : me.menu_permissions || []);
+      const [projects, testObjects, testTasks, batches, results, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports] = await Promise.all([
         allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
         allowed.has('test_objects') ? client.get('/v1/test-objects') : Promise.resolve([]),
+        allowed.has('test_tasks') ? client.get('/v1/test-tasks') : Promise.resolve([]),
+        allowed.has('results') ? client.get('/v1/execution-batches') : Promise.resolve([]),
+        allowed.has('results') ? client.get('/v1/test-results') : Promise.resolve([]),
+        allowed.has('quality') ? client.get('/v1/quality/summary') : Promise.resolve({}),
+        allowed.has('quality') ? client.get('/v1/reports/quality-trend') : Promise.resolve([]),
+        allowed.has('datasets') ? client.get('/v1/test-datasets') : Promise.resolve([]),
+        allowed.has('integrations') ? client.get('/v1/integrations/webhooks') : Promise.resolve([]),
         allowed.has('api') ? client.get('/api-cases') : Promise.resolve([]),
         allowed.has('ui') ? client.get('/ui-cases') : Promise.resolve([]),
         allowed.has('runs') ? client.get('/runs') : Promise.resolve([]),
         allowed.has('reports') ? client.get('/reports') : Promise.resolve([]),
       ]);
-      setData({ projects, testObjects, apiCases, uiCases, runs, reports });
+      setData({ projects, testObjects, testTasks, batches, results, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports });
       const availableTabs = menuItemsForUser(me).map((item) => item.key);
       if (availableTabs.length > 0 && !availableTabs.includes(tab)) {
         setTab(availableTabs[0]);
@@ -167,6 +212,10 @@ function PlatformApp() {
   const allMenuItems = [
     { key: 'projects', icon: <FolderOutlined />, label: '项目' },
     { key: 'test_objects', icon: <AimOutlined />, label: '测试对象' },
+    { key: 'test_tasks', icon: <ProfileOutlined />, label: '测试任务' },
+    { key: 'results', icon: <NodeIndexOutlined />, label: '结果中心' },
+    { key: 'quality', icon: <LineChartOutlined />, label: '质量分析' },
+    { key: 'datasets', icon: <DatabaseOutlined />, label: '测试数据' },
     { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
     { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
     { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
@@ -175,6 +224,7 @@ function PlatformApp() {
     { key: 'codec', icon: <SwapOutlined />, label: '转码工具' },
     { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
     { key: 'reports', icon: <FileDoneOutlined />, label: '测试报告' },
+    { key: 'integrations', icon: <DeploymentUnitOutlined />, label: '集成配置' },
     { key: 'users', icon: <SafetyCertificateOutlined />, label: '用户管理' },
   ];
   // Build sidebar menu items from the current user permissions.
@@ -212,6 +262,10 @@ function PlatformApp() {
           <PageGuide tab={tab} />
           {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
           {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
+          {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} testObjects={data.testObjects} testTasks={data.testTasks} reload={reload} />}
+          {tab === 'results' && <ResultCenterPanel batches={data.batches} results={data.results} />}
+          {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}
+          {tab === 'datasets' && <TestDatasetPanel client={client} projects={data.projects} datasets={data.datasets} reload={reload} />}
           {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
           {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
           {tab === 'files' && <FileTransferPanel client={client} />}
@@ -220,6 +274,7 @@ function PlatformApp() {
           {tab === 'codec' && <CodecPanel />}
           {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
           {tab === 'reports' && <ReportsPanel reports={data.reports} reload={reload} refreshing={refreshing} />}
+          {tab === 'integrations' && <IntegrationPanel client={client} integrations={data.integrations} reload={reload} />}
           {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
         </Content>
       </Layout>

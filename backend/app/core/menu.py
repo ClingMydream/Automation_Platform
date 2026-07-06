@@ -9,6 +9,10 @@
 MENU_OPTIONS = [
     {"key": "projects", "label": "项目"},
     {"key": "test_objects", "label": "测试对象"},
+    {"key": "test_tasks", "label": "测试任务"},
+    {"key": "results", "label": "结果中心"},
+    {"key": "quality", "label": "质量分析"},
+    {"key": "datasets", "label": "测试数据"},
     {"key": "api", "label": "接口测试"},
     {"key": "ui", "label": "UI 测试"},
     {"key": "files", "label": "文件快传"},
@@ -17,6 +21,7 @@ MENU_OPTIONS = [
     {"key": "codec", "label": "转码工具"},
     {"key": "runs", "label": "执行记录"},
     {"key": "reports", "label": "测试报告"},
+    {"key": "integrations", "label": "集成配置"},
 ]
 
 ADMIN_MENU = {"key": "users", "label": "用户管理"}

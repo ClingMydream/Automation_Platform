@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     file_transfer_dir: str = "/tmp/automation-platform-transfers"
     file_transfer_max_mb: int = 1024
     file_transfer_default_hours: int = 24
+    result_attachment_dir: str = "/tmp/automation-platform-attachments"
+    result_attachment_max_mb: int = 200
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

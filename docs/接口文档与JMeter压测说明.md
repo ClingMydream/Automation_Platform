@@ -72,12 +72,17 @@ Authorization: Bearer 登录接口返回的 access_token
 | 用户管理 | 管理用户和菜单权限 | 管理员 | 低频接口，不建议高并发写入 |
 | 项目与环境 | 项目、环境配置 | 是 | 列表查询、创建项目、创建环境 |
 | 测试对象 | 维护平台要测什么 | 是 | 对象查询、对象创建、标签和模块过滤 |
+| 测试任务 | 维护任务和执行批次 | 是 | 创建批次、CI/API 触发、状态查询 |
+| 结果中心 | 统一沉淀结果和附件 | 是 | 批量回传、结果查询、附件上传 |
+| 质量分析 | 通过率、失败分布和趋势 | 是 | 汇总接口的响应时间和计算成本 |
+| 测试数据 | 变量集、账号、数据池 | 是 | 参数化数据读取和低频维护 |
 | 接口测试 | 接口用例增删改查 | 是 | 用例列表、用例创建、目标 URL 安全拦截 |
 | UI测试 | UI 用例增删改查 | 是 | 步骤 JSON 保存、目标 URL 安全拦截 |
 | 文件快传 | 临时文件上传、扫码下载 | 部分公开 | 上传大小、下载带宽、磁盘占用 |
 | 图片工具 | 图片生成和处理 | 是 | CPU、内存、图片大小 |
 | 执行记录 | 创建任务、查询结果 | 是 | 创建任务吞吐、轮询间隔、队列积压 |
 | 测试报告 | 查询报告 | 是 | 报告列表和详情查询响应时间 |
+| 集成开放 | Webhook 和外部系统配置 | 是 | 配置查询，避免压测真实通知地址 |
 
 ## 4. 核心接口清单
 
@@ -102,6 +107,21 @@ Authorization: Bearer 登录接口返回的 access_token
 | POST | /api/v1/test-objects | 新增测试对象 | 参数化创建接口、页面、脚本、设备等对象 |
 | PUT | /api/v1/test-objects/{object_id} | 修改测试对象 | 低频写入 |
 | DELETE | /api/v1/test-objects/{object_id} | 删除测试对象 | 第一批不影响旧用例，仍需谨慎清理测试数据 |
+| GET | /api/v1/test-tasks | 测试任务列表 | 高频查询 |
+| POST | /api/v1/test-tasks | 新增测试任务 | 参数化任务编号、类型和配置 |
+| POST | /api/v1/test-tasks/{task_id}/run | 创建执行批次 | 观察批次创建吞吐 |
+| GET | /api/v1/test-tasks/{task_id}/status | 查询任务最近状态 | CI/JMeter 轮询 |
+| GET | /api/v1/execution-batches | 执行批次列表 | 结果中心页面查询 |
+| GET | /api/v1/test-results | 测试结果列表 | 结果中心页面查询 |
+| POST | /api/v1/test-tasks/{task_id}/results/batch | 任务结果批量回传 | JMeter/CI 结果回传核心接口 |
+| POST | /api/v1/test-results/batch | 独立结果批量回传 | 外部脚本不绑定任务时使用 |
+| POST | /api/v1/attachments | 上传结果附件 | 小文件验证，避免大并发上传 |
+| GET | /api/v1/quality/summary | 质量总览 | 汇总计算接口 |
+| GET | /api/v1/reports/quality-trend | 质量趋势 | 趋势查询 |
+| GET | /api/v1/test-datasets | 测试数据列表 | 参数化数据读取 |
+| POST | /api/v1/test-datasets | 新增测试数据 | 低频维护 |
+| GET | /api/v1/integrations/webhooks | 集成配置列表 | 配置查询 |
+| POST | /api/v1/integrations/webhooks | 新增集成配置 | 不建议压测真实通知地址 |
 | GET | /api/api-cases | 接口用例列表 | 高频查询 |
 | POST | /api/api-cases | 新增接口用例 | 参数化 URL、方法、断言 |
 | PUT | /api/api-cases/{case_id} | 修改接口用例 | 低频写入 |

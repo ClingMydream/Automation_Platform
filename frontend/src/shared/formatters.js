@@ -38,5 +38,7 @@ export function statusColor(status) {
     running: 'processing',
     passed: 'success',
     failed: 'error',
+    error: 'error',
+    skipped: 'warning',
   }[status] || 'default';
 }
