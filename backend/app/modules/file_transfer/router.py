@@ -1,56 +1,20 @@
 """Temporary file transfer routes for desktop upload and mobile token access."""
 
 from datetime import datetime, timedelta
-from io import BytesIO
-from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, Response
-from PIL import Image, ImageOps
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.core.auth import AuthContext, create_access_token, ensure_admin_user, get_current_user, hash_password, require_menu, verify_admin, verify_password
-from app.core.config import get_settings
-from app.core.menu import ADMIN_MENU, ADMIN_MENU_KEYS, MENU_OPTIONS
-from app.core.target_guard import validate_public_http_url
+from app.core.auth import AuthContext, require_menu
 from app.db import get_db
-from app.models.entities import ApiCase, AppUser, Environment, FileTransfer, Project, TestRun, UiCase
-from app.modules.common import (
-    IMAGE_FORMATS,
-    ImageGenerateRequest,
-    _case_name_for_run,
-    _cleanup_expired,
-    _create_transfer,
-    _file_response,
-    _image_format,
-    _normalize_menu_permissions,
-    _report_summary,
-    _safe_color,
-    _serialize_image,
-    _svg_response,
-    _transfer_dir,
-    _user_response,
-    _draw_center_text,
+from app.models.entities import FileTransfer
+from app.modules.file_transfer.service import (
+    cleanup_expired,
+    create_transfer,
+    file_response,
+    transfer_dir,
 )
-from app.schemas.entities import (
-    ApiCaseCreate,
-    ApiCaseRead,
-    EnvironmentCreate,
-    EnvironmentRead,
-    LoginRequest,
-    MeResponse,
-    ProjectCreate,
-    ProjectRead,
-    RunCreate,
-    RunRead,
-    TokenResponse,
-    UiCaseCreate,
-    UiCaseRead,
-    UserCreate,
-    UserRead,
-    UserUpdate,
-)
-from app.services.queue import enqueue_run
 
 
 router = APIRouter()
@@ -60,9 +24,9 @@ router = APIRouter()
 def list_file_transfers(_: AuthContext = Depends(require_menu("files")), db: Session = Depends(get_db)):
     """List non-expired temporary file transfers."""
     # Cleanup runs opportunistically so expired files disappear without a separate scheduler.
-    _cleanup_expired(db)
+    cleanup_expired(db)
     items = db.query(FileTransfer).order_by(FileTransfer.id.desc()).limit(100).all()
-    return [_file_response(item) for item in items]
+    return [file_response(item) for item in items]
 
 
 @router.post("/file-transfers")
@@ -73,14 +37,14 @@ def upload_file_transfer(
     db: Session = Depends(get_db),
 ):
     """Upload a temporary file from the admin console."""
-    _cleanup_expired(db)
-    item = _create_transfer(
+    cleanup_expired(db)
+    item = create_transfer(
         db,
         file,
         source="admin",
         expires_at=datetime.utcnow() + timedelta(hours=expires_hours),
     )
-    return _file_response(item)
+    return file_response(item)
 
 
 @router.delete("/file-transfers/{transfer_id}")
@@ -90,7 +54,7 @@ def delete_file_transfer(transfer_id: int, _: AuthContext = Depends(require_menu
     if item is None:
         raise HTTPException(status_code=404, detail="File not found")
     # Remove the physical file before deleting the metadata row.
-    path = _transfer_dir() / item.stored_name
+    path = transfer_dir() / item.stored_name
     if path.exists():
         path.unlink()
     db.delete(item)
@@ -101,22 +65,22 @@ def delete_file_transfer(transfer_id: int, _: AuthContext = Depends(require_menu
 @router.get("/file-transfers/public/{token}")
 def get_public_file_transfer(token: str, db: Session = Depends(get_db)):
     """Read temporary file metadata by public token."""
-    _cleanup_expired(db)
+    cleanup_expired(db)
     item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
     if item is None:
         raise HTTPException(status_code=404, detail="File not found or expired")
-    return _file_response(item)
+    return file_response(item)
 
 
 @router.get("/file-transfers/public/{token}/download")
 def download_public_file_transfer(token: str, db: Session = Depends(get_db)):
     """Download a temporary file by public token."""
-    _cleanup_expired(db)
+    cleanup_expired(db)
     # Public token endpoints intentionally skip login so phones can scan and download directly.
     item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
     if item is None:
         raise HTTPException(status_code=404, detail="File not found or expired")
-    path = _transfer_dir() / item.stored_name
+    path = transfer_dir() / item.stored_name
     if not path.exists():
         raise HTTPException(status_code=404, detail="Stored file is missing")
     return FileResponse(
@@ -129,7 +93,7 @@ def download_public_file_transfer(token: str, db: Session = Depends(get_db)):
 @router.get("/file-transfers/public/{token}/preview")
 def preview_public_file_transfer(token: str, db: Session = Depends(get_db)):
     """Preview an image or video transfer by public token."""
-    _cleanup_expired(db)
+    cleanup_expired(db)
     item = db.query(FileTransfer).filter(FileTransfer.token == token).first()
     if item is None:
         raise HTTPException(status_code=404, detail="File not found or expired")
@@ -137,7 +101,7 @@ def preview_public_file_transfer(token: str, db: Session = Depends(get_db)):
     # Inline preview is limited to browser-safe image and video content.
     if not (content_type.startswith("image/") or content_type.startswith("video/")):
         raise HTTPException(status_code=415, detail="Preview only supports images and videos")
-    path = _transfer_dir() / item.stored_name
+    path = transfer_dir() / item.stored_name
     if not path.exists():
         raise HTTPException(status_code=404, detail="Stored file is missing")
     return FileResponse(
@@ -151,15 +115,15 @@ def preview_public_file_transfer(token: str, db: Session = Depends(get_db)):
 @router.post("/file-transfers/public/{token}/upload")
 def upload_public_file_transfer(token: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Upload a return file from the public mobile page."""
-    _cleanup_expired(db)
+    cleanup_expired(db)
     parent = db.query(FileTransfer).filter(FileTransfer.token == token).first()
     if parent is None:
         raise HTTPException(status_code=404, detail="Transfer link not found or expired")
-    item = _create_transfer(
+    item = create_transfer(
         db,
         file,
         source="public",
         parent_token=token,
         expires_at=parent.expires_at,
     )
-    return _file_response(item)
+    return file_response(item)

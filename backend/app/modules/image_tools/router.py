@@ -1,56 +1,23 @@
 """Image generation, crop, resize, annotation, and format-conversion routes."""
 
-from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 from PIL import Image, ImageOps
-from sqlalchemy.orm import Session
 
-from app.core.auth import AuthContext, create_access_token, ensure_admin_user, get_current_user, hash_password, require_menu, verify_admin, verify_password
+from app.core.auth import AuthContext, require_menu
 from app.core.config import get_settings
-from app.core.menu import ADMIN_MENU, ADMIN_MENU_KEYS, MENU_OPTIONS
-from app.core.target_guard import validate_public_http_url
-from app.db import get_db
-from app.models.entities import ApiCase, AppUser, Environment, FileTransfer, Project, TestRun, UiCase
-from app.modules.common import (
+from app.modules.image_tools.schemas import ImageGenerateRequest
+from app.modules.image_tools.service import (
     IMAGE_FORMATS,
-    ImageGenerateRequest,
-    _case_name_for_run,
-    _cleanup_expired,
-    _create_transfer,
-    _file_response,
-    _image_format,
-    _normalize_menu_permissions,
-    _report_summary,
-    _safe_color,
-    _serialize_image,
-    _svg_response,
-    _transfer_dir,
-    _user_response,
-    _draw_center_text,
+    draw_center_text,
+    image_format,
+    safe_color,
+    serialize_image,
+    svg_response,
 )
-from app.schemas.entities import (
-    ApiCaseCreate,
-    ApiCaseRead,
-    EnvironmentCreate,
-    EnvironmentRead,
-    LoginRequest,
-    MeResponse,
-    ProjectCreate,
-    ProjectRead,
-    RunCreate,
-    RunRead,
-    TokenResponse,
-    UiCaseCreate,
-    UiCaseRead,
-    UserCreate,
-    UserRead,
-    UserUpdate,
-)
-from app.services.queue import enqueue_run
 
 
 router = APIRouter()
@@ -73,22 +40,22 @@ def list_image_formats(_: AuthContext = Depends(require_menu("images"))):
 @router.post("/image-tools/generate")
 def generate_image(payload: ImageGenerateRequest, _: AuthContext = Depends(require_menu("images"))):
     """Generate an image from size, color, text, and format settings."""
-    config = _image_format(payload.format)
+    config = image_format(payload.format)
     # Colors are sanitized so invalid form values cannot break Pillow or SVG generation.
-    background = _safe_color(payload.background_color, "#ffffff")
-    text_color = _safe_color(payload.text_color, "#17202a")
+    background = safe_color(payload.background_color, "#ffffff")
+    text_color = safe_color(payload.text_color, "#17202a")
     filename = f"generated-{payload.width}x{payload.height}"
     if config["key"] == "svg":
         # SVG generation stays text-based instead of creating a raster image first.
-        svg = _svg_response(payload.width, payload.height, background, payload.text, text_color, payload.font_size)
+        svg = svg_response(payload.width, payload.height, background, payload.text, text_color, payload.font_size)
         return Response(
             content=svg,
             media_type=config["mime"],
             headers={"Content-Disposition": f'attachment; filename="{filename}.{config["ext"]}"'},
         )
     image = Image.new("RGB", (payload.width, payload.height), background)
-    _draw_center_text(image, payload.text, text_color, payload.font_size)
-    return _serialize_image(image, payload.format, payload.quality, payload.max_kb, filename)
+    draw_center_text(image, payload.text, text_color, payload.font_size)
+    return serialize_image(image, payload.format, payload.quality, payload.max_kb, filename)
 
 
 @router.post("/image-tools/process")
@@ -139,7 +106,7 @@ def process_image(
         height = output_height or round(image.height * (output_width / image.width))
         image = image.resize((width, height), Image.Resampling.LANCZOS)
 
-    _draw_center_text(image, text, _safe_color(text_color, "#17202a"), font_size)
+    draw_center_text(image, text, safe_color(text_color, "#17202a"), font_size)
     original_name = Path(file.filename or "image").stem[:80] or "image"
     filename = f"{original_name}-processed"
-    return _serialize_image(image, format, quality, max_kb, filename)
+    return serialize_image(image, format, quality, max_kb, filename)
