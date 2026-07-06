@@ -76,6 +76,7 @@ function PlatformApp() {
   const [selectedRunId, setSelectedRunId] = useState(initialRunId);
   const [data, setData] = useState({
     projects: [],
+    environments: [],
     testObjects: [],
     testTasks: [],
     batches: [],
@@ -112,6 +113,7 @@ function PlatformApp() {
     setSelectedRunId(null);
     setData({
       projects: [],
+      environments: [],
       testObjects: [],
       testTasks: [],
       batches: [],
@@ -146,8 +148,9 @@ function PlatformApp() {
       const me = await client.get('/auth/me');
       setCurrentUser(me);
       const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'capabilities', 'test_tasks', 'results', 'diagnosis', 'quality', 'datasets', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'integrations', 'users'] : me.menu_permissions || []);
-      const [projects, testObjects, testTasks, batches, results, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports] = await Promise.all([
+      const [projects, environments, testObjects, testTasks, batches, results, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports] = await Promise.all([
         allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
+        allowed.has('projects') ? client.get('/environments') : Promise.resolve([]),
         allowed.has('test_objects') ? client.get('/v1/test-objects') : Promise.resolve([]),
         allowed.has('test_tasks') ? client.get('/v1/test-tasks') : Promise.resolve([]),
         allowed.has('results') ? client.get('/v1/execution-batches') : Promise.resolve([]),
@@ -162,7 +165,7 @@ function PlatformApp() {
         allowed.has('runs') ? client.get('/runs') : Promise.resolve([]),
         allowed.has('reports') ? client.get('/reports') : Promise.resolve([]),
       ]);
-      setData({ projects, testObjects, testTasks, batches, results, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports });
+      setData({ projects, environments, testObjects, testTasks, batches, results, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports });
       const availableTabs = menuItemsForUser(me).map((item) => item.key);
       if (availableTabs.length > 0 && !availableTabs.includes(tab)) {
         setTab(availableTabs[0]);
@@ -288,7 +291,7 @@ function PlatformApp() {
         <Content className="app-content">
           <div className="content-shell">
             <PageGuide tab={tab} />
-            {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
+            {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} environments={data.environments} reload={reload} />}
             {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
             {tab === 'capabilities' && <TestCapabilityPanel client={client} projects={data.projects} />}
             {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} testObjects={data.testObjects} testTasks={data.testTasks} reload={reload} />}

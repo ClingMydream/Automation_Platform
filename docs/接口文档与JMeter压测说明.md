@@ -1,5 +1,27 @@
 # 接口文档与 JMeter 压测说明
 
+## 2026-07-06 补充：环境管理和健康检查接口
+
+环境管理用于保存测试环境 Base URL 和变量，接口测试、UI 测试、测试任务和 JMeter 压测都可以复用这些环境配置。
+
+| 方法 | 路径 | 说明 | JMeter 关注点 |
+|---|---|---|---|
+| GET | /api/environments | 查询环境列表 | 页面初始化、参数化环境选择 |
+| POST | /api/environments | 新增环境 | 低频写入，校验公网 URL 拦截 |
+| PUT | /api/environments/{environment_id} | 修改环境 | 修改 Base URL 后再做健康检查 |
+| DELETE | /api/environments/{environment_id} | 删除环境 | 只清理未被任务或结果引用的测试数据 |
+| POST | /api/v1/environments/{environment_id}/health-check | 环境健康检查 | 关注响应时间、状态码和错误率 |
+
+推荐压测前置流程：
+
+```text
+1. 调用 POST /api/auth/login 获取 token。
+2. 调用 GET /api/environments 读取环境列表。
+3. 对压测目标环境调用 POST /api/v1/environments/{environment_id}/health-check。
+4. 只有健康检查返回 ok 或预期状态码时，再开始压测业务接口。
+```
+
+
 ## 2026-07-06 补充：问题定位接口
 
 问题定位模块用于把失败结果转成可跟踪记录，适合 JMeter 或 CI 回传失败结果后继续做根因跟踪。

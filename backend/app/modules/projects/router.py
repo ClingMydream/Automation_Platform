@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import AuthContext, require_menu
 from app.core.target_guard import validate_public_http_url
 from app.db import get_db
-from app.models.entities import ApiCase, Environment, Project, TestRun, UiCase
+from app.models.entities import ApiCase, ApiScenario, Environment, ExecutionBatch, Project, TestResult, TestRun, TestTask, UiCase
 from app.schemas.entities import (
     EnvironmentCreate,
     EnvironmentRead,
@@ -109,11 +109,57 @@ def create_environment(payload: EnvironmentCreate, _: AuthContext = Depends(requ
     """Create an environment record."""
     # Environment base URLs are also guarded because later tests may use them as targets.
     validate_public_http_url(payload.base_url)
+    if db.get(Project, payload.project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
     environment = Environment(**payload.model_dump())
     db.add(environment)
     db.commit()
     db.refresh(environment)
     return environment
+
+
+@router.put(
+    "/environments/{environment_id}",
+    response_model=EnvironmentRead,
+    summary="修改环境",
+    description="修改测试环境名称、base_url 和变量 JSON；base_url 仍会经过公网 HTTP/HTTPS 安全校验。",
+)
+def update_environment(environment_id: int, payload: EnvironmentCreate, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+    """Update an environment record after validating the target base URL."""
+    environment = db.get(Environment, environment_id)
+    if environment is None:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    validate_public_http_url(payload.base_url)
+    if db.get(Project, payload.project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    for key, value in payload.model_dump().items():
+        setattr(environment, key, value)
+    db.commit()
+    db.refresh(environment)
+    return environment
+
+
+@router.delete(
+    "/environments/{environment_id}",
+    summary="删除环境",
+    description="删除未被测试任务、执行批次、结果或接口场景引用的环境配置。",
+)
+def delete_environment(environment_id: int, _: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+    """Delete an unused environment and protect historical execution relations."""
+    environment = db.get(Environment, environment_id)
+    if environment is None:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    referenced = (
+        db.query(TestTask.id).filter(TestTask.environment_id == environment_id).first()
+        or db.query(ExecutionBatch.id).filter(ExecutionBatch.environment_id == environment_id).first()
+        or db.query(TestResult.id).filter(TestResult.environment_id == environment_id).first()
+        or db.query(ApiScenario.id).filter(ApiScenario.environment_id == environment_id).first()
+    )
+    if referenced:
+        raise HTTPException(status_code=400, detail="Environment is referenced by tasks or results")
+    db.delete(environment)
+    db.commit()
+    return {"status": "ok"}
 
 
 @router.post(

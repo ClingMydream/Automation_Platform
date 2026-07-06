@@ -13,8 +13,8 @@ export function PageGuide({ tab }) {
   const guides = {
     projects: {
       title: '项目管理',
-      description: '项目是用例的归属空间。可以先使用示例项目，也可以创建自己的业务项目。',
-      steps: ['新建项目', '在接口或 UI 页面选择项目', '必要时修改或删除项目'],
+      description: '项目是用例的归属空间，环境用于保存 Base URL 和变量。执行测试前可以先做环境健康检查。',
+      steps: ['新建项目和环境', '填写公网 Base URL', '点击检查确认环境可访问'],
     },
     test_objects: {
       title: '测试对象',
