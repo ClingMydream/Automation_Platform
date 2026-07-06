@@ -58,3 +58,13 @@ export async function deleteApiCase(client, caseId) {
 export async function createApiCaseRun(client, caseId) {
   return client.post('/runs', { case_type: 'api', case_id: caseId });
 }
+
+// Create a debug run that can be displayed inside the API testing page.
+export async function createApiCaseDebugRun(client, caseId) {
+  return client.post(`/api-cases/${caseId}/debug`, {});
+}
+
+// Read one API debug run without depending on the run-history menu permission.
+export async function getApiCaseDebugRun(client, runId) {
+  return client.get(`/api-cases/debug-runs/${runId}`);
+}

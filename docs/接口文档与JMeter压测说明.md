@@ -64,6 +64,45 @@ JMeter 设计建议：
 ```
 
 
+## 2026-07-06 补充：接口调试执行接口
+
+接口调试接口用于在接口测试页内发起一次轻量执行，适合测试人员保存用例后立即验证请求、响应和断言是否正确。
+
+| 方法 | 路径 | 说明 | JMeter 关注点 |
+|---|---|---|---|
+| POST | /api/api-cases/{case_id}/debug | 创建接口调试任务 | 低频操作，主要关注创建任务成功率 |
+| GET | /api/api-cases/debug-runs/{run_id} | 查询接口调试结果 | 可用于轮询压测，关注 queued/running 到 passed/failed 的耗时 |
+
+调试和正式执行的区别：
+
+```text
+调试：留在接口测试页，快速查看一次请求、响应和断言。
+正式执行：进入执行记录和测试报告链路，用于沉淀历史和对外报告。
+```
+
+调试请求示例：
+
+```http
+POST /api/api-cases/1/debug
+Authorization: Bearer <token>
+```
+
+调试结果轮询示例：
+
+```http
+GET /api/api-cases/debug-runs/100
+Authorization: Bearer <token>
+```
+
+JMeter 建议：
+
+```text
+1. 不建议高并发压测调试接口，因为每次调试都会进入 worker 执行队列。
+2. 如果要压测队列能力，先创建少量稳定接口用例，再按 run_id 轮询结果。
+3. 重点统计从 POST debug 到 GET debug-runs 返回 passed/failed 的端到端耗时。
+```
+
+
 ## 2026-07-06 补充：问题定位接口
 
 问题定位模块用于把失败结果转成可跟踪记录，适合 JMeter 或 CI 回传失败结果后继续做根因跟踪。

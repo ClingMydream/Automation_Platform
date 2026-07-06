@@ -1,12 +1,20 @@
 // File purpose: API testing page. Edit API cases, reuse environments, explain JSON fields, and start API runs.
 // How to change: edit visual layout here; keep payload shaping and backend calls in apiCaseFeature.js.
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table, Tag } from 'antd';
-import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { API_JSON_EXAMPLE } from '../../shared/constants';
 import { JsonHelpCard } from '../../shared/JsonHelpCard.jsx';
-import { buildApiCaseFormValues, createApiCaseRun, deleteApiCase, saveApiCase } from './apiCaseFeature.js';
+import { ApiDebugDrawer } from './ApiDebugDrawer.jsx';
+import {
+  buildApiCaseFormValues,
+  createApiCaseDebugRun,
+  createApiCaseRun,
+  deleteApiCase,
+  getApiCaseDebugRun,
+  saveApiCase,
+} from './apiCaseFeature.js';
 
 const { TextArea } = Input;
 
@@ -17,12 +25,22 @@ export function ApiCasePanel({ client, projects, environments = [], apiCases, re
   const [editingId, setEditingId] = useState(null);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debugRun, setDebugRun] = useState(null);
+  const [debugLoading, setDebugLoading] = useState(false);
   const { message, modal } = AntApp.useApp();
 
   // Build quick lookup maps so table renderers stay simple and cheap.
   const projectNameById = useMemo(() => new Map(projects.map((item) => [item.id, item.name])), [projects]);
   const environmentById = useMemo(() => new Map(environments.map((item) => [item.id, item])), [environments]);
   const availableEnvironments = environments.filter((item) => !selectedProjectId || item.project_id === selectedProjectId);
+
+  // Poll the active debug run until the worker finishes it.
+  useEffect(() => {
+    if (!debugOpen || !debugRun || !['queued', 'running'].includes(debugRun.status)) return undefined;
+    const timer = window.setInterval(() => refreshDebugRun(debugRun.id, false), 1600);
+    return () => window.clearInterval(timer);
+  }, [debugOpen, debugRun?.id, debugRun?.status]);
 
   // Reset edit state and restore default form values.
   function resetForm() {
@@ -86,6 +104,37 @@ export function ApiCasePanel({ client, projects, environments = [], apiCases, re
       onRunCreated(run, 'api', false);
     } catch (err) {
       message.error(err.message);
+    }
+  }
+
+  // Refresh one debug run; silent refresh is used by polling so the drawer does not flicker.
+  async function refreshDebugRun(runId = debugRun?.id, showLoading = true) {
+    if (!runId) return;
+    if (showLoading) setDebugLoading(true);
+    try {
+      const nextRun = await getApiCaseDebugRun(client, runId);
+      setDebugRun(nextRun);
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      if (showLoading) setDebugLoading(false);
+    }
+  }
+
+  // Start a debug run and keep the user on the API testing page.
+  async function debugCase(record) {
+    setDebugOpen(true);
+    setDebugLoading(true);
+    try {
+      const run = await createApiCaseDebugRun(client, record.id);
+      setDebugRun(run);
+      message.success(`已创建接口调试任务 #${run.id}`);
+      await reload();
+      window.setTimeout(() => refreshDebugRun(run.id, false), 800);
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setDebugLoading(false);
     }
   }
 
@@ -183,10 +232,11 @@ export function ApiCasePanel({ client, projects, environments = [], apiCases, re
               { title: 'URL / 路径', dataIndex: 'url', ellipsis: true },
               {
                 title: '操作',
-                width: 210,
+                width: 280,
                 fixed: 'right',
                 render: (_, record) => (
                   <Space className="table-actions" size={6} wrap>
+                    <Button icon={<ThunderboltOutlined />} onClick={() => debugCase(record)}>调试</Button>
                     <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => runCase(record)}>执行</Button>
                     <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
                     <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
@@ -197,6 +247,13 @@ export function ApiCasePanel({ client, projects, environments = [], apiCases, re
           />
         </Card>
       </Col>
+      <ApiDebugDrawer
+        run={debugRun}
+        open={debugOpen}
+        loading={debugLoading}
+        onClose={() => setDebugOpen(false)}
+        onRefresh={() => refreshDebugRun()}
+      />
     </Row>
   );
 }
