@@ -9,6 +9,7 @@ from app.modules.health.router import router as health_router
 from app.modules.image_tools.router import router as image_tools_router
 from app.modules.integrations.router import router as integrations_router
 from app.modules.projects.router import router as projects_router
+from app.modules.problem_diagnosis.router import router as problem_diagnosis_router
 from app.modules.quality_analysis.router import router as quality_analysis_router
 from app.modules.reports.router import router as reports_router
 from app.modules.result_center.router import router as result_center_router
@@ -33,6 +34,7 @@ for module_router in [
     test_capabilities_router,
     test_tasks_router,
     result_center_router,
+    problem_diagnosis_router,
     quality_analysis_router,
     test_datasets_router,
     api_testing_router,

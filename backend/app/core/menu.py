@@ -12,6 +12,7 @@ MENU_OPTIONS = [
     {"key": "capabilities", "label": "测试能力"},
     {"key": "test_tasks", "label": "测试任务"},
     {"key": "results", "label": "结果中心"},
+    {"key": "diagnosis", "label": "问题定位"},
     {"key": "quality", "label": "质量分析"},
     {"key": "datasets", "label": "测试数据"},
     {"key": "api", "label": "接口测试"},

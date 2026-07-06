@@ -44,3 +44,10 @@
 - 文件快传业务：`backend/app/modules/file_transfer/service.py`
 - 图片工具业务：`backend/app/modules/image_tools/service.py`
 - 图片工具请求模型：`backend/app/modules/image_tools/schemas.py`
+
+## 2026-07-06 补充：问题定位模块
+
+- `problem_diagnosis/`：问题定位层，负责把失败结果转成可跟踪记录，记录严重级别、处理状态、失败分类、根因、复现步骤、责任人、处理建议和证据 JSON。
+- `problem_diagnosis/router.py`：提供 `/api/v1/problem-findings` CRUD，以及 `/api/v1/problem-findings/from-result/{result_id}` 从失败结果生成定位记录。
+- `problem_diagnosis/service.py`：集中放置失败分类推断、严重级别推断、证据组装和关联校验。
+- `problem_diagnosis/schemas.py`：定义 Swagger 可展示的请求和响应字段。

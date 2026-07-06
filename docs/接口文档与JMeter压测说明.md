@@ -1,5 +1,28 @@
 # 接口文档与 JMeter 压测说明
 
+## 2026-07-06 补充：问题定位接口
+
+问题定位模块用于把失败结果转成可跟踪记录，适合 JMeter 或 CI 回传失败结果后继续做根因跟踪。
+
+| 方法 | 路径 | 说明 | JMeter 关注点 |
+|---|---|---|---|
+| GET | /api/v1/problem-findings | 查询问题定位记录 | 列表查询响应时间、按状态过滤 |
+| POST | /api/v1/problem-findings | 手工新增定位记录 | 低频写入，不建议高并发压测 |
+| PUT | /api/v1/problem-findings/{finding_id} | 修改定位记录 | 模拟状态流转：待定位、定位中、已修复 |
+| DELETE | /api/v1/problem-findings/{finding_id} | 删除定位记录 | 只用于测试数据清理 |
+| POST | /api/v1/problem-findings/from-result/{result_id} | 从失败结果生成定位记录 | 先构造 failed/error 结果，再生成定位 |
+
+推荐压测流程：
+
+```text
+1. 登录获取 Bearer Token。
+2. 调用 /api/v1/test-results/batch 回传一批 failed/error 结果。
+3. 调用 /api/v1/problem-findings/from-result/{result_id} 生成定位记录。
+4. 调用 /api/v1/problem-findings 查询列表。
+5. 调用 PUT /api/v1/problem-findings/{finding_id} 模拟处理状态流转。
+```
+
+
 本文档说明自动化测试平台当前后端接口如何查看、如何调用，以及后续做 JMeter 性能测试时应该怎么设计脚本。
 
 ## 1. Swagger 访问地址

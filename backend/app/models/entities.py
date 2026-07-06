@@ -209,6 +209,27 @@ class TestResult(Base, TimestampMixin):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
+class ProblemFinding(Base, TimestampMixin):
+    """Store diagnosis records created from failed results or manual investigation."""
+    __tablename__ = "problem_findings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    result_id: Mapped[int | None] = mapped_column(ForeignKey("test_results.id"), index=True)
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("execution_batches.id"), index=True)
+    test_object_id: Mapped[int | None] = mapped_column(ForeignKey("test_objects.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    severity: Mapped[str] = mapped_column(String(30), default="medium", nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(30), default="open", nullable=False, index=True)
+    failure_category: Mapped[str | None] = mapped_column(String(80), index=True)
+    root_cause: Mapped[str | None] = mapped_column(Text)
+    reproduce_steps: Mapped[str | None] = mapped_column(Text)
+    evidence: Mapped[dict] = mapped_column(JSON, default=dict)
+    owner: Mapped[str | None] = mapped_column(String(120))
+    suggestion: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(40), default="manual", nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class TestAttachment(Base, TimestampMixin):
     """Store uploaded screenshots, recordings, logs, HAR files, and report attachments."""
     __tablename__ = "test_attachments"

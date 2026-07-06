@@ -19,6 +19,7 @@ import { TestObjectPanel } from './modules/01-test-objects/TestObjectPanel.jsx';
 import { TestCapabilityPanel } from './modules/02-test-capabilities/TestCapabilityPanel.jsx';
 import { TestTaskPanel } from './modules/02-test-tasks/TestTaskPanel.jsx';
 import { ResultCenterPanel } from './modules/03-result-center/ResultCenterPanel.jsx';
+import { ProblemDiagnosisPanel } from './modules/04-problem-diagnosis/ProblemDiagnosisPanel.jsx';
 import { QualityAnalysisPanel } from './modules/04-quality-analysis/QualityAnalysisPanel.jsx';
 import { TestDatasetPanel } from './modules/05-test-datasets/TestDatasetPanel.jsx';
 import { IntegrationPanel } from './modules/06-integrations/IntegrationPanel.jsx';
@@ -54,6 +55,7 @@ import {
   ReloadOutlined,
   SafetyCertificateOutlined,
   SwapOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import 'antd/dist/reset.css';
 import './styles/app.css';
@@ -78,6 +80,7 @@ function PlatformApp() {
     testTasks: [],
     batches: [],
     results: [],
+    problemFindings: [],
     qualitySummary: {},
     qualityTrend: [],
     datasets: [],
@@ -113,6 +116,7 @@ function PlatformApp() {
       testTasks: [],
       batches: [],
       results: [],
+      problemFindings: [],
       qualitySummary: {},
       qualityTrend: [],
       datasets: [],
@@ -141,13 +145,14 @@ function PlatformApp() {
     try {
       const me = await client.get('/auth/me');
       setCurrentUser(me);
-      const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'capabilities', 'test_tasks', 'results', 'quality', 'datasets', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'integrations', 'users'] : me.menu_permissions || []);
-      const [projects, testObjects, testTasks, batches, results, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports] = await Promise.all([
+      const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'capabilities', 'test_tasks', 'results', 'diagnosis', 'quality', 'datasets', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'integrations', 'users'] : me.menu_permissions || []);
+      const [projects, testObjects, testTasks, batches, results, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports] = await Promise.all([
         allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
         allowed.has('test_objects') ? client.get('/v1/test-objects') : Promise.resolve([]),
         allowed.has('test_tasks') ? client.get('/v1/test-tasks') : Promise.resolve([]),
         allowed.has('results') ? client.get('/v1/execution-batches') : Promise.resolve([]),
         allowed.has('results') ? client.get('/v1/test-results') : Promise.resolve([]),
+        allowed.has('diagnosis') ? client.get('/v1/problem-findings') : Promise.resolve([]),
         allowed.has('quality') ? client.get('/v1/quality/summary') : Promise.resolve({}),
         allowed.has('quality') ? client.get('/v1/reports/quality-trend') : Promise.resolve([]),
         allowed.has('datasets') ? client.get('/v1/test-datasets') : Promise.resolve([]),
@@ -157,7 +162,7 @@ function PlatformApp() {
         allowed.has('runs') ? client.get('/runs') : Promise.resolve([]),
         allowed.has('reports') ? client.get('/reports') : Promise.resolve([]),
       ]);
-      setData({ projects, testObjects, testTasks, batches, results, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports });
+      setData({ projects, testObjects, testTasks, batches, results, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports });
       const availableTabs = menuItemsForUser(me).map((item) => item.key);
       if (availableTabs.length > 0 && !availableTabs.includes(tab)) {
         setTab(availableTabs[0]);
@@ -216,6 +221,7 @@ function PlatformApp() {
     { key: 'capabilities', icon: <DeploymentUnitOutlined />, label: '测试能力' },
     { key: 'test_tasks', icon: <ProfileOutlined />, label: '测试任务' },
     { key: 'results', icon: <NodeIndexOutlined />, label: '结果中心' },
+    { key: 'diagnosis', icon: <WarningOutlined />, label: '问题定位' },
     { key: 'quality', icon: <LineChartOutlined />, label: '质量分析' },
     { key: 'datasets', icon: <DatabaseOutlined />, label: '测试数据' },
     { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
@@ -267,6 +273,7 @@ function PlatformApp() {
           {tab === 'capabilities' && <TestCapabilityPanel client={client} projects={data.projects} />}
           {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} testObjects={data.testObjects} testTasks={data.testTasks} reload={reload} />}
           {tab === 'results' && <ResultCenterPanel batches={data.batches} results={data.results} />}
+          {tab === 'diagnosis' && <ProblemDiagnosisPanel client={client} results={data.results} findings={data.problemFindings} reload={reload} />}
           {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}
           {tab === 'datasets' && <TestDatasetPanel client={client} projects={data.projects} datasets={data.datasets} reload={reload} />}
           {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}

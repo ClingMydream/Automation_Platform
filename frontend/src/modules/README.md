@@ -1,5 +1,21 @@
 # frontend/src/modules
 
+## 2026-07-06 补充：问题定位模块
+
+```text
+04-problem-diagnosis/ 问题定位
+  ProblemDiagnosisPanel.jsx     页面、表格、弹窗和按钮
+  problemDiagnosisFeature.js    状态、严重级别、payload 转换等功能逻辑
+  README.md                     模块说明
+```
+
+问题定位页面放在“结果中心”和“质量分析”之间，对应平台链路：
+
+```text
+结果采集 -> 问题定位 -> 质量分析
+```
+
+
 这里按左侧菜单顺序组织代码。目录名使用“编号 + 英文”，既能在文件管理器里按平台顺序排列，也能避免中文路径在 Git、Docker、脚本和远程服务器里出现编码问题。
 
 每个模块现在采用单层结构：
