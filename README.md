@@ -17,6 +17,7 @@ docker compose up -d --build
 
 如果你想自己参与编写和改造代码，先看：
 
+- `项目总说明.md`
 - `docs/代码改造指南.md`
 - `docs/模块化架构说明.md`
 - `frontend/src/modules/README.md`
