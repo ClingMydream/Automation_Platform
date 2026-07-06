@@ -20,10 +20,14 @@ from app.modules.image_tools.service import (
 )
 
 
-router = APIRouter()
+router = APIRouter(tags=["图片工具"])
 
 # 图片工具：后端负责真实图片处理，前端只负责收集参数和下载结果。
-@router.get("/image-tools/formats")
+@router.get(
+    "/image-tools/formats",
+    summary="查询支持的图片格式",
+    description="返回平台支持生成和转换的常用图片格式，前端用它渲染格式选项。",
+)
 def list_image_formats(_: AuthContext = Depends(require_menu("images"))):
     """Return image formats supported by the platform."""
     return [
@@ -37,7 +41,11 @@ def list_image_formats(_: AuthContext = Depends(require_menu("images"))):
     ]
 
 
-@router.post("/image-tools/generate")
+@router.post(
+    "/image-tools/generate",
+    summary="自定义生成图片",
+    description="根据宽高、背景色、文案、字体大小、输出格式和压缩大小生成图片文件。",
+)
 def generate_image(payload: ImageGenerateRequest, _: AuthContext = Depends(require_menu("images"))):
     """Generate an image from size, color, text, and format settings."""
     config = image_format(payload.format)
@@ -58,7 +66,11 @@ def generate_image(payload: ImageGenerateRequest, _: AuthContext = Depends(requi
     return serialize_image(image, payload.format, payload.quality, payload.max_kb, filename)
 
 
-@router.post("/image-tools/process")
+@router.post(
+    "/image-tools/process",
+    summary="处理上传图片",
+    description="上传图片后进行裁剪、缩放、文案叠加、格式转换和可选压缩。",
+)
 def process_image(
     file: UploadFile = File(...),
     crop_x: int = Form(default=0, ge=0),

@@ -17,10 +17,14 @@ from app.modules.file_transfer.service import (
 )
 
 
-router = APIRouter()
+router = APIRouter(tags=["文件快传"])
 
 # 文件快传：后台上传文件生成二维码，公开 token 页面用于手机下载/回传。
-@router.get("/file-transfers")
+@router.get(
+    "/file-transfers",
+    summary="查询临时文件列表",
+    description="登录用户查看未过期的临时文件，接口会顺便清理已经过期的文件记录。",
+)
 def list_file_transfers(_: AuthContext = Depends(require_menu("files")), db: Session = Depends(get_db)):
     """List non-expired temporary file transfers."""
     # Cleanup runs opportunistically so expired files disappear without a separate scheduler.
@@ -29,7 +33,14 @@ def list_file_transfers(_: AuthContext = Depends(require_menu("files")), db: Ses
     return [file_response(item) for item in items]
 
 
-@router.post("/file-transfers")
+@router.post(
+    "/file-transfers",
+    summary="上传临时文件",
+    description=(
+        "从电脑端上传临时文件并生成公开 token，手机扫码后可下载。"
+        "JMeter 压测该接口时请使用受控小文件，避免压测把磁盘打满。"
+    ),
+)
 def upload_file_transfer(
     file: UploadFile = File(...),
     expires_hours: int = Query(default=24, ge=1, le=168),
@@ -47,7 +58,11 @@ def upload_file_transfer(
     return file_response(item)
 
 
-@router.delete("/file-transfers/{transfer_id}")
+@router.delete(
+    "/file-transfers/{transfer_id}",
+    summary="删除临时文件",
+    description="删除临时文件的数据库记录和服务器磁盘文件。",
+)
 def delete_file_transfer(transfer_id: int, _: AuthContext = Depends(require_menu("files")), db: Session = Depends(get_db)):
     """Delete a temporary transfer file and database record."""
     item = db.get(FileTransfer, transfer_id)
@@ -62,7 +77,11 @@ def delete_file_transfer(transfer_id: int, _: AuthContext = Depends(require_menu
     return {"status": "ok"}
 
 
-@router.get("/file-transfers/public/{token}")
+@router.get(
+    "/file-transfers/public/{token}",
+    summary="公开查询临时文件信息",
+    description="手机扫码后无需登录，通过公开 token 查询临时文件名称、大小、类型和下载地址。",
+)
 def get_public_file_transfer(token: str, db: Session = Depends(get_db)):
     """Read temporary file metadata by public token."""
     cleanup_expired(db)
@@ -72,7 +91,11 @@ def get_public_file_transfer(token: str, db: Session = Depends(get_db)):
     return file_response(item)
 
 
-@router.get("/file-transfers/public/{token}/download")
+@router.get(
+    "/file-transfers/public/{token}/download",
+    summary="公开下载临时文件",
+    description="手机端无需登录，通过 token 下载文件；压测时应限制文件大小和并发，防止占满带宽。",
+)
 def download_public_file_transfer(token: str, db: Session = Depends(get_db)):
     """Download a temporary file by public token."""
     cleanup_expired(db)
@@ -90,7 +113,11 @@ def download_public_file_transfer(token: str, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/file-transfers/public/{token}/preview")
+@router.get(
+    "/file-transfers/public/{token}/preview",
+    summary="公开预览图片或视频",
+    description="手机端无需登录预览图片或视频类型文件，非图片/视频会返回 415。",
+)
 def preview_public_file_transfer(token: str, db: Session = Depends(get_db)):
     """Preview an image or video transfer by public token."""
     cleanup_expired(db)
@@ -112,7 +139,11 @@ def preview_public_file_transfer(token: str, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/file-transfers/public/{token}/upload")
+@router.post(
+    "/file-transfers/public/{token}/upload",
+    summary="手机端回传文件",
+    description="手机扫码进入公开页面后上传文件回传到平台，生成同一过期时间下的新临时文件。",
+)
 def upload_public_file_transfer(token: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Upload a return file from the public mobile page."""
     cleanup_expired(db)

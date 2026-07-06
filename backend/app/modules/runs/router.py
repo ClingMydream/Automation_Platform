@@ -10,16 +10,29 @@ from app.schemas.entities import RunCreate, RunRead
 from app.services.queue import enqueue_run
 
 
-router = APIRouter()
+router = APIRouter(tags=["执行记录"])
 
 # 执行任务：创建任务后进入 Redis 队列，worker 异步执行并回写结果。
-@router.get("/runs", response_model=list[RunRead])
+@router.get(
+    "/runs",
+    response_model=list[RunRead],
+    summary="查询执行记录列表",
+    description="读取最近 100 条执行记录，包含状态、耗时、错误信息和 worker 回写的报告内容。",
+)
 def list_runs(_: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
     """List recent test execution records."""
     return db.query(TestRun).order_by(TestRun.id.desc()).limit(100).all()
 
 
-@router.post("/runs", response_model=RunRead)
+@router.post(
+    "/runs",
+    response_model=RunRead,
+    summary="创建自动化执行任务",
+    description=(
+        "提交 case_type 和 case_id 后创建 queued 状态任务，并推送到 Redis 队列。"
+        "JMeter 压测可重点观察该接口的吞吐、错误率，以及后续 /api/runs/{run_id} 轮询耗时。"
+    ),
+)
 def create_run(payload: RunCreate, current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     """Create a test run and enqueue it for worker execution."""
     required_menu = "api" if payload.case_type == "api" else "ui"
@@ -38,7 +51,12 @@ def create_run(payload: RunCreate, current_user: AuthContext = Depends(get_curre
     return run
 
 
-@router.get("/runs/{run_id}", response_model=RunRead)
+@router.get(
+    "/runs/{run_id}",
+    response_model=RunRead,
+    summary="查询单条执行记录",
+    description="按执行 ID 查询任务状态和报告详情，前端执行后会轮询该接口直到任务结束。",
+)
 def get_run(run_id: int, _: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
     """Return one test run with its report details."""
     run = db.get(TestRun, run_id)

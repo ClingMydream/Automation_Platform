@@ -16,16 +16,25 @@ from app.schemas.entities import (
 )
 
 
-router = APIRouter()
+router = APIRouter(tags=["用户管理"])
 
 # 用户管理：管理员专属，用来维护登录账号和菜单权限。
-@router.get("/menu-options")
+@router.get(
+    "/menu-options",
+    summary="查询可配置菜单权限",
+    description="管理员打开用户管理页时读取菜单权限清单，用于控制普通用户能看到哪些功能模块。",
+)
 def menu_options(_: AuthContext = Depends(verify_admin)):
     """Return menu options that administrators can assign to users."""
     return MENU_OPTIONS
 
 
-@router.get("/users", response_model=list[UserRead])
+@router.get(
+    "/users",
+    response_model=list[UserRead],
+    summary="查询登录用户列表",
+    description="管理员查看所有平台登录账号，返回账号状态、管理员标记和菜单权限。",
+)
 def list_users(_: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
     """List all login users for administrator management."""
     ensure_admin_user(db)
@@ -33,7 +42,12 @@ def list_users(_: AuthContext = Depends(verify_admin), db: Session = Depends(get
     return [user_response(user) for user in users]
 
 
-@router.post("/users", response_model=UserRead)
+@router.post(
+    "/users",
+    response_model=UserRead,
+    summary="新增普通登录用户",
+    description="管理员创建非管理员账号，并配置该用户可访问的菜单权限。",
+)
 def create_user(payload: UserCreate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
     """Create a non-admin login user with menu permissions."""
     username = payload.username.strip()
@@ -56,7 +70,12 @@ def create_user(payload: UserCreate, _: AuthContext = Depends(verify_admin), db:
     return user_response(user)
 
 
-@router.put("/users/{user_id}", response_model=UserRead)
+@router.put(
+    "/users/{user_id}",
+    response_model=UserRead,
+    summary="修改登录用户",
+    description="管理员修改用户显示名、启用状态、菜单权限和可选的新密码。",
+)
 def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
     """Update a user password, active flag, and menu permissions."""
     user = db.get(AppUser, user_id)
@@ -79,7 +98,11 @@ def update_user(user_id: int, payload: UserUpdate, _: AuthContext = Depends(veri
     return user_response(user)
 
 
-@router.delete("/users/{user_id}")
+@router.delete(
+    "/users/{user_id}",
+    summary="删除普通登录用户",
+    description="删除一个非管理员账号；管理员账号不能从接口删除。",
+)
 def delete_user(user_id: int, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
     """Delete a non-admin login user."""
     user = db.get(AppUser, user_id)
