@@ -243,49 +243,70 @@ function PlatformApp() {
   }
   const menuItems = menuItemsForUser(currentUser);
   const currentTitle = menuItems.find((item) => item.key === tab)?.label || '加载中';
+  const headerStats = [
+    { label: '项目', value: data.projects.length },
+    { label: '用例', value: data.apiCases.length + data.uiCases.length },
+    { label: '运行', value: data.runs.length + data.batches.length },
+  ];
 
   // Render block: JSX below describes the shell layout, sidebar menu, header, and active page.
   return (
     <Layout className="app-layout">
-      <Sider width={248} className="app-sider">
+      <Sider width={236} className="app-sider">
         <div className="brand">
-          <SafetyCertificateOutlined />
+          <span className="brand-mark">ATP</span>
           <div>
             <strong>Automation</strong>
-            <span>Testing Platform</span>
+            <span>Test Platform</span>
           </div>
         </div>
-        <Menu theme="dark" mode="inline" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
+        <div className="workspace-switcher">
+          <span>默认空间</span>
+          <strong>{currentUser?.display_name || currentUser?.username || 'admin'}</strong>
+        </div>
+        <Menu className="app-menu" mode="inline" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
         <Button className="logout-button" icon={<LogoutOutlined />} onClick={() => { localStorage.removeItem('token'); setCurrentUser(null); setToken(''); }}>退出登录</Button>
       </Sider>
       <Layout>
         <Header className="app-header">
-          <div>
+          <div className="header-title-block">
+            <Text className="module-eyebrow">Continuous Testing</Text>
             <Title level={3}>{currentTitle}</Title>
-            <Text type="secondary">专业化自动化测试控制台</Text>
           </div>
-          <Button icon={<ReloadOutlined />} loading={refreshing} onClick={reload}>刷新数据</Button>
+          <div className="header-actions">
+            <div className="header-stat-strip">
+              {headerStats.map((item) => (
+                <div className="header-stat" key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+            <Button className="refresh-button" icon={<ReloadOutlined />} loading={refreshing} onClick={reload}>刷新</Button>
+          </div>
         </Header>
         <Content className="app-content">
-          <PageGuide tab={tab} />
-          {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
-          {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
-          {tab === 'capabilities' && <TestCapabilityPanel client={client} projects={data.projects} />}
-          {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} testObjects={data.testObjects} testTasks={data.testTasks} reload={reload} />}
-          {tab === 'results' && <ResultCenterPanel batches={data.batches} results={data.results} />}
-          {tab === 'diagnosis' && <ProblemDiagnosisPanel client={client} results={data.results} findings={data.problemFindings} reload={reload} />}
-          {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}
-          {tab === 'datasets' && <TestDatasetPanel client={client} projects={data.projects} datasets={data.datasets} reload={reload} />}
-          {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
-          {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
-          {tab === 'files' && <FileTransferPanel client={client} />}
-          {tab === 'images' && <ImageToolPanel token={token} />}
-          {tab === 'json_tools' && <JsonToolsPanel />}
-          {tab === 'codec' && <CodecPanel />}
-          {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
-          {tab === 'reports' && <ReportsPanel reports={data.reports} reload={reload} refreshing={refreshing} />}
-          {tab === 'integrations' && <IntegrationPanel client={client} integrations={data.integrations} reload={reload} />}
-          {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
+          <div className="content-shell">
+            <PageGuide tab={tab} />
+            {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} reload={reload} />}
+            {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
+            {tab === 'capabilities' && <TestCapabilityPanel client={client} projects={data.projects} />}
+            {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} testObjects={data.testObjects} testTasks={data.testTasks} reload={reload} />}
+            {tab === 'results' && <ResultCenterPanel batches={data.batches} results={data.results} />}
+            {tab === 'diagnosis' && <ProblemDiagnosisPanel client={client} results={data.results} findings={data.problemFindings} reload={reload} />}
+            {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}
+            {tab === 'datasets' && <TestDatasetPanel client={client} projects={data.projects} datasets={data.datasets} reload={reload} />}
+            {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
+            {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
+            {tab === 'files' && <FileTransferPanel client={client} />}
+            {tab === 'images' && <ImageToolPanel token={token} />}
+            {tab === 'json_tools' && <JsonToolsPanel />}
+            {tab === 'codec' && <CodecPanel />}
+            {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
+            {tab === 'reports' && <ReportsPanel reports={data.reports} reload={reload} refreshing={refreshing} />}
+            {tab === 'integrations' && <IntegrationPanel client={client} integrations={data.integrations} reload={reload} />}
+            {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
+          </div>
         </Content>
       </Layout>
     </Layout>
@@ -297,9 +318,35 @@ createRoot(document.getElementById('root')).render(
     theme={{
       algorithm: theme.defaultAlgorithm,
       token: {
-        colorPrimary: '#0f766e',
+        colorPrimary: '#2468f2',
+        colorInfo: '#2468f2',
+        colorSuccess: '#16a34a',
+        colorWarning: '#d97706',
+        colorError: '#dc2626',
+        colorBgLayout: '#f4f7fb',
+        colorText: '#1f2937',
+        colorTextSecondary: '#667085',
         borderRadius: 6,
+        controlHeight: 34,
         fontFamily: 'Inter, "Segoe UI", system-ui, sans-serif',
+      },
+      components: {
+        Layout: {
+          headerBg: '#ffffff',
+          siderBg: '#ffffff',
+        },
+        Card: {
+          headerBg: '#ffffff',
+        },
+        Table: {
+          headerBg: '#f8fafc',
+          rowHoverBg: '#f5f8ff',
+        },
+        Menu: {
+          itemBorderRadius: 6,
+          itemSelectedBg: '#eaf1ff',
+          itemSelectedColor: '#2468f2',
+        },
       },
     }}
   >
