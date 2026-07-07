@@ -37,7 +37,7 @@ def run_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str, An
         test_file = tmp_dir / "test_ui_case.py"
         allure_dir = tmp_dir / "allure-results"
 
-        case_file.write_text(json.dumps(case, ensure_ascii=False), encoding="utf-8")
+        case_file.write_text(json.dumps(case, ensure_ascii=False, default=str), encoding="utf-8")
         test_file.write_text(TEST_TEMPLATE.format(case_file=case_file, result_file=result_file, run_id=run_id or "None"), encoding="utf-8")
         # The generated pytest file calls the Playwright runtime and writes a result file.
         exit_code = pytest.main([str(test_file), "--alluredir", str(allure_dir), "-q"])
