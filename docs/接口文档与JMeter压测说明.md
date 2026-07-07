@@ -337,7 +337,10 @@ Authorization: Bearer 登录接口返回的 access_token
 | GET | /api/v1/test-results | 测试结果列表 | 结果中心页面查询 |
 | POST | /api/v1/test-tasks/{task_id}/results/batch | 任务结果批量回传 | JMeter/CI 结果回传核心接口 |
 | POST | /api/v1/test-results/batch | 独立结果批量回传 | 外部脚本不绑定任务时使用 |
+| GET | /api/v1/attachments | 查询结果或批次附件 | 校验附件证据是否沉淀成功 |
 | POST | /api/v1/attachments | 上传结果附件 | 小文件验证，避免大并发上传 |
+| POST | /api/v1/attachments/external | Token 上传外部附件 | JMeter/CI 上传 HTML 报告、日志、HAR |
+| GET | /api/v1/attachments/{attachment_id}/download | 下载附件 | 校验报告文件是否可取回 |
 | GET | /api/v1/quality/summary | 质量总览 | 汇总计算接口 |
 | GET | /api/v1/reports/quality-trend | 质量趋势 | 趋势查询 |
 | GET | /api/v1/test-datasets | 测试数据列表 | 参数化数据读取 |
@@ -802,6 +805,56 @@ threads / users / virtual_users / vus
 2. 打开平台“结果中心”，查看“性能结果概览”和“性能结果”表格。
 3. 打开“测试报告”，进入对应批次报告查看性能摘要。
 4. 导出 HTML 批次报告时，性能摘要会一起写入报告。
+```
+
+### 9.5 JMeter 报告附件上传
+
+当 JMeter 生成 HTML 报告、`.jtl` 结果文件、HAR 或日志后，可以把这些文件作为证据上传到结果中心。
+
+登录用户上传：
+
+```text
+POST /api/v1/attachments
+Authorization: Bearer <登录 token>
+Content-Type: multipart/form-data
+```
+
+外部脚本上传：
+
+```text
+POST /api/v1/attachments/external
+Header: X-Automation-Token: 服务器 .env 中的 EXTERNAL_TRIGGER_TOKEN
+Content-Type: multipart/form-data
+```
+
+FormData 字段：
+
+```text
+file             必填，附件文件
+result_id        可选，绑定到某条测试结果
+batch_id         可选，绑定到某个执行批次
+attachment_type  建议填 performance_report、log、har、screenshot、recording、other
+```
+
+查询附件：
+
+```text
+GET /api/v1/attachments?result_id=结果ID
+GET /api/v1/attachments?batch_id=批次ID
+```
+
+下载附件：
+
+```text
+GET /api/v1/attachments/{attachment_id}/download
+```
+
+安全注意：
+
+```text
+附件上传有大小限制，配置项是服务器 .env 中的 RESULT_ATTACHMENT_MAX_MB。
+不要把包含密码、token、身份证号、手机号等敏感信息的日志上传到平台。
+JMeter 压测不要并发大量上传大文件，建议压测结束后只上传最终报告。
 ```
 
 ## 10. Webhook 通知接口

@@ -10,7 +10,7 @@ from app.db import get_db
 from app.models.entities import ExecutionBatch, TestAttachment, TestResult, TestTask
 from app.modules.result_center.schemas import AttachmentRead, ResultBatchUpload, TestResultRead
 from app.modules.result_center.performance import performance_summary_from_results
-from app.modules.result_center.service import attachment_dir, create_result_row, refresh_batch_statistics, resolve_or_create_batch, save_attachment_file
+from app.modules.result_center.service import attachment_dir, create_result_row, list_attachments_for_target, refresh_batch_statistics, resolve_or_create_batch, save_attachment_file
 from app.modules.test_tasks.service import task_by_code
 
 
@@ -120,6 +120,31 @@ def upload_attachment(
     db: Session = Depends(get_db),
 ):
     """Upload screenshots, recordings, logs, HAR files, or report artifacts."""
+    return save_attachment_file(db, file, result_id, batch_id, attachment_type)
+
+
+@router.get("/v1/attachments", response_model=list[AttachmentRead], summary="查询测试附件")
+def list_attachments(
+    result_id: int | None = Query(default=None, description="按结果 ID 过滤"),
+    batch_id: int | None = Query(default=None, description="按批次 ID 过滤"),
+    _: AuthContext = Depends(require_menu("results")),
+    db: Session = Depends(get_db),
+):
+    """List attachments related to one result or execution batch."""
+    return list_attachments_for_target(db, result_id, batch_id)
+
+
+@router.post("/v1/attachments/external", response_model=AttachmentRead, summary="通过 Token 上传测试附件")
+def upload_external_attachment(
+    file: UploadFile = File(...),
+    result_id: int | None = Form(default=None),
+    batch_id: int | None = Form(default=None),
+    attachment_type: str = Form(default="log"),
+    x_automation_token: str | None = Header(default=None, alias="X-Automation-Token"),
+    db: Session = Depends(get_db),
+):
+    """Let CI, JMeter, pytest, or Playwright upload evidence files with the shared automation token."""
+    ensure_external_trigger_token(x_automation_token)
     return save_attachment_file(db, file, result_id, batch_id, attachment_type)
 
 

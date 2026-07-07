@@ -45,5 +45,33 @@ export function apiClient(token) {
     post: (path, body) => request(path, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) }),
     put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (path) => request(path, { method: 'DELETE' }),
+    download: async (path) => {
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (res.status === 401 && token) {
+        notifyAuthExpired();
+        throw authExpiredError();
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || '下载失败');
+      }
+      return {
+        blob: await res.blob(),
+        filename: filenameFromDisposition(res.headers.get('Content-Disposition')) || 'attachment',
+      };
+    },
   };
+}
+
+// Parse backend file names from Content-Disposition when downloading evidence attachments.
+function filenameFromDisposition(value) {
+  if (!value) return '';
+  const utf8Match = value.match(/filename\\*=UTF-8''([^;]+)/i);
+  if (utf8Match) return decodeURIComponent(utf8Match[1]);
+  const plainMatch = value.match(/filename=\"?([^\";]+)\"?/i);
+  return plainMatch ? plainMatch[1] : '';
 }

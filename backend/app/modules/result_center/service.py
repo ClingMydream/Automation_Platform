@@ -95,3 +95,13 @@ def save_attachment_file(db: Session, file: UploadFile, result_id: int | None, b
     db.commit()
     db.refresh(item)
     return item
+
+
+def list_attachments_for_target(db: Session, result_id: int | None, batch_id: int | None) -> list[TestAttachment]:
+    """Return attachments filtered by result, batch, or both targets."""
+    query = db.query(TestAttachment)
+    if result_id is not None:
+        query = query.filter(TestAttachment.result_id == result_id)
+    if batch_id is not None:
+        query = query.filter(TestAttachment.batch_id == batch_id)
+    return query.order_by(TestAttachment.id.desc()).limit(200).all()

@@ -1,19 +1,52 @@
 // File purpose: Result center page. Review execution batches and collected result evidence.
 
-import React, { useState } from 'react';
-import { App as AntApp, Button, Card, Col, Descriptions, Row, Space, Statistic, Table, Tag, Typography } from 'antd';
-import { RedoOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { App as AntApp, Button, Card, Col, Descriptions, Row, Select, Space, Statistic, Table, Tag, Typography, Upload } from 'antd';
+import { DownloadOutlined, PaperClipOutlined, RedoOutlined, UploadOutlined } from '@ant-design/icons';
 import { StatusTag } from '../../shared/StatusTag.jsx';
-import { formatDuration, formatTime } from '../../shared/formatters.js';
-import { canRetryBatch, formatPerformanceMetric, performanceRiskColor, retryFailedBatch } from './resultCenterFeature.js';
+import { formatBytes, formatDuration, formatTime } from '../../shared/formatters.js';
+import {
+  attachmentTypeOptions,
+  canRetryBatch,
+  downloadAttachment,
+  formatPerformanceMetric,
+  listResultAttachments,
+  performanceRiskColor,
+  retryFailedBatch,
+  uploadResultAttachment,
+} from './resultCenterFeature.js';
 
 const { Paragraph } = Typography;
 
 export function ResultCenterPanel({ client, batches, results, performanceSummary = {}, reload }) {
   const [selected, setSelected] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentType, setAttachmentType] = useState('log');
+  const [attachmentLoading, setAttachmentLoading] = useState(false);
   const { message } = AntApp.useApp();
   const performanceRows = performanceSummary.latest_results || [];
+
+  useEffect(() => {
+    if (!selected?.id) {
+      setAttachments([]);
+      return undefined;
+    }
+    let ignore = false;
+    async function loadAttachments() {
+      setAttachmentLoading(true);
+      try {
+        const rows = await listResultAttachments(client, selected.id);
+        if (!ignore) setAttachments(rows);
+      } catch (err) {
+        if (!ignore) message.error(err.message);
+      } finally {
+        if (!ignore) setAttachmentLoading(false);
+      }
+    }
+    loadAttachments();
+    return () => { ignore = true; };
+  }, [client, selected?.id]);
 
   async function handleRetry(batch) {
     setRetryingId(batch.id);
@@ -25,6 +58,32 @@ export function ResultCenterPanel({ client, batches, results, performanceSummary
       message.error(err.message);
     } finally {
       setRetryingId(null);
+    }
+  }
+
+  async function handleUploadAttachment(file) {
+    if (!selected?.id) {
+      message.warning('请先选择一条结果');
+      return false;
+    }
+    setAttachmentLoading(true);
+    try {
+      await uploadResultAttachment(client, selected.id, attachmentType, file);
+      message.success('附件已上传');
+      setAttachments(await listResultAttachments(client, selected.id));
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setAttachmentLoading(false);
+    }
+    return false;
+  }
+
+  async function handleDownloadAttachment(attachment) {
+    try {
+      await downloadAttachment(client, attachment);
+    } catch (err) {
+      message.error(err.message);
     }
   }
 
@@ -121,13 +180,53 @@ export function ResultCenterPanel({ client, batches, results, performanceSummary
           />
         </Card>
         {selected && (
-          <Card title={`结果详情 #${selected.id}`} style={{ marginTop: 16 }}>
+          <Card
+            title={`结果详情 #${selected.id}`}
+            style={{ marginTop: 16 }}
+            extra={
+              <Space wrap>
+                <Select
+                  size="small"
+                  value={attachmentType}
+                  options={attachmentTypeOptions}
+                  style={{ width: 118 }}
+                  onChange={setAttachmentType}
+                />
+                <Upload showUploadList={false} beforeUpload={handleUploadAttachment}>
+                  <Button size="small" icon={<UploadOutlined />} loading={attachmentLoading}>上传附件</Button>
+                </Upload>
+              </Space>
+            }
+          >
             <Descriptions size="small" column={1}>
               <Descriptions.Item label="日志"><Paragraph copyable>{selected.logs || '-'}</Paragraph></Descriptions.Item>
               <Descriptions.Item label="错误"><Paragraph type="danger" copyable>{selected.error || '-'}</Paragraph></Descriptions.Item>
               <Descriptions.Item label="指标"><pre>{JSON.stringify(selected.metrics || {}, null, 2)}</pre></Descriptions.Item>
               <Descriptions.Item label="断言"><pre>{JSON.stringify(selected.assertions || [], null, 2)}</pre></Descriptions.Item>
             </Descriptions>
+            <Card size="small" title={<Space><PaperClipOutlined />附件证据</Space>} style={{ marginTop: 12 }}>
+              <Table
+                rowKey="id"
+                size="small"
+                loading={attachmentLoading}
+                dataSource={attachments}
+                pagination={false}
+                locale={{ emptyText: '暂无附件，可上传日志、截图、录屏、HAR 或性能报告' }}
+                columns={[
+                  { title: '类型', dataIndex: 'attachment_type', width: 120, render: (value) => attachmentTypeOptions.find((item) => item.value === value)?.label || value },
+                  { title: '文件名', dataIndex: 'original_name', ellipsis: true },
+                  { title: '大小', dataIndex: 'size_bytes', width: 100, render: formatBytes },
+                  { title: '时间', dataIndex: 'created_at', width: 170, render: formatTime },
+                  {
+                    title: '操作',
+                    width: 90,
+                    render: (_, record) => (
+                      <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadAttachment(record)}>下载</Button>
+                    ),
+                  },
+                ]}
+              />
+            </Card>
           </Card>
         )}
       </Col>
