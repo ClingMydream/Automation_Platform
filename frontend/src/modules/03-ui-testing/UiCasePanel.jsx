@@ -2,7 +2,7 @@
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
 import React, { useState } from 'react';
-import { Alert, App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table } from 'antd';
+import { Alert, App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table, Tooltip } from 'antd';
 import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { DEFAULT_UI_STEPS, UI_STEPS_EXAMPLE } from '../../shared/constants';
 import { JsonHelpCard } from '../../shared/JsonHelpCard.jsx';
@@ -137,13 +137,19 @@ export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated })
               { title: '步骤数', dataIndex: 'steps', width: 90, render: (steps) => steps?.length || 0 },
               {
                 title: '操作',
-                width: 180,
+                width: 138,
                 fixed: 'right',
                 render: (_, record) => (
                   <Space className="table-actions" size={6} wrap>
-                    <Button type="primary" icon={<PlayCircleOutlined />} loading={runningId === record.id} onClick={() => runCase(record)}>执行</Button>
-                    <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
-                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
+                    <Tooltip title="执行用例">
+                      <Button aria-label="执行用例" size="small" type="primary" icon={<PlayCircleOutlined />} loading={runningId === record.id} onClick={() => runCase(record)} />
+                    </Tooltip>
+                    <Tooltip title="修改用例">
+                      <Button aria-label="修改用例" size="small" icon={<EditOutlined />} onClick={() => startEdit(record)} />
+                    </Tooltip>
+                    <Tooltip title="删除用例">
+                      <Button aria-label="删除用例" size="small" danger icon={<DeleteOutlined />} onClick={() => remove(record)} />
+                    </Tooltip>
                   </Space>
                 ),
               },

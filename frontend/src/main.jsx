@@ -284,6 +284,7 @@ function PlatformApp() {
   }
   const menuItems = menuItemsForUser(currentUser);
   const currentTitle = allMenuItems.find((item) => item.key === tab)?.label || '加载中';
+  const currentSection = menuSections.find((section) => section.children.some((item) => item.key === tab))?.label || '测试工作台';
   const headerStats = [
     { label: '项目', value: data.projects.length },
     { label: '用例', value: data.apiCases.length + data.uiCases.length },
@@ -302,8 +303,9 @@ function PlatformApp() {
           </div>
         </div>
         <div className="workspace-switcher">
-          <span>默认空间</span>
-          <strong>{currentUser?.display_name || currentUser?.username || 'admin'}</strong>
+          <span>当前空间</span>
+          <strong>默认空间</strong>
+          <em>{currentUser?.display_name || currentUser?.username || 'admin'}</em>
         </div>
         <Menu className="app-menu" mode="inline" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
         <Button className="logout-button" icon={<LogoutOutlined />} onClick={() => { localStorage.removeItem('token'); setCurrentUser(null); setToken(''); }}>退出登录</Button>
@@ -311,7 +313,7 @@ function PlatformApp() {
       <Layout>
         <Header className="app-header">
           <div className="header-title-block">
-            <Text className="module-eyebrow">Continuous Testing</Text>
+            <Text className="module-eyebrow">{currentSection}</Text>
             <Title level={3}>{currentTitle}</Title>
           </div>
           <div className="header-actions">
@@ -322,6 +324,10 @@ function PlatformApp() {
                   <strong>{item.value}</strong>
                 </div>
               ))}
+            </div>
+            <div className="header-user">
+              <span>{currentUser?.is_admin ? '管理员' : '成员'}</span>
+              <strong>{currentUser?.username || 'admin'}</strong>
             </div>
             <Button className="refresh-button" icon={<ReloadOutlined />} loading={refreshing} onClick={reload}>刷新</Button>
           </div>

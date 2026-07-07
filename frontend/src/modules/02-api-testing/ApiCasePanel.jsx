@@ -2,7 +2,7 @@
 // How to change: edit visual layout here; keep payload shaping and backend calls in apiCaseFeature.js.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table, Tag } from 'antd';
+import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Table, Tag, Tooltip } from 'antd';
 import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { API_JSON_EXAMPLE } from '../../shared/constants';
 import { JsonHelpCard } from '../../shared/JsonHelpCard.jsx';
@@ -232,14 +232,22 @@ export function ApiCasePanel({ client, projects, environments = [], apiCases, re
               { title: 'URL / 路径', dataIndex: 'url', ellipsis: true },
               {
                 title: '操作',
-                width: 280,
+                width: 180,
                 fixed: 'right',
                 render: (_, record) => (
                   <Space className="table-actions" size={6} wrap>
-                    <Button icon={<ThunderboltOutlined />} onClick={() => debugCase(record)}>调试</Button>
-                    <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => runCase(record)}>执行</Button>
-                    <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
-                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
+                    <Tooltip title="调试接口">
+                      <Button aria-label="调试接口" size="small" icon={<ThunderboltOutlined />} onClick={() => debugCase(record)} />
+                    </Tooltip>
+                    <Tooltip title="执行用例">
+                      <Button aria-label="执行用例" size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => runCase(record)} />
+                    </Tooltip>
+                    <Tooltip title="修改用例">
+                      <Button aria-label="修改用例" size="small" icon={<EditOutlined />} onClick={() => startEdit(record)} />
+                    </Tooltip>
+                    <Tooltip title="删除用例">
+                      <Button aria-label="删除用例" size="small" danger icon={<DeleteOutlined />} onClick={() => remove(record)} />
+                    </Tooltip>
                   </Space>
                 ),
               },
