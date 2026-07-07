@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import pymysql
+import requests
 
 
 @dataclass
@@ -33,6 +34,7 @@ def parse_mysql_url(url: str) -> DbConfig:
 
 
 DB = parse_mysql_url(os.environ["DATABASE_URL"])
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost").rstrip("/")
 
 
 def connect_db():
@@ -181,3 +183,85 @@ def _refresh_batch_statistics(cur, batch_id: int, task_id: int | None) -> None:
     )
     if task_id is not None:
         cur.execute("UPDATE test_tasks SET last_status=%s, updated_at=NOW() WHERE id=%s", [final_status, task_id])
+    if final_status in {"passed", "failed"}:
+        _notify_batch_finished(cur, batch_id, final_status)
+
+
+def _json_from_db(value: Any, fallback: Any) -> Any:
+    """Decode JSON values returned as strings by some MySQL drivers."""
+    if value is None:
+        return fallback
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return fallback
+    return value
+
+
+def _webhook_accepts_event(events: Any, event: str) -> bool:
+    """Return whether a webhook subscribes to an event; empty means all events."""
+    event_list = _json_from_db(events, [])
+    return not event_list or event in event_list
+
+
+def _webhook_message_text(event: str, payload: dict[str, Any]) -> str:
+    """Build a concise text message for chat-style webhooks."""
+    return (
+        f"Automation Platform {event}: {payload.get('batch_no')}, "
+        f"status={payload.get('status')}, failed={payload.get('failed_count')}, total={payload.get('total_count')}"
+    )
+
+
+def _format_webhook_payload(integration_type: str | None, event: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Adapt generic notification data to common DingTalk, WeCom, or Feishu webhook formats."""
+    kind = (integration_type or "webhook").lower()
+    text = _webhook_message_text(event, payload)
+    if kind in {"dingtalk", "wechat"}:
+        return {"msgtype": "text", "text": {"content": text}}
+    if kind == "feishu":
+        return {"msg_type": "text", "content": {"text": text}}
+    return {"event": event, "integration_type": kind, "data": payload}
+
+
+def _send_webhook(url: str, secret_name: str | None, integration_type: str | None, event: str, payload: dict[str, Any]) -> bool:
+    """Send one webhook notification and swallow network failures."""
+    headers = {"Content-Type": "application/json"}
+    if secret_name and os.getenv(secret_name):
+        headers["X-Automation-Secret"] = os.environ[secret_name]
+    body = _format_webhook_payload(integration_type, event, payload)
+    try:
+        response = requests.post(url, json=body, headers=headers, timeout=5, allow_redirects=False)
+        return response.status_code < 400
+    except requests.RequestException:
+        return False
+
+
+def _notify_batch_finished(cur, batch_id: int, final_status: str) -> None:
+    """Notify active webhooks after a worker-driven batch reaches a final state."""
+    cur.execute("SELECT * FROM execution_batches WHERE id=%s", [batch_id])
+    batch = cur.fetchone()
+    if not batch:
+        return
+    payload = {
+        "batch_id": batch.get("id"),
+        "batch_no": batch.get("batch_no"),
+        "task_id": batch.get("task_id"),
+        "trigger_type": batch.get("trigger_type"),
+        "environment_id": batch.get("environment_id"),
+        "status": final_status,
+        "total_count": batch.get("total_count"),
+        "passed_count": batch.get("passed_count"),
+        "failed_count": batch.get("failed_count"),
+        "skipped_count": batch.get("skipped_count"),
+        "duration_ms": batch.get("duration_ms"),
+        "report_url": f"{PUBLIC_BASE_URL}/api/reports/batches/{batch_id}",
+    }
+    events = ["batch_finished"]
+    if final_status == "failed" or int(batch.get("failed_count") or 0):
+        events.extend(["task_failed", "quality_risk"])
+    cur.execute("SELECT * FROM integration_webhooks WHERE is_active=1")
+    for webhook in cur.fetchall() or []:
+        for event in events:
+            if _webhook_accepts_event(webhook.get("events"), event):
+                _send_webhook(webhook["webhook_url"], webhook.get("secret_name"), webhook.get("integration_type"), event, payload)

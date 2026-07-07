@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.entities import ExecutionBatch, TestAttachment, TestResult, TestTask
+from app.modules.integrations.service import notify_batch_finished
 from app.modules.result_center.schemas import ResultBatchUpload, TestResultCreate
 from app.modules.test_tasks.service import create_execution_batch
 
@@ -39,6 +40,7 @@ def refresh_batch_statistics(db: Session, batch: ExecutionBatch) -> ExecutionBat
         if task is not None:
             task.last_status = batch.status
             db.commit()
+    notify_batch_finished(db, batch)
     return batch
 
 

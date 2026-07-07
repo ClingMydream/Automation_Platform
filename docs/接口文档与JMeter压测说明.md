@@ -696,3 +696,60 @@ JMeter 压测结束后，可以通过结果回传接口写入性能指标：
 ```
 
 这样质量分析页会把性能结果纳入结果类型分布、稳定性和风险判断。
+
+## 10. Webhook 通知接口
+
+### 10.1 配置 Webhook
+
+接口：
+
+```text
+GET/POST/PUT/DELETE /api/v1/integrations/webhooks
+POST /api/v1/integrations/webhooks/{webhook_id}/test
+```
+
+订阅事件：
+
+```text
+batch_finished  批次完成
+task_failed     任务失败
+quality_risk    质量风险
+```
+
+说明：
+
+```text
+订阅事件留空表示接收全部事件。
+点击“测试”会发送 webhook_test，用于验证地址是否可达。
+Webhook 地址必须是公网 HTTP/HTTPS，平台会阻断 localhost、内网 IP 和云元数据地址。
+```
+
+### 10.2 通用 Webhook 收到的 JSON
+
+```json
+{
+  "event": "batch_finished",
+  "integration_type": "webhook",
+  "sent_at": "2026-07-07T12:00:00+00:00",
+  "data": {
+    "batch_id": 1,
+    "batch_no": "BT-20260707120000-abcd1234",
+    "task_id": 2,
+    "status": "failed",
+    "total_count": 3,
+    "passed_count": 2,
+    "failed_count": 1,
+    "skipped_count": 0,
+    "duration_ms": 1200,
+    "report_url": "http://111.229.178.141/api/reports/batches/1"
+  }
+}
+```
+
+### 10.3 钉钉 / 企微 / 飞书
+
+```text
+integration_type 填 dingtalk 或 wechat 时，平台发送 text 消息。
+integration_type 填 feishu 时，平台发送飞书 text 消息。
+如果机器人需要签名，建议把密钥放在服务器环境变量里，并在 secret_name 填变量名。
+```

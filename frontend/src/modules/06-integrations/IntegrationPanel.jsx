@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Switch, Table, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { buildWebhookFormValues, deleteWebhook, saveWebhook, testWebhook } from './integrationFeature.js';
+import { buildWebhookFormValues, deleteWebhook, saveWebhook, testWebhook, WEBHOOK_EVENT_OPTIONS } from './integrationFeature.js';
 
 const { TextArea } = Input;
 
@@ -69,7 +69,9 @@ export function IntegrationPanel({ client, integrations, reload }) {
             <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}><Input placeholder="测试失败通知" /></Form.Item>
             <Form.Item label="类型" name="integration_type"><Input placeholder="webhook / dingtalk / wechat / feishu" /></Form.Item>
             <Form.Item label="Webhook 地址" name="webhook_url" rules={[{ required: true, message: '请输入公网 Webhook 地址' }]}><Input placeholder="https://example.com/webhook" /></Form.Item>
-            <Form.Item label="订阅事件" name="events"><Select mode="tags" placeholder="task_failed、batch_finished、quality_risk" /></Form.Item>
+            <Form.Item label="订阅事件" name="events">
+              <Select mode="tags" options={WEBHOOK_EVENT_OPTIONS} placeholder="不选择表示接收全部事件" />
+            </Form.Item>
             <Form.Item label="密钥变量名" name="secret_name"><Input placeholder="可选：SERVER_WEBHOOK_SECRET" /></Form.Item>
             <Form.Item label="启用状态" name="is_active" valuePropName="checked"><Switch checkedChildren="启用" unCheckedChildren="停用" /></Form.Item>
             <Form.Item label="说明" name="description"><TextArea rows={3} /></Form.Item>
