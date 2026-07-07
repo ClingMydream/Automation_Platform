@@ -624,3 +624,75 @@ JMeter 建议：
 3. 如果状态为 failed，再调用 retry 接口。
 4. 不要无限循环重试，建议最多 1 到 2 次。
 ```
+
+## 9. 质量分析接口与压测后判断
+
+### 9.1 质量总览
+
+接口：
+
+```text
+GET /api/v1/quality/summary
+```
+
+返回重点字段：
+
+```text
+pass_rate              通过率
+fail_rate              失败率
+error_rate             错误率
+stability_score        稳定性评分
+avg_duration_ms        平均耗时
+p95_duration_ms        P95 耗时
+p99_duration_ms        P99 耗时
+release_risk           发布风险：low / medium / high
+release_risk_reasons   风险原因
+top_failed_cases       高频失败用例
+failure_category_items 失败原因分布
+```
+
+### 9.2 质量趋势
+
+接口：
+
+```text
+GET /api/v1/reports/quality-trend
+```
+
+用途：
+
+```text
+压测或自动化回归后，观察最近批次的通过率、失败率、耗时和风险变化。
+如果连续多个批次 release_risk 为 high，说明质量风险不是偶发，需要定位失败原因或环境稳定性。
+```
+
+### 9.3 JMeter 结果回传建议
+
+JMeter 压测结束后，可以通过结果回传接口写入性能指标：
+
+```json
+{
+  "trigger_type": "ci",
+  "summary": {
+    "tool": "jmeter",
+    "scene": "login-load-test"
+  },
+  "results": [
+    {
+      "result_type": "performance",
+      "status": "passed",
+      "duration_ms": 60000,
+      "metrics": {
+        "avg_ms": 320,
+        "p95_ms": 900,
+        "p99_ms": 1300,
+        "error_rate": 0.02,
+        "tps": 120
+      },
+      "logs": "JMeter summary report path or brief conclusion"
+    }
+  ]
+}
+```
+
+这样质量分析页会把性能结果纳入结果类型分布、稳定性和风险判断。
