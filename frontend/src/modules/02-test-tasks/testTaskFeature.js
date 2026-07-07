@@ -21,6 +21,7 @@ export function taskTypeLabel(value) {
 }
 
 export function buildTaskFormValues(item) {
+  const config = item.config || {};
   return {
     code: item.code,
     name: item.name,
@@ -34,12 +35,18 @@ export function buildTaskFormValues(item) {
     schedule_cron: item.schedule_cron || '',
     owner: item.owner || '',
     is_active: item.is_active,
-    configText: JSON.stringify(item.config || {}, null, 2),
+    api_case_ids: config.api_case_ids || config.case_ids || [],
+    configText: JSON.stringify(config, null, 2),
     description: item.description || '',
   };
 }
 
 export function buildTaskPayload(values) {
+  const config = values.configText ? JSON.parse(values.configText) : {};
+  const apiCaseIds = (values.api_case_ids || []).map((value) => Number(value)).filter(Boolean);
+  if (apiCaseIds.length > 0) {
+    config.api_case_ids = apiCaseIds;
+  }
   return {
     code: values.code?.trim(),
     name: values.name?.trim(),
@@ -53,7 +60,7 @@ export function buildTaskPayload(values) {
     schedule_cron: values.schedule_cron?.trim() || null,
     owner: values.owner?.trim() || null,
     is_active: values.is_active ?? true,
-    config: values.configText ? JSON.parse(values.configText) : {},
+    config,
     description: values.description?.trim() || null,
   };
 }

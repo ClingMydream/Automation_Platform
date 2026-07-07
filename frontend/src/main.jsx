@@ -150,7 +150,7 @@ function PlatformApp() {
       const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'capabilities', 'test_tasks', 'results', 'diagnosis', 'quality', 'datasets', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'integrations', 'users'] : me.menu_permissions || []);
       const [projects, environments, testObjects, testTasks, batches, results, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports] = await Promise.all([
         allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
-        allowed.has('projects') ? client.get('/environments') : Promise.resolve([]),
+        (allowed.has('projects') || allowed.has('test_tasks')) ? client.get('/environments') : Promise.resolve([]),
         allowed.has('test_objects') ? client.get('/v1/test-objects') : Promise.resolve([]),
         allowed.has('test_tasks') ? client.get('/v1/test-tasks') : Promise.resolve([]),
         allowed.has('results') ? client.get('/v1/execution-batches') : Promise.resolve([]),
@@ -160,7 +160,7 @@ function PlatformApp() {
         allowed.has('quality') ? client.get('/v1/reports/quality-trend') : Promise.resolve([]),
         allowed.has('datasets') ? client.get('/v1/test-datasets') : Promise.resolve([]),
         allowed.has('integrations') ? client.get('/v1/integrations/webhooks') : Promise.resolve([]),
-        allowed.has('api') ? client.get('/api-cases') : Promise.resolve([]),
+        (allowed.has('api') || allowed.has('test_tasks')) ? client.get('/api-cases') : Promise.resolve([]),
         allowed.has('ui') ? client.get('/ui-cases') : Promise.resolve([]),
         allowed.has('runs') ? client.get('/runs') : Promise.resolve([]),
         allowed.has('reports') ? client.get('/reports') : Promise.resolve([]),
@@ -332,7 +332,7 @@ function PlatformApp() {
             {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} environments={data.environments} reload={reload} />}
             {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
             {tab === 'capabilities' && <TestCapabilityPanel client={client} projects={data.projects} />}
-            {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} testObjects={data.testObjects} testTasks={data.testTasks} reload={reload} />}
+            {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} environments={data.environments} testObjects={data.testObjects} apiCases={data.apiCases} testTasks={data.testTasks} reload={reload} />}
             {tab === 'results' && <ResultCenterPanel batches={data.batches} results={data.results} />}
             {tab === 'diagnosis' && <ProblemDiagnosisPanel client={client} results={data.results} findings={data.problemFindings} reload={reload} />}
             {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}

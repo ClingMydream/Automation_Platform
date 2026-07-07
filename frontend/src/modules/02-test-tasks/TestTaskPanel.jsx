@@ -7,13 +7,15 @@ import { buildTaskFormValues, deleteTask, runTask, saveTask, TASK_TYPES, taskTyp
 
 const { TextArea } = Input;
 
-export function TestTaskPanel({ client, projects, testObjects, testTasks, reload }) {
+export function TestTaskPanel({ client, projects, environments = [], testObjects, apiCases = [], testTasks, reload }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const { message, modal } = AntApp.useApp();
   const projectOptions = useMemo(() => projects.map((item) => ({ value: item.id, label: item.name })), [projects]);
+  const environmentOptions = useMemo(() => environments.map((item) => ({ value: item.id, label: `${item.name} - ${item.base_url}` })), [environments]);
   const objectOptions = useMemo(() => testObjects.map((item) => ({ value: item.id, label: `${item.code} ${item.name}` })), [testObjects]);
+  const apiCaseOptions = useMemo(() => apiCases.map((item) => ({ value: item.id, label: `#${item.id} ${item.name}` })), [apiCases]);
 
   function resetForm() {
     setEditingId(null);
@@ -74,12 +76,23 @@ export function TestTaskPanel({ client, projects, testObjects, testTasks, reload
             <Form.Item label="任务名称" name="name" rules={[{ required: true, message: '请输入任务名称' }]}><Input placeholder="冒烟自动化任务" /></Form.Item>
             <Form.Item label="任务类型" name="task_type"><Select options={TASK_TYPES} /></Form.Item>
             <Form.Item label="所属项目" name="project_id"><Select allowClear options={projectOptions} placeholder="可选" /></Form.Item>
+            <Form.Item label="执行环境" name="environment_id"><Select allowClear options={environmentOptions} placeholder="可选；批量接口执行时记录到批次" /></Form.Item>
             <Form.Item label="关联测试对象" name="test_object_id"><Select allowClear showSearch options={objectOptions} placeholder="可选" /></Form.Item>
+            <Form.Item label="接口用例集合" name="api_case_ids">
+              <Select
+                mode="multiple"
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                options={apiCaseOptions}
+                placeholder="API 任务请选择要批量执行的接口用例"
+              />
+            </Form.Item>
             <Form.Item label="触发方式" name="trigger_type"><Select options={TRIGGER_TYPES} /></Form.Item>
             <Form.Item label="执行来源" name="runner_type"><Input placeholder="platform / pytest / playwright / jmeter / ci" /></Form.Item>
             <Form.Item label="失败重试次数" name="retry_count"><InputNumber min={0} max={10} style={{ width: '100%' }} /></Form.Item>
             <Form.Item label="启用状态" name="is_active" valuePropName="checked"><Switch checkedChildren="启用" unCheckedChildren="停用" /></Form.Item>
-            <Form.Item label="任务配置 JSON" name="configText"><TextArea rows={4} placeholder='{"case_ids":[1,2]}' /></Form.Item>
+            <Form.Item label="任务配置 JSON" name="configText"><TextArea rows={4} className="code-input" placeholder='{"api_case_ids":[1,2]}' /></Form.Item>
             <Form.Item label="说明" name="description"><TextArea rows={3} placeholder="测试范围、触发来源、注意事项" /></Form.Item>
             <Button type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新任务' : '保存任务'}</Button>
           </Form>

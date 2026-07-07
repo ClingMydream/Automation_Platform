@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 import httpx
 from sqlalchemy.orm import Session
 
-from app.core.auth import AuthContext, require_menu
+from app.core.auth import AuthContext, require_any_menu, require_menu
 from app.core.target_guard import validate_public_http_url
 from app.db import get_db
 from app.models.entities import ApiCase, ApiScenario, Environment, ExecutionBatch, Project, TestResult, TestRun, TestTask, UiCase
@@ -94,7 +94,7 @@ def delete_project(project_id: int, _: AuthContext = Depends(require_menu("proje
     summary="查询环境列表",
     description="读取测试环境配置，例如测试环境、预发布环境的 base_url。",
 )
-def list_environments(_: AuthContext = Depends(require_menu("projects")), db: Session = Depends(get_db)):
+def list_environments(_: AuthContext = Depends(require_any_menu("projects", "test_tasks")), db: Session = Depends(get_db)):
     """List environment records."""
     return db.query(Environment).order_by(Environment.id.desc()).all()
 

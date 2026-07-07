@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.auth import AuthContext, require_menu
+from app.core.auth import AuthContext, require_any_menu, require_menu
 from app.core.target_guard import validate_public_http_url
 from app.db import get_db
 from app.models.entities import ApiCase, Environment, Project, TestRun
@@ -54,7 +54,7 @@ def create_debug_run(db: Session, case_id: int) -> TestRun:
     summary="查询接口用例列表",
     description="读取接口自动化用例配置，包含请求方法、URL、请求头、请求体和断言。",
 )
-def list_api_cases(_: AuthContext = Depends(require_menu("api")), db: Session = Depends(get_db)):
+def list_api_cases(_: AuthContext = Depends(require_any_menu("api", "test_tasks")), db: Session = Depends(get_db)):
     """List API test cases."""
     return db.query(ApiCase).order_by(ApiCase.id.desc()).all()
 

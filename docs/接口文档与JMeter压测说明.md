@@ -103,6 +103,64 @@ JMeter 建议：
 ```
 
 
+## 2026-07-07 补充：接口批量任务执行
+
+测试任务现在可以批量执行接口用例。API 类型任务通过 `config.api_case_ids` 维护用例集合，启动任务后平台会创建执行批次，并将每个接口用例推送到 worker 队列执行。
+
+| 方法 | 路径 | 说明 | JMeter 关注点 |
+|---|---|---|---|
+| POST | /api/v1/test-tasks | 创建 API 测试任务 | 低频写入，校验任务配置 JSON |
+| PUT | /api/v1/test-tasks/{task_id} | 修改 API 测试任务 | 可变更 api_case_ids 和环境 |
+| POST | /api/v1/test-tasks/{task_id}/run | 启动批量执行 | 重点关注创建批次成功率、队列堆积和任务完成耗时 |
+| GET | /api/v1/execution-batches | 查询执行批次 | 可轮询批次状态、通过率、失败率 |
+| GET | /api/v1/test-results | 查询结果明细 | 可统计接口结果响应时间和断言失败分布 |
+
+创建 API 批量任务请求体示例：
+
+```json
+{
+  "code": "TASK-API-SMOKE-001",
+  "name": "接口冒烟批量任务",
+  "task_type": "api",
+  "project_id": 1,
+  "environment_id": 1,
+  "test_object_id": null,
+  "trigger_type": "manual",
+  "runner_type": "platform",
+  "retry_count": 0,
+  "schedule_cron": null,
+  "owner": "tester",
+  "is_active": true,
+  "config": {
+    "api_case_ids": [1, 2, 3]
+  },
+  "description": "批量执行核心接口用例"
+}
+```
+
+启动任务请求体示例：
+
+```json
+{
+  "trigger_type": "manual",
+  "environment_id": 1,
+  "summary": {
+    "source": "web",
+    "note": "冒烟验证"
+  }
+}
+```
+
+JMeter 建议：
+
+```text
+1. 用少量 API 用例验证批量执行链路，避免一次性制造大量 worker 任务。
+2. POST /api/v1/test-tasks/{task_id}/run 后，轮询 /api/v1/execution-batches。
+3. 批次 status 变为 passed 或 failed 后，再查询 /api/v1/test-results 分析明细。
+4. 重点统计端到端耗时、失败率、断言失败分类和 worker 队列承载能力。
+```
+
+
 ## 2026-07-06 补充：问题定位接口
 
 问题定位模块用于把失败结果转成可跟踪记录，适合 JMeter 或 CI 回传失败结果后继续做根因跟踪。

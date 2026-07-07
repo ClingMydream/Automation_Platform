@@ -5,7 +5,7 @@ import time
 
 from redis import Redis
 
-from app.infrastructure.db import fetch_run_case, update_run
+from app.infrastructure.db import fetch_run_case, persist_run_result, update_run
 from app.modules.api_automation.runner import run_api_case
 from app.modules.ui_automation.runner import run_ui_case
 from app.settings import QUEUE_NAME, REDIS_URL
@@ -30,17 +30,20 @@ def process_run(run_id: int) -> None:
         status = "passed" if report.get("passed") else "failed"
         # Persist the final status and report for execution records and test reports.
         update_run(run_id, status=status, duration_ms=duration_ms, logs="Run completed", error=report.get("error"), report=report)
+        persist_run_result(run_id, status, duration_ms, report, report.get("error"))
     except Exception as exc:
         # Any unexpected error is converted into a failed report instead of crashing the worker loop.
         duration_ms = int((time.perf_counter() - start) * 1000)
+        report = {"passed": False, "error": str(exc)}
         update_run(
             run_id,
             status="failed",
             duration_ms=duration_ms,
             logs="Run failed",
             error=str(exc),
-            report={"passed": False, "error": str(exc)},
+            report=report,
         )
+        persist_run_result(run_id, "failed", duration_ms, report, str(exc))
 
 
 def main() -> None:

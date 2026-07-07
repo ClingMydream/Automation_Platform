@@ -305,6 +305,8 @@ class TestRun(Base, TimestampMixin):
     __tablename__ = "test_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("execution_batches.id"), index=True)
+    task_id: Mapped[int | None] = mapped_column(ForeignKey("test_tasks.id"), index=True)
     case_type: Mapped[str] = mapped_column(String(20), nullable=False)
     case_id: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="queued", nullable=False)

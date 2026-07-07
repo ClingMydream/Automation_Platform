@@ -143,3 +143,14 @@ def require_menu(menu_key: str):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Menu permission required")
 
     return dependency
+
+
+def require_any_menu(*menu_keys: str):
+    """Build a dependency that accepts any one of several menu permissions."""
+    def dependency(current_user: AuthContext = Depends(get_current_user)) -> AuthContext:
+        """Validate that the current user can access at least one configured menu key."""
+        if current_user.is_admin or any(menu_key in current_user.menu_permissions for menu_key in menu_keys):
+            return current_user
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Menu permission required")
+
+    return dependency

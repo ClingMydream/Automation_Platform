@@ -7,7 +7,8 @@ from app.core.auth import AuthContext, require_menu
 from app.db import get_db
 from app.models.entities import TestTask
 from app.modules.test_tasks.schemas import ExecutionBatchRead, TaskRunRequest, TestTaskCreate, TestTaskRead
-from app.modules.test_tasks.service import create_execution_batch, ensure_task_relations, ensure_unique_task_code, task_payload_data
+from app.modules.test_tasks.service import create_api_task_runs, create_execution_batch, ensure_task_relations, ensure_unique_task_code, task_payload_data, validate_api_task_cases
+from app.services.queue import enqueue_run
 
 
 router = APIRouter(tags=["测试任务"])
@@ -65,8 +66,15 @@ def run_test_task(task_id: int, payload: TaskRunRequest, _: AuthContext = Depend
     task = db.get(TestTask, task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
+    if not task.is_active:
+        raise HTTPException(status_code=400, detail="Task is disabled")
     environment_id = payload.environment_id or task.environment_id
+    case_ids = validate_api_task_cases(db, task) if task.task_type == "api" else []
     batch = create_execution_batch(db, task, payload.trigger_type, environment_id, payload.summary)
+    if task.task_type == "api":
+        runs = create_api_task_runs(db, task, batch, case_ids)
+        for run in runs:
+            enqueue_run(run.id)
     return batch
 
 

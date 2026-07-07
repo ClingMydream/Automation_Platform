@@ -15,3 +15,9 @@ def ensure_runtime_schema(engine: Engine) -> None:
     if not _has_column(engine, "api_cases", "environment_id"):
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE api_cases ADD COLUMN environment_id INTEGER NULL"))
+    if not _has_column(engine, "test_runs", "batch_id"):
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE test_runs ADD COLUMN batch_id INTEGER NULL"))
+    if not _has_column(engine, "test_runs", "task_id"):
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE test_runs ADD COLUMN task_id INTEGER NULL"))

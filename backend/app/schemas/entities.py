@@ -151,6 +151,8 @@ class RunCreate(BaseModel):
 class RunRead(BaseModel):
     """Response body for execution run details."""
     id: int
+    batch_id: int | None = None
+    task_id: int | None = None
     case_type: str
     case_id: int
     status: str
