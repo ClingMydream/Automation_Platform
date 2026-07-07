@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.entities import ApiCase, Environment, ExecutionBatch, Project, TestObject, TestRun, TestTask
+from app.models.entities import ApiCase, Environment, ExecutionBatch, Project, TestObject, TestResult, TestRun, TestTask
 from app.modules.test_tasks.schemas import TestTaskCreate
 
 
@@ -113,3 +113,39 @@ def create_api_task_runs(db: Session, task: TestTask, batch: ExecutionBatch, cas
         db.refresh(run)
     db.refresh(batch)
     return runs
+
+
+def failed_api_case_ids_from_batch(db: Session, batch: ExecutionBatch) -> list[int]:
+    """Return failed API case IDs from result evidence or fallback run rows for one batch."""
+    result_rows = (
+        db.query(TestResult)
+        .filter(TestResult.batch_id == batch.id)
+        .filter(TestResult.status.in_(["failed", "error"]))
+        .all()
+    )
+    case_ids: list[int] = []
+    for result in result_rows:
+        is_api_result = result.case_type == "api" or result.result_type == "api"
+        if is_api_result and result.case_id and result.case_id not in case_ids:
+            case_ids.append(result.case_id)
+    if case_ids:
+        return case_ids
+    run_rows = (
+        db.query(TestRun)
+        .filter(TestRun.batch_id == batch.id)
+        .filter(TestRun.case_type == "api")
+        .filter(TestRun.status.in_(["failed", "error"]))
+        .all()
+    )
+    for run in run_rows:
+        if run.case_id not in case_ids:
+            case_ids.append(run.case_id)
+    return case_ids
+
+
+def task_by_code(db: Session, task_code: str) -> TestTask:
+    """Resolve a task by its stable code for CI and external API callers."""
+    task = db.query(TestTask).filter(TestTask.code == task_code).first()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task

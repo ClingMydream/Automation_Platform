@@ -333,7 +333,7 @@ function PlatformApp() {
             {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
             {tab === 'capabilities' && <TestCapabilityPanel client={client} projects={data.projects} />}
             {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} environments={data.environments} testObjects={data.testObjects} apiCases={data.apiCases} testTasks={data.testTasks} reload={reload} />}
-            {tab === 'results' && <ResultCenterPanel batches={data.batches} results={data.results} />}
+            {tab === 'results' && <ResultCenterPanel client={client} batches={data.batches} results={data.results} reload={reload} />}
             {tab === 'diagnosis' && <ProblemDiagnosisPanel client={client} results={data.results} findings={data.problemFindings} reload={reload} />}
             {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}
             {tab === 'datasets' && <TestDatasetPanel client={client} projects={data.projects} datasets={data.datasets} reload={reload} />}

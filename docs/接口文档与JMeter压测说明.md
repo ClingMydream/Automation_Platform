@@ -550,3 +550,77 @@ worker 是否消费不过来
 - 平台已经阻断 localhost、内网 IP、云元数据地址等敏感目标，但仍然不要尝试绕过安全限制。
 - 文件上传压测要控制大小和并发，避免影响服务器稳定性。
 - 生产数据压测前必须确认删除接口不会误删真实项目和用例。
+
+## 8. CI/API 触发与失败重试接口
+
+### 8.1 外部触发测试任务
+
+用途：
+
+```text
+给 Jenkins、GitHub Actions、GitLab CI、JMeter 或其他外部系统触发平台任务使用。
+```
+
+接口：
+
+```text
+POST /api/v1/test-tasks/by-code/{task_code}/trigger
+Header: X-Automation-Token: 服务器 .env 中的 EXTERNAL_TRIGGER_TOKEN
+```
+
+请求示例：
+
+```json
+{
+  "trigger_type": "ci",
+  "environment_id": 1,
+  "summary": {
+    "build_no": "20260707.1",
+    "branch": "main",
+    "commit": "abcdef"
+  }
+}
+```
+
+说明：
+
+```text
+task_code 是测试任务里的“任务编号”。
+trigger_type 建议填写 ci 或 api。
+EXTERNAL_TRIGGER_TOKEN 不要写进 GitHub，也不要直接写进 JMeter 脚本仓库。
+```
+
+### 8.2 重试失败批次
+
+用途：
+
+```text
+当一次接口批量任务有失败用例时，只重跑失败的 API 用例，不重复跑全部用例。
+```
+
+接口：
+
+```text
+POST /api/v1/execution-batches/{batch_id}/retry
+Authorization: Bearer 登录 token
+```
+
+请求示例：
+
+```json
+{
+  "trigger_type": "manual",
+  "summary": {
+    "reason": "fix后回归失败用例"
+  }
+}
+```
+
+JMeter 建议：
+
+```text
+1. 先触发任务。
+2. 轮询批次或报告接口，确认批次状态。
+3. 如果状态为 failed，再调用 retry 接口。
+4. 不要无限循环重试，建议最多 1 到 2 次。
+```
