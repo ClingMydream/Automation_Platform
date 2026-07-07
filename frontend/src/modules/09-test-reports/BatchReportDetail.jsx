@@ -2,7 +2,7 @@
 // How to change: keep batch-report UI here; keep filtering and export logic in testReportFeature/reportExport.
 
 import React from 'react';
-import { Card, Descriptions, Drawer, Empty, Space, Table, Tag } from 'antd';
+import { Card, Descriptions, Drawer, Empty, Space, Statistic, Table, Tag, Row, Col } from 'antd';
 import { formatDuration, formatTime } from '../../shared/formatters';
 import { StatusTag } from '../../shared/StatusTag.jsx';
 
@@ -13,6 +13,7 @@ export function BatchReportDetail({ report, open, onClose }) {
   const batch = detail.batch || {};
   const stats = detail.stats || {};
   const results = detail.results || [];
+  const performance = detail.performance_summary || {};
 
   // Render block: JSX below describes the batch report evidence view.
   return (
@@ -37,6 +38,18 @@ export function BatchReportDetail({ report, open, onClose }) {
               <Descriptions.Item label="跳过">{stats.skipped ?? 0}</Descriptions.Item>
             </Descriptions>
           </Card>
+          {performance.total > 0 && (
+            <Card title="性能摘要" size="small">
+              <Row gutter={[12, 12]}>
+                <Col xs={12} md={4}><Statistic title="性能结果" value={performance.total || 0} /></Col>
+                <Col xs={12} md={4}><Statistic title="通过率" value={performance.pass_rate || 0} suffix="%" precision={2} /></Col>
+                <Col xs={12} md={4}><Statistic title="平均响应" value={performance.avg_response_ms || 0} suffix="ms" precision={2} /></Col>
+                <Col xs={12} md={4}><Statistic title="最大 P95" value={performance.max_p95_ms || 0} suffix="ms" precision={2} /></Col>
+                <Col xs={12} md={4}><Statistic title="错误率" value={performance.max_error_rate || 0} suffix="%" precision={2} /></Col>
+                <Col xs={12} md={4}><Statistic title="最大 TPS" value={performance.max_tps || 0} precision={2} /></Col>
+              </Row>
+            </Card>
+          )}
           <Card title="结果明细" size="small">
             <Table
               rowKey="id"

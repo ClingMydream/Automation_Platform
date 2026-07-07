@@ -9,6 +9,7 @@ from app.core.external_auth import ensure_external_trigger_token
 from app.db import get_db
 from app.models.entities import ExecutionBatch, TestAttachment, TestResult, TestTask
 from app.modules.result_center.schemas import AttachmentRead, ResultBatchUpload, TestResultRead
+from app.modules.result_center.performance import performance_summary_from_results
 from app.modules.result_center.service import attachment_dir, create_result_row, refresh_batch_statistics, resolve_or_create_batch, save_attachment_file
 from app.modules.test_tasks.service import task_by_code
 
@@ -52,6 +53,13 @@ def list_test_results(
     if result_type:
         query = query.filter(TestResult.result_type == result_type)
     return query.order_by(TestResult.id.desc()).limit(500).all()
+
+
+@router.get("/v1/performance-results/summary", summary="查询性能测试结果总览")
+def performance_results_summary(_: AuthContext = Depends(require_menu("results")), db: Session = Depends(get_db)):
+    """Summarize JMeter, PTS, Locust, or custom performance results stored in the result center."""
+    rows = db.query(TestResult).filter(TestResult.result_type == "performance").order_by(TestResult.id.desc()).limit(500).all()
+    return performance_summary_from_results(rows)
 
 
 @router.get("/v1/test-results/{result_id}", response_model=TestResultRead, summary="查询测试结果详情")

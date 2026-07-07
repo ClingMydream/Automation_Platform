@@ -3,6 +3,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.entities import ApiCase, ExecutionBatch, TestResult, TestRun, TestTask, UiCase
+from app.modules.result_center.performance import performance_summary_from_results
 
 
 def case_name_for_run(db: Session, run: TestRun) -> str:
@@ -65,6 +66,7 @@ def batch_report_summary(db: Session, batch: ExecutionBatch) -> dict:
     assertion_count = sum(len(result.assertions or []) for result in results)
     failed_results = [result for result in results if result.status in {"failed", "error"}]
     result_types = sorted({result.result_type for result in results if result.result_type})
+    performance_summary = performance_summary_from_results(results)
     report = {
         "batch": {
             "id": batch.id,
@@ -97,6 +99,7 @@ def batch_report_summary(db: Session, batch: ExecutionBatch) -> dict:
             }
             for result in results
         ],
+        "performance_summary": performance_summary,
     }
     return {
         "report_key": f"batch-{batch.id}",
@@ -122,6 +125,14 @@ def batch_report_summary(db: Session, batch: ExecutionBatch) -> dict:
             "failed": batch.failed_count,
             "skipped": batch.skipped_count,
             "result_types": result_types,
+            "performance": {
+                "total": performance_summary["total"],
+                "avg_response_ms": performance_summary["avg_response_ms"],
+                "max_p95_ms": performance_summary["max_p95_ms"],
+                "max_error_rate": performance_summary["max_error_rate"],
+                "max_tps": performance_summary["max_tps"],
+                "risk_level": performance_summary["risk_level"],
+            },
         },
         "report": report,
     }

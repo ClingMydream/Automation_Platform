@@ -1,18 +1,19 @@
 // File purpose: Result center page. Review execution batches and collected result evidence.
 
 import React, { useState } from 'react';
-import { App as AntApp, Button, Card, Col, Descriptions, Row, Space, Table, Tag, Typography } from 'antd';
+import { App as AntApp, Button, Card, Col, Descriptions, Row, Space, Statistic, Table, Tag, Typography } from 'antd';
 import { RedoOutlined } from '@ant-design/icons';
 import { StatusTag } from '../../shared/StatusTag.jsx';
 import { formatDuration, formatTime } from '../../shared/formatters.js';
-import { canRetryBatch, retryFailedBatch } from './resultCenterFeature.js';
+import { canRetryBatch, formatPerformanceMetric, performanceRiskColor, retryFailedBatch } from './resultCenterFeature.js';
 
 const { Paragraph } = Typography;
 
-export function ResultCenterPanel({ client, batches, results, reload }) {
+export function ResultCenterPanel({ client, batches, results, performanceSummary = {}, reload }) {
   const [selected, setSelected] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
   const { message } = AntApp.useApp();
+  const performanceRows = performanceSummary.latest_results || [];
 
   async function handleRetry(batch) {
     setRetryingId(batch.id);
@@ -29,6 +30,26 @@ export function ResultCenterPanel({ client, batches, results, reload }) {
 
   return (
     <Row gutter={[16, 16]}>
+      <Col span={24}>
+        <Card
+          title="性能结果概览"
+          extra={<Tag color={performanceRiskColor(performanceSummary.risk_level)}>{performanceSummary.risk_level || 'no-data'}</Tag>}
+        >
+          <Row gutter={[16, 16]}>
+            <Col xs={12} md={6} xl={3}><Statistic title="性能结果" value={performanceSummary.total || 0} /></Col>
+            <Col xs={12} md={6} xl={3}><Statistic title="通过率" value={performanceSummary.pass_rate || 0} suffix="%" precision={2} /></Col>
+            <Col xs={12} md={6} xl={3}><Statistic title="平均响应" value={performanceSummary.avg_response_ms || 0} suffix="ms" precision={2} /></Col>
+            <Col xs={12} md={6} xl={3}><Statistic title="最大 P95" value={performanceSummary.max_p95_ms || 0} suffix="ms" precision={2} /></Col>
+            <Col xs={12} md={6} xl={3}><Statistic title="最大 P99" value={performanceSummary.max_p99_ms || 0} suffix="ms" precision={2} /></Col>
+            <Col xs={12} md={6} xl={3}><Statistic title="最大 TPS" value={performanceSummary.max_tps || 0} precision={2} /></Col>
+            <Col xs={12} md={6} xl={3}><Statistic title="最高错误率" value={performanceSummary.max_error_rate || 0} suffix="%" precision={2} /></Col>
+            <Col xs={12} md={6} xl={3}><Statistic title="样本数" value={performanceSummary.total_samples || 0} /></Col>
+          </Row>
+          <Paragraph type="secondary" style={{ margin: '12px 0 0' }}>
+            {(performanceSummary.risk_reasons || ['暂无性能结果；JMeter 或脚本回传 result_type=performance 后会自动汇总。']).join('；')}
+          </Paragraph>
+        </Card>
+      </Col>
       <Col xs={24} xl={10}>
         <Card title="执行批次">
           <Table
@@ -62,6 +83,26 @@ export function ResultCenterPanel({ client, batches, results, reload }) {
         </Card>
       </Col>
       <Col xs={24} xl={14}>
+        <Card title="性能结果" style={{ marginBottom: 16 }}>
+          <Table
+            rowKey="id"
+            dataSource={performanceRows}
+            pagination={{ pageSize: 5 }}
+            scroll={{ x: 920 }}
+            onRow={(record) => ({ onClick: () => setSelected(results.find((item) => item.id === record.id) || record) })}
+            columns={[
+              { title: 'ID', dataIndex: 'id', width: 80 },
+              { title: '状态', dataIndex: 'status', width: 100, render: (value) => <StatusTag status={value} /> },
+              { title: '平均', width: 100, render: (_, record) => formatPerformanceMetric(record.normalized_metrics?.avg_ms, ' ms') },
+              { title: 'P95', width: 100, render: (_, record) => formatPerformanceMetric(record.normalized_metrics?.p95_ms, ' ms') },
+              { title: 'P99', width: 100, render: (_, record) => formatPerformanceMetric(record.normalized_metrics?.p99_ms, ' ms') },
+              { title: 'TPS', width: 90, render: (_, record) => formatPerformanceMetric(record.normalized_metrics?.tps) },
+              { title: '错误率', width: 100, render: (_, record) => formatPerformanceMetric(record.normalized_metrics?.error_rate, '%') },
+              { title: '样本', width: 90, render: (_, record) => formatPerformanceMetric(record.normalized_metrics?.samples) },
+              { title: '时间', dataIndex: 'created_at', width: 170, render: formatTime },
+            ]}
+          />
+        </Card>
         <Card title="结果明细">
           <Table
             rowKey="id"

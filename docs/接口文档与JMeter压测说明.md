@@ -744,7 +744,9 @@ JMeter 压测结束后，可以通过结果回传接口写入性能指标：
         "p95_ms": 900,
         "p99_ms": 1300,
         "error_rate": 0.02,
-        "tps": 120
+        "tps": 120,
+        "samples": 7200,
+        "concurrency": 50
       },
       "logs": "JMeter summary report path or brief conclusion"
     }
@@ -753,6 +755,54 @@ JMeter 压测结束后，可以通过结果回传接口写入性能指标：
 ```
 
 这样质量分析页会把性能结果纳入结果类型分布、稳定性和风险判断。
+
+### 9.4 性能结果总览
+
+接口：
+
+```text
+GET /api/v1/performance-results/summary
+```
+
+用途：
+
+```text
+JMeter、PTS、Locust 或自研脚本回传 result_type=performance 后，可以通过该接口查看性能结果汇总。
+结果中心页面也会调用该接口，展示平均响应、P95、P99、TPS、错误率、样本数和风险提示。
+```
+
+平台推荐 metrics 字段：
+
+```text
+avg_ms       平均响应时间，单位毫秒
+p95_ms       P95 响应时间，单位毫秒
+p99_ms       P99 响应时间，单位毫秒
+tps          每秒请求数或吞吐量
+error_rate   错误率，建议用百分比；0.02 这种小数会按 2% 归一化
+samples      样本数
+concurrency  并发数
+```
+
+为了兼容不同压测工具，平台也支持这些别名：
+
+```text
+avg / avg_response_time / average_response_time
+p95 / percentile_95 / pct95
+p99 / percentile_99 / pct99
+throughput / rps / requests_per_second
+error_rate_percent / errors_percent / failure_rate
+sample_count / count / total / requests
+threads / users / virtual_users / vus
+```
+
+压测后查看方式：
+
+```text
+1. 回传性能结果。
+2. 打开平台“结果中心”，查看“性能结果概览”和“性能结果”表格。
+3. 打开“测试报告”，进入对应批次报告查看性能摘要。
+4. 导出 HTML 批次报告时，性能摘要会一起写入报告。
+```
 
 ## 10. Webhook 通知接口
 

@@ -90,3 +90,41 @@ def test_batch_report_summary_includes_stats_and_results():
     assert report["summary"]["passed"] == 1
     assert report["check_count"] == 1
     assert report["report"]["results"][0]["response_data"]["status_code"] == 200
+
+
+def test_batch_report_summary_includes_performance_summary():
+    """Batch reports should expose normalized performance data for report pages and exports."""
+    now = datetime.now(UTC)
+    task = TaskModel(id=9, code="PERF", name="首页压测", task_type="performance")
+    batch = ExecutionBatch(
+        id=4,
+        batch_no="BT-PERF",
+        task_id=9,
+        trigger_type="ci",
+        status="passed",
+        total_count=1,
+        passed_count=1,
+        failed_count=0,
+        skipped_count=0,
+        duration_ms=5000,
+        created_at=now,
+        updated_at=now,
+    )
+    result = ResultModel(
+        id=21,
+        batch_id=4,
+        task_id=9,
+        result_type="performance",
+        status="passed",
+        duration_ms=5000,
+        metrics={"avg": 180, "p95": 650, "p99": 900, "throughput": 45, "error_rate": 0.004, "sample_count": 1000},
+    )
+
+    report = batch_report_summary(FakeDb(task, [result]), batch)
+
+    performance = report["report"]["performance_summary"]
+    assert performance["total"] == 1
+    assert performance["avg_response_ms"] == 180
+    assert performance["max_p95_ms"] == 650
+    assert performance["max_error_rate"] == 0.4
+    assert report["summary"]["performance"]["max_tps"] == 45

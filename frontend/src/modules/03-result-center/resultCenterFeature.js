@@ -12,3 +12,21 @@ export async function retryFailedBatch(client, batchId) {
 export function canRetryBatch(batch) {
   return Boolean(batch?.task_id && batch?.failed_count > 0);
 }
+
+// Format normalized performance metrics for compact result-center cards and tables.
+export function formatPerformanceMetric(value, unit = '') {
+  if (value === null || value === undefined || value === '') return '-';
+  const numberValue = Number(value);
+  if (Number.isNaN(numberValue)) return String(value);
+  const digits = Number.isInteger(numberValue) ? 0 : 2;
+  return `${numberValue.toFixed(digits)}${unit}`;
+}
+
+// Map performance risk into Ant Design tag colors.
+export function performanceRiskColor(risk) {
+  return {
+    low: 'success',
+    medium: 'warning',
+    high: 'error',
+  }[risk] || 'default';
+}

@@ -75,6 +75,7 @@ function downloadBatchReportHtml(report) {
   const batch = detail.batch || {};
   const stats = detail.stats || {};
   const results = detail.results || [];
+  const performance = detail.performance_summary || {};
   const html = `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -110,6 +111,13 @@ function downloadBatchReportHtml(report) {
       <tr><th>总数</th><td>${escapeHtml(stats.total ?? 0)}</td><th>通过</th><td>${escapeHtml(stats.passed ?? 0)}</td></tr>
       <tr><th>失败</th><td>${escapeHtml(stats.failed ?? 0)}</td><th>跳过</th><td>${escapeHtml(stats.skipped ?? 0)}</td></tr>
     </tbody></table>
+    ${performance.total ? `<h2>性能摘要</h2>
+    <table><tbody>
+      <tr><th>性能结果</th><td>${escapeHtml(performance.total)}</td><th>通过率</th><td>${escapeHtml(`${performance.pass_rate ?? 0}%`)}</td></tr>
+      <tr><th>平均响应</th><td>${escapeHtml(`${performance.avg_response_ms ?? 0} ms`)}</td><th>最大 P95</th><td>${escapeHtml(`${performance.max_p95_ms ?? 0} ms`)}</td></tr>
+      <tr><th>最大 P99</th><td>${escapeHtml(`${performance.max_p99_ms ?? 0} ms`)}</td><th>最高错误率</th><td>${escapeHtml(`${performance.max_error_rate ?? 0}%`)}</td></tr>
+      <tr><th>最大 TPS</th><td>${escapeHtml(performance.max_tps ?? 0)}</td><th>风险</th><td>${escapeHtml(performance.risk_level || '-')}</td></tr>
+    </tbody></table>` : ''}
     <h2>结果明细</h2>
     ${results.length ? `<table><thead><tr><th>ID</th><th>类型</th><th>用例</th><th>状态</th><th>耗时</th><th>错误</th></tr></thead><tbody>${results.map((item) => `<tr><td>${escapeHtml(item.id)}</td><td>${escapeHtml(item.result_type)}</td><td>${escapeHtml(item.case_id)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(formatDuration(item.duration_ms))}</td><td>${escapeHtml(item.error || '-')}</td></tr>`).join('')}</tbody></table>` : '<p>暂无结果明细。</p>'}
     <h2>原始报告 JSON</h2>
