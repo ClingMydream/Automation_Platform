@@ -359,12 +359,12 @@ createRoot(document.getElementById('root')).render(
     theme={{
       algorithm: theme.defaultAlgorithm,
       token: {
-        colorPrimary: '#6f42e8',
-        colorInfo: '#6f42e8',
+        colorPrimary: '#1f6fff',
+        colorInfo: '#1f6fff',
         colorSuccess: '#16a34a',
         colorWarning: '#d97706',
         colorError: '#dc2626',
-        colorBgLayout: '#f5f6fa',
+        colorBgLayout: '#f5f7fb',
         colorText: '#1f2937',
         colorTextSecondary: '#667085',
         borderRadius: 6,
@@ -374,7 +374,7 @@ createRoot(document.getElementById('root')).render(
       components: {
         Layout: {
           headerBg: '#ffffff',
-          siderBg: '#2f2460',
+          siderBg: '#ffffff',
         },
         Card: {
           headerBg: '#ffffff',
@@ -385,8 +385,8 @@ createRoot(document.getElementById('root')).render(
         },
         Menu: {
           itemBorderRadius: 6,
-          itemSelectedBg: '#7c5cff',
-          itemSelectedColor: '#ffffff',
+          itemSelectedBg: '#eef5ff',
+          itemSelectedColor: '#1f6fff',
         },
       },
     }}
