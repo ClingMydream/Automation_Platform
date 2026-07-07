@@ -8,6 +8,7 @@ import { formatDuration, formatTime } from '../../shared/formatters';
 import { downloadReportHtml } from '../../shared/reportExport';
 import { StatusTag } from '../../shared/StatusTag.jsx';
 import { RunDetail } from '../08-run-history/RunDetail.jsx';
+import { BatchReportDetail } from './BatchReportDetail.jsx';
 import { buildReportSummary, filterReports, findReportById } from './testReportFeature.js';
 
 // Reports page: shows report statistics, filters, details, and export action.
@@ -39,6 +40,7 @@ export function ReportsPanel({ reports, reload, refreshing }) {
               style={{ width: 130 }}
               options={[
                 { value: 'all', label: '全部类型' },
+                { value: 'batch', label: '批次报告' },
                 { value: 'api', label: '接口测试' },
                 { value: 'ui', label: 'UI 测试' },
               ]}
@@ -60,14 +62,15 @@ export function ReportsPanel({ reports, reload, refreshing }) {
         )}
       >
         <Table
-          rowKey="id"
+          rowKey={(record) => record.report_key || String(record.id)}
           dataSource={filtered}
           pagination={{ pageSize: 10 }}
           scroll={{ x: 1180 }}
           columns={[
             { title: '报告 ID', dataIndex: 'id', width: 90 },
-            { title: '类型', dataIndex: 'case_type', width: 100, render: (value) => <Tag>{value === 'api' ? '接口' : 'UI'}</Tag> },
-            { title: '用例名称', dataIndex: 'case_name', ellipsis: true },
+            { title: '报告类型', dataIndex: 'report_kind', width: 110, render: (value) => <Tag color={value === 'batch' ? 'purple' : 'blue'}>{value === 'batch' ? '批次' : '单次'}</Tag> },
+            { title: '类型', dataIndex: 'case_type', width: 100, render: (value) => <Tag>{value === 'api' ? '接口' : value === 'ui' ? 'UI' : '批次'}</Tag> },
+            { title: '名称', dataIndex: 'case_name', ellipsis: true },
             { title: '状态', dataIndex: 'status', width: 110, render: (value) => <StatusTag status={value} /> },
             { title: '耗时', dataIndex: 'duration_ms', width: 110, render: formatDuration },
             { title: '断言', dataIndex: 'check_count', width: 90, render: (value) => value || 0 },
@@ -81,7 +84,7 @@ export function ReportsPanel({ reports, reload, refreshing }) {
               fixed: 'right',
               render: (_, record) => (
                 <Space className="table-actions" size={6} wrap>
-                  <Button icon={<EyeOutlined />} onClick={() => setSelectedReportId(record.id)}>详情</Button>
+                  <Button icon={<EyeOutlined />} onClick={() => setSelectedReportId(record.report_key || String(record.id))}>详情</Button>
                   <Button icon={<DownloadOutlined />} onClick={() => downloadReportHtml(record)}>导出</Button>
                 </Space>
               ),
@@ -89,7 +92,8 @@ export function ReportsPanel({ reports, reload, refreshing }) {
           ]}
         />
       </Card>
-      <RunDetail run={selectedReport} open={Boolean(selectedReportId)} onClose={() => setSelectedReportId(null)} onRefresh={reload} refreshing={refreshing} />
+      <RunDetail run={selectedReport?.report_kind === 'batch' ? null : selectedReport} open={Boolean(selectedReportId) && selectedReport?.report_kind !== 'batch'} onClose={() => setSelectedReportId(null)} onRefresh={reload} refreshing={refreshing} />
+      <BatchReportDetail report={selectedReport?.report_kind === 'batch' ? selectedReport : null} open={Boolean(selectedReportId) && selectedReport?.report_kind === 'batch'} onClose={() => setSelectedReportId(null)} />
     </Space>
   );
 }

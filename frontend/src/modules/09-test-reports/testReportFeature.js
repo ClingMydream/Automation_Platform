@@ -8,7 +8,7 @@
 // Feature block: exported helpers below are used by the page component and can be tested independently.
 export function filterReports(reports, { typeFilter, statusFilter }) {
   return reports.filter((item) => {
-    if (typeFilter !== 'all' && item.case_type !== typeFilter) return false;
+    if (typeFilter !== 'all' && item.case_type !== typeFilter && item.report_kind !== typeFilter) return false;
     if (statusFilter !== 'all' && item.status !== statusFilter) return false;
     return true;
   });
@@ -27,7 +27,7 @@ export function buildReportSummary(reports) {
   };
 }
 
-// Find the selected report by run ID.
-export function findReportById(reports, reportId) {
-  return reports.find((item) => item.id === reportId) || null;
+// Find the selected report by its stable report key.
+export function findReportById(reports, reportKey) {
+  return reports.find((item) => (item.report_key || String(item.id)) === reportKey) || null;
 }

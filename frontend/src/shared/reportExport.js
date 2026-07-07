@@ -10,6 +10,10 @@ import { formatDuration, formatTime } from './formatters';
 // Build and download an HTML test report file.
 // Shared helper block: exported helpers below are reused by multiple modules.
 export function downloadReportHtml(report) {
+  if (report?.report_kind === 'batch') {
+    downloadBatchReportHtml(report);
+    return;
+  }
   const detail = report?.report || {};
   const checks = detail.checks || [];
   const events = detail.events || [];
@@ -59,6 +63,65 @@ export function downloadReportHtml(report) {
   const link = document.createElement('a');
   link.href = objectUrl;
   link.download = `test-report-${report.id}.html`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+// Build and download an HTML report for an execution batch.
+function downloadBatchReportHtml(report) {
+  const detail = report?.report || {};
+  const batch = detail.batch || {};
+  const stats = detail.stats || {};
+  const results = detail.results || [];
+  const html = `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>批次测试报告 ${escapeHtml(batch.batch_no || report.id)}</title>
+  <style>
+    body { margin: 0; padding: 28px; font-family: "Segoe UI", Arial, sans-serif; color: #17202a; background: #eef2f5; }
+    main { max-width: 1080px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 8px; }
+    h1 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+    th, td { border: 1px solid #d7e2e8; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f3f7f8; }
+    pre { white-space: pre-wrap; background: #142028; color: #e7f3f4; padding: 12px; border-radius: 6px; overflow: auto; }
+    .passed { color: #15803d; font-weight: 700; }
+    .failed { color: #b91c1c; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>批次测试报告 ${escapeHtml(batch.batch_no || `#${report.id}`)}</h1>
+    <p>任务：${escapeHtml(report.case_name)} · 状态：<span class="${report.status === 'passed' ? 'passed' : 'failed'}">${escapeHtml(report.status)}</span></p>
+    <table>
+      <tbody>
+        <tr><th>触发方式</th><td>${escapeHtml(batch.trigger_type || '-')}</td></tr>
+        <tr><th>环境 ID</th><td>${escapeHtml(batch.environment_id || '-')}</td></tr>
+        <tr><th>创建时间</th><td>${escapeHtml(formatTime(report.created_at))}</td></tr>
+        <tr><th>更新时间</th><td>${escapeHtml(formatTime(report.updated_at))}</td></tr>
+        <tr><th>耗时</th><td>${escapeHtml(formatDuration(report.duration_ms))}</td></tr>
+      </tbody>
+    </table>
+    <h2>执行统计</h2>
+    <table><tbody>
+      <tr><th>总数</th><td>${escapeHtml(stats.total ?? 0)}</td><th>通过</th><td>${escapeHtml(stats.passed ?? 0)}</td></tr>
+      <tr><th>失败</th><td>${escapeHtml(stats.failed ?? 0)}</td><th>跳过</th><td>${escapeHtml(stats.skipped ?? 0)}</td></tr>
+    </tbody></table>
+    <h2>结果明细</h2>
+    ${results.length ? `<table><thead><tr><th>ID</th><th>类型</th><th>用例</th><th>状态</th><th>耗时</th><th>错误</th></tr></thead><tbody>${results.map((item) => `<tr><td>${escapeHtml(item.id)}</td><td>${escapeHtml(item.result_type)}</td><td>${escapeHtml(item.case_id)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(formatDuration(item.duration_ms))}</td><td>${escapeHtml(item.error || '-')}</td></tr>`).join('')}</tbody></table>` : '<p>暂无结果明细。</p>'}
+    <h2>原始报告 JSON</h2>
+    <pre>${escapeHtml(JSON.stringify(detail, null, 2))}</pre>
+  </main>
+</body>
+</html>`;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = `batch-report-${report.id}.html`;
   document.body.appendChild(link);
   link.click();
   link.remove();
