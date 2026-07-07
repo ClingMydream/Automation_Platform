@@ -28,8 +28,8 @@ export function PageGuide({ tab }) {
     },
     test_tasks: {
       title: '测试任务',
-      description: '测试任务用来描述什么时候测、由谁测、怎么跑；每次执行都会生成独立批次。',
-      steps: ['创建任务', '关联测试对象', '点击执行生成批次'],
+      description: '测试任务用来描述什么时候测、由谁测、怎么跑；手动、CI/API 和定时触发都会生成独立批次。',
+      steps: ['创建任务', '选择接口用例集合', '可填写 cron 定时执行'],
     },
     results: {
       title: '结果中心',

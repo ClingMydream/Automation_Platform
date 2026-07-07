@@ -504,7 +504,48 @@ UI 用例创建请求体示例：
 
 不要直接使用大视频、大图片做高并发上传，容易把服务器磁盘或公网带宽打满。
 
-### 5.7 建议观察指标
+### 5.7 定时任务调度验证
+
+平台 worker 已支持轻量定时调度。定时调度适合小规模周期回归，不适合代替大规模压测执行机。
+
+支持范围：
+
+```text
+task_type=api
+runner_type=platform
+任务处于启用状态
+config.api_case_ids 中存在可执行接口用例
+```
+
+cron 写法：
+
+```text
+*/10 * * * *    每 10 分钟执行一次
+0 * * * *       每小时第 0 分钟执行一次
+30 9 * * 1-5    工作日 09:30 执行
+```
+
+调度验证方式：
+
+```text
+1. 打开“测试任务”，创建 API 任务并选择接口用例集合。
+2. 执行来源保持 platform。
+3. 定时 cron 填 */10 * * * *。
+4. 保存后保持任务启用。
+5. 到点后打开“结果中心”，查看 trigger_type=schedule 的执行批次。
+6. 打开“测试报告”确认批次报告是否生成。
+```
+
+服务器开关：
+
+```text
+SCHEDULER_ENABLED=true
+SCHEDULER_POLL_SECONDS=30
+```
+
+如果只想通过 Jenkins、GitHub Actions 或 JMeter 外部触发，可以把 `SCHEDULER_ENABLED=false` 后重启 worker。
+
+### 5.8 建议观察指标
 
 JMeter 侧：
 

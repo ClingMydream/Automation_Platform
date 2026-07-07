@@ -21,7 +21,7 @@ class TestTaskCreate(BaseModel):
     trigger_type: TriggerType = Field(default="manual", description="默认触发方式")
     runner_type: str = Field(default="platform", max_length=40, description="执行来源：platform、pytest、playwright、jmeter、ci 等")
     retry_count: int = Field(default=0, ge=0, le=10, description="失败重试次数")
-    schedule_cron: str | None = Field(default=None, max_length=120, description="定时任务 cron 表达式，第一批只记录不自动调度")
+    schedule_cron: str | None = Field(default=None, max_length=120, description="定时任务 cron 表达式，worker 支持基础 5 段 cron 调度")
     owner: str | None = Field(default=None, max_length=120, description="负责人")
     is_active: bool = Field(default=True, description="是否启用")
     config: dict[str, Any] = Field(default_factory=dict, description="任务配置 JSON，例如用例集合、JMeter 参数、脚本路径")

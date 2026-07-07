@@ -20,7 +20,7 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
   function resetForm() {
     setEditingId(null);
     form.resetFields();
-    form.setFieldsValue({ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, is_active: true, configText: '{}' });
+    form.setFieldsValue({ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, schedule_cron: '', owner: '', is_active: true, configText: '{}' });
   }
 
   function startEdit(item) {
@@ -89,8 +89,16 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
               />
             </Form.Item>
             <Form.Item label="触发方式" name="trigger_type"><Select options={TRIGGER_TYPES} /></Form.Item>
+            <Form.Item
+              label="定时 cron"
+              name="schedule_cron"
+              tooltip="仅 API + platform 任务会由 worker 自动调度，例如 */10 * * * * 表示每 10 分钟执行一次"
+            >
+              <Input placeholder="例如：*/10 * * * *" />
+            </Form.Item>
             <Form.Item label="执行来源" name="runner_type"><Input placeholder="platform / pytest / playwright / jmeter / ci" /></Form.Item>
             <Form.Item label="失败重试次数" name="retry_count"><InputNumber min={0} max={10} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label="负责人" name="owner"><Input placeholder="例如：张三 / QA Team" /></Form.Item>
             <Form.Item label="启用状态" name="is_active" valuePropName="checked"><Switch checkedChildren="启用" unCheckedChildren="停用" /></Form.Item>
             <Form.Item label="任务配置 JSON" name="configText"><TextArea rows={4} className="code-input" placeholder='{"api_case_ids":[1,2]}' /></Form.Item>
             <Form.Item label="说明" name="description"><TextArea rows={3} placeholder="测试范围、触发来源、注意事项" /></Form.Item>
@@ -110,6 +118,7 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
               { title: '名称', dataIndex: 'name', width: 180 },
               { title: '类型', dataIndex: 'task_type', width: 90, render: (value) => <Tag color="cyan">{taskTypeLabel(value)}</Tag> },
               { title: '来源', dataIndex: 'runner_type', width: 110 },
+              { title: '定时', dataIndex: 'schedule_cron', width: 140, render: (value) => value ? <Tag color="blue">{value}</Tag> : '-' },
               { title: '最近状态', dataIndex: 'last_status', width: 110, render: (value) => value || '-' },
               { title: '状态', dataIndex: 'is_active', width: 90, render: (value) => <Tag color={value ? 'green' : 'default'}>{value ? '启用' : '停用'}</Tag> },
               {
