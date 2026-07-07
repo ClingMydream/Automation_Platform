@@ -1,17 +1,35 @@
 """Result center routes for collected execution evidence and attachments."""
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, require_menu
+from app.core.external_auth import ensure_external_trigger_token
 from app.db import get_db
 from app.models.entities import ExecutionBatch, TestAttachment, TestResult, TestTask
 from app.modules.result_center.schemas import AttachmentRead, ResultBatchUpload, TestResultRead
 from app.modules.result_center.service import attachment_dir, create_result_row, refresh_batch_statistics, resolve_or_create_batch, save_attachment_file
+from app.modules.test_tasks.service import task_by_code
 
 
 router = APIRouter(tags=["结果中心"])
+
+
+def _persist_task_results(db: Session, task: TestTask, payload: ResultBatchUpload) -> dict:
+    """Persist uploaded results for one predefined task."""
+    batch = resolve_or_create_batch(db, task, payload)
+    results = [create_result_row(db, batch, task.id, item) for item in payload.results]
+    batch = refresh_batch_statistics(db, batch)
+    return {"batch": batch, "result_count": len(results)}
+
+
+def _persist_standalone_results(db: Session, payload: ResultBatchUpload) -> dict:
+    """Persist uploaded results that are not tied to a predefined task."""
+    batch = resolve_or_create_batch(db, None, payload)
+    results = [create_result_row(db, batch, None, item) for item in payload.results]
+    batch = refresh_batch_statistics(db, batch)
+    return {"batch": batch, "result_count": len(results)}
 
 
 @router.get("/v1/execution-batches", summary="查询执行批次列表")
@@ -51,19 +69,37 @@ def upload_task_results(task_id: int, payload: ResultBatchUpload, _: AuthContext
     task = db.get(TestTask, task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    batch = resolve_or_create_batch(db, task, payload)
-    results = [create_result_row(db, batch, task.id, item) for item in payload.results]
-    batch = refresh_batch_statistics(db, batch)
-    return {"batch": batch, "result_count": len(results)}
+    return _persist_task_results(db, task, payload)
+
+
+@router.post("/v1/test-tasks/by-code/{task_code}/results/batch", summary="通过任务编号回传外部测试结果")
+def upload_task_results_by_code(
+    task_code: str,
+    payload: ResultBatchUpload,
+    x_automation_token: str | None = Header(default=None, alias="X-Automation-Token"),
+    db: Session = Depends(get_db),
+):
+    """Accept CI, JMeter, pytest, or Playwright results by stable task code with shared token auth."""
+    ensure_external_trigger_token(x_automation_token)
+    task = task_by_code(db, task_code)
+    return _persist_task_results(db, task, payload)
 
 
 @router.post("/v1/test-results/batch", summary="批量回传独立结果")
 def upload_standalone_results(payload: ResultBatchUpload, _: AuthContext = Depends(require_menu("results")), db: Session = Depends(get_db)):
     """Accept batch results that are not tied to a predefined task."""
-    batch = resolve_or_create_batch(db, None, payload)
-    results = [create_result_row(db, batch, None, item) for item in payload.results]
-    batch = refresh_batch_statistics(db, batch)
-    return {"batch": batch, "result_count": len(results)}
+    return _persist_standalone_results(db, payload)
+
+
+@router.post("/v1/test-results/external/batch", summary="通过 Token 回传独立外部测试结果")
+def upload_external_standalone_results(
+    payload: ResultBatchUpload,
+    x_automation_token: str | None = Header(default=None, alias="X-Automation-Token"),
+    db: Session = Depends(get_db),
+):
+    """Accept standalone CI, JMeter, pytest, or Playwright results without a login session."""
+    ensure_external_trigger_token(x_automation_token)
+    return _persist_standalone_results(db, payload)
 
 
 @router.post("/v1/attachments", response_model=AttachmentRead, summary="上传测试附件")

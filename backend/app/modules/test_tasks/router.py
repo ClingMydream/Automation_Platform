@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, require_any_menu, require_menu
-from app.core.config import get_settings
+from app.core.external_auth import ensure_external_trigger_token
 from app.db import get_db
 from app.models.entities import ExecutionBatch, TestTask
 from app.modules.test_tasks.schemas import ExecutionBatchRead, TaskRunRequest, TestTaskCreate, TestTaskRead
@@ -13,15 +13,6 @@ from app.services.queue import enqueue_run
 
 
 router = APIRouter(tags=["测试任务"])
-
-
-def _ensure_external_trigger_token(x_automation_token: str | None) -> None:
-    """Validate the shared CI/API trigger token without exposing it in responses."""
-    expected_token = get_settings().external_trigger_token
-    if not expected_token:
-        raise HTTPException(status_code=503, detail="External trigger token is not configured")
-    if not x_automation_token or x_automation_token != expected_token:
-        raise HTTPException(status_code=401, detail="Invalid trigger token")
 
 
 def _start_task_batch(db: Session, task: TestTask, payload: TaskRunRequest) -> ExecutionBatch:
@@ -101,7 +92,7 @@ def trigger_task_by_code(
     db: Session = Depends(get_db),
 ):
     """Allow CI jobs or external systems to trigger a task by code with a shared token."""
-    _ensure_external_trigger_token(x_automation_token)
+    ensure_external_trigger_token(x_automation_token)
     task = task_by_code(db, task_code)
     trigger_payload = payload.model_copy(update={"trigger_type": payload.trigger_type if payload.trigger_type in {"ci", "api"} else "api"})
     summary = {**(trigger_payload.summary or {}), "source": "external_api", "task_code": task_code}

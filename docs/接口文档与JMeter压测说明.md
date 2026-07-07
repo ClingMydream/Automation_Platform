@@ -625,6 +625,63 @@ JMeter 建议：
 4. 不要无限循环重试，建议最多 1 到 2 次。
 ```
 
+### 8.3 外部脚本按任务编号回传结果
+
+用途：
+
+```text
+给 Jenkins、GitHub Actions、GitLab CI、JMeter、pytest、Playwright 等无人值守脚本回传结果。
+不需要平台登录 token，只需要服务器 .env 中的 EXTERNAL_TRIGGER_TOKEN。
+```
+
+接口：
+
+```text
+POST /api/v1/test-tasks/by-code/{task_code}/results/batch
+Header: X-Automation-Token: 服务器 .env 中的 EXTERNAL_TRIGGER_TOKEN
+```
+
+请求示例：
+
+```json
+{
+  "trigger_type": "ci",
+  "environment_id": 1,
+  "summary": {
+    "tool": "pytest",
+    "build_no": "20260707.2"
+  },
+  "results": [
+    {
+      "result_type": "api",
+      "status": "passed",
+      "duration_ms": 320,
+      "case_type": "api",
+      "case_id": 1,
+      "assertions": [
+        { "name": "status_code", "passed": true, "expected": 200, "actual": 200 }
+      ],
+      "logs": "external pytest result"
+    }
+  ]
+}
+```
+
+### 8.4 外部脚本回传独立结果
+
+用途：
+
+```text
+当外部脚本还没有绑定平台测试任务时，可以先回传独立结果，后续再逐步绑定任务。
+```
+
+接口：
+
+```text
+POST /api/v1/test-results/external/batch
+Header: X-Automation-Token: 服务器 .env 中的 EXTERNAL_TRIGGER_TOKEN
+```
+
 ## 9. 质量分析接口与压测后判断
 
 ### 9.1 质量总览
