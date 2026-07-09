@@ -633,6 +633,15 @@ body {
   background: var(--ms-surface);
 }
 
+.report-video {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  border: 1px solid var(--ms-border-strong);
+  border-radius: 6px;
+  background: #111827;
+}
+
 .thumb-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -846,7 +855,8 @@ body {
   background: #172630;
 }
 
-.live-steps h2 {
+.live-steps h2,
+.live-recording h2 {
   margin: 0 0 12px;
   color: #ffffff;
   font-size: 16px;
@@ -904,6 +914,23 @@ body {
 
 .live-error {
   margin-top: 12px;
+}
+
+.live-recording {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #304956;
+  border-radius: 8px;
+  background: #172630;
+}
+
+.live-recording video {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  border: 1px solid #304956;
+  border-radius: 8px;
+  background: #0b1117;
 }
 
 .tool-summary {

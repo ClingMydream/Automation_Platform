@@ -33,6 +33,17 @@ export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
               <img className="report-image" src={report.latest_screenshot} alt={`run-${run.id}-latest`} />
             </Card>
           )}
+          {(report.recording_url || report.recording_error) && (
+            <Card title="UI 执行录屏" size="small">
+              {report.recording_url ? (
+                <video className="report-video" controls preload="metadata" src={report.recording_url}>
+                  当前浏览器不支持播放 UI 自动化录屏。
+                </video>
+              ) : (
+                <Alert type="warning" showIcon message={report.recording_error} />
+              )}
+            </Card>
+          )}
           {events.length > 0 && (
             <Card title="UI 步骤" size="small">
               <Table

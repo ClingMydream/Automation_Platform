@@ -40,7 +40,9 @@ from app.modules.ui_automation import runtime  # noqa: E402
 class FakePage:
     """Minimal Playwright page double that fails on click."""
 
-    url = "https://example.com/login"
+    def __init__(self, video_path):
+        self.url = "https://example.com/login"
+        self.video = types.SimpleNamespace(path=lambda: str(video_path))
 
     def screenshot(self, **_kwargs):
         return b"fake-image"
@@ -55,13 +57,25 @@ class FakePage:
 class FakeBrowser:
     """Minimal browser double that returns the fake page."""
 
-    def __init__(self):
-        self.page = FakePage()
+    def new_context(self, **kwargs):
+        return FakeContext(Path(kwargs["record_video_dir"]) / "ui-test.webm")
+
+    def close(self):
+        return None
+
+
+class FakeContext:
+    """Minimal context double that writes a fake Playwright video on close."""
+
+    def __init__(self, video_path):
+        self.video_path = video_path
+        self.page = FakePage(video_path)
 
     def new_page(self):
         return self.page
 
     def close(self):
+        self.video_path.write_bytes(b"fake-webm-video")
         return None
 
 
@@ -104,4 +118,6 @@ def test_execute_ui_case_returns_structured_failed_step(monkeypatch):
     assert report["events"][0]["target"] == "#missing"
     assert "selector not found" in report["events"][0]["error"]
     assert report["latest_screenshot"].startswith("data:image/jpeg;base64,")
+    assert report["recording_url"].startswith("data:video/webm;base64,")
+    assert report["recording_name"] == "ui-test.webm"
     assert updates[-1][1]["error"] == report["error"]

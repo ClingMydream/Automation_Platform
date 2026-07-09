@@ -93,6 +93,18 @@ export function LiveRunWindow({ token, runId }) {
         </div>
         {run?.error && <Alert className="live-error" type="error" showIcon message={run.error} />}
       </section>
+      {(report.recording_url || report.recording_error) && (
+        <section className="live-recording">
+          <h2>执行录屏</h2>
+          {report.recording_url ? (
+            <video controls preload="metadata" src={report.recording_url}>
+              当前浏览器不支持播放 UI 自动化录屏。
+            </video>
+          ) : (
+            <Alert type="warning" showIcon message={report.recording_error} />
+          )}
+        </section>
+      )}
     </main>
   );
 }

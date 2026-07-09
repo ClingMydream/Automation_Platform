@@ -33,6 +33,7 @@ export function downloadReportHtml(report) {
     .passed { color: #15803d; font-weight: 700; }
     .failed { color: #b91c1c; font-weight: 700; }
     img { max-width: 100%; border: 1px solid #d7e2e8; border-radius: 6px; }
+    video { width: 100%; border: 1px solid #d7e2e8; border-radius: 6px; background: #111827; }
   </style>
 </head>
 <body>
@@ -53,6 +54,8 @@ export function downloadReportHtml(report) {
     ${events.length ? `<table><thead><tr><th>步骤</th><th>动作</th><th>目标</th><th>值</th><th>耗时</th></tr></thead><tbody>${events.map((item) => `<tr><td>${escapeHtml(item.step)}</td><td>${escapeHtml(item.action)}</td><td>${escapeHtml(item.target || '-')}</td><td>${escapeHtml(item.value || '-')}</td><td>${escapeHtml(formatDuration(item.elapsed_ms))}</td></tr>`).join('')}</tbody></table>` : '<p>无 UI 步骤。</p>'}
     ${detail.response ? `<h2>接口响应</h2><pre>${escapeHtml(JSON.stringify(detail.response, null, 2))}</pre>` : ''}
     ${detail.latest_screenshot ? `<h2>最新截图</h2><img src="${detail.latest_screenshot}" alt="latest screenshot" />` : ''}
+    ${detail.recording_url ? `<h2>UI 执行录屏</h2><video controls src="${detail.recording_url}">当前浏览器不支持播放 UI 自动化录屏。</video>` : ''}
+    ${detail.recording_error ? `<h2>UI 执行录屏</h2><p>${escapeHtml(detail.recording_error)}</p>` : ''}
     <h2>原始报告 JSON</h2>
     <pre>${escapeHtml(JSON.stringify(detail, null, 2))}</pre>
   </main>
