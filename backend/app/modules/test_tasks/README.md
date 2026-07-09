@@ -10,4 +10,4 @@
 - 性能任务也支持读取 `config.performance_tags` 和 `config.performance_tag_match`，按标签自动选择启用中的性能场景。
 - `config.jmeter` 用于保存 JMeter 外部执行资料，包括 `jmx_path`、`report_dir`、`jtl_path` 和 `variables`。
 - 当前平台不会直接执行 `.jmx`，避免把任务配置变成任意脚本执行入口。
-- `GET /api/v1/test-tasks/by-code/{task_code}/config` 使用 `X-Automation-Token` 给 CI/JMeter 读取任务配置和回传地址。
+- `GET /api/v1/test-tasks/by-code/{task_code}/config` 使用 `X-Automation-Token` 给 CI/JMeter 读取任务配置、执行环境和回传地址。

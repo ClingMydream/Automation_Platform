@@ -3,7 +3,7 @@
 from fastapi import HTTPException
 import pytest
 
-from app.models.entities import ExecutionBatch, PerformanceScenario, TestResult as ResultModel, TestRun as RunModel, TestTask as TaskModel
+from app.models.entities import Environment as EnvironmentModel, ExecutionBatch, PerformanceScenario, TestResult as ResultModel, TestRun as RunModel, TestTask as TaskModel
 from app.modules.test_tasks.schemas import TestTaskCreate as TaskCreateSchema
 from app.modules.test_tasks import service as task_service
 from app.modules.test_tasks.service import api_case_ids_from_task, external_task_config, failed_api_case_ids_from_batch, performance_tags_from_task, validate_jmeter_config, validate_performance_task_scenarios
@@ -28,13 +28,18 @@ class FakeQuery:
 class FakeDb:
     """Tiny DB double that returns rows by model class."""
 
-    def __init__(self, rows_by_model):
+    def __init__(self, rows_by_model, entities_by_model_and_id=None):
         """Store a mapping from ORM model to fake query rows."""
         self.rows_by_model = rows_by_model
+        self.entities_by_model_and_id = entities_by_model_and_id or {}
 
     def query(self, model):
         """Return a fake query for the requested ORM model."""
         return FakeQuery(self.rows_by_model.get(model, []))
+
+    def get(self, model, item_id):
+        """Return an entity by model and ID when configured."""
+        return self.entities_by_model_and_id.get((model, item_id))
 
 
 def test_api_case_ids_from_task_prefers_new_key_and_deduplicates():
@@ -168,9 +173,14 @@ def test_external_task_config_returns_jmeter_metadata_without_tokens(monkeypatch
         config={"jmeter": {"jmx_path": "tests/login.jmx", "variables": {"threads": 10}}},
     )
 
-    result = external_task_config(task)
+    environment = EnvironmentModel(id=3, project_id=1, name="测试环境", base_url="https://api.example.test", variables={"host": "api.example.test"})
+    db = FakeDb({}, {(EnvironmentModel, 3): environment})
+
+    result = external_task_config(task, db)
 
     assert result["code"] == "TASK-JMETER-CONFIG"
     assert result["jmeter"]["jmx_path"] == "tests/login.jmx"
+    assert result["environment"]["base_url"] == "https://api.example.test"
+    assert result["environment"]["variables"]["host"] == "api.example.test"
     assert result["callbacks"]["result_upload_url"] == "http://example.test/api/v1/test-tasks/by-code/TASK-JMETER-CONFIG/results/batch"
     assert "token" not in result

@@ -620,6 +620,14 @@ Header: X-Automation-Token: 服务器 .env 中的 EXTERNAL_TRIGGER_TOKEN
   "code": "TASK-JMETER-LOGIN",
   "task_type": "performance",
   "runner_type": "jmeter",
+  "environment": {
+    "id": 1,
+    "name": "测试环境",
+    "base_url": "https://api.example.com",
+    "variables": {
+      "tenantId": "demo"
+    }
+  },
   "config": {
     "performance_tags": ["smoke"],
     "jmeter": {
@@ -644,6 +652,7 @@ Header: X-Automation-Token: 服务器 .env 中的 EXTERNAL_TRIGGER_TOKEN
 
 ```text
 该接口只返回任务配置和回传地址，不返回 EXTERNAL_TRIGGER_TOKEN。
+如果任务绑定了执行环境，会返回环境 Base URL 和变量，方便 JMeter 参数化使用。
 JMeter 字段只是执行资料，平台当前不会直接执行服务器上的 .jmx 或任意脚本。
 ```
 

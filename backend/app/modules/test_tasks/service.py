@@ -256,9 +256,10 @@ def task_by_code(db: Session, task_code: str) -> TestTask:
     return task
 
 
-def external_task_config(task: TestTask) -> dict:
+def external_task_config(task: TestTask, db: Session | None = None) -> dict:
     """Build a safe read-only task config for CI, JMeter, or external runners."""
     public_base = get_settings().public_base_url.rstrip("/")
+    environment = db.get(Environment, task.environment_id) if db is not None and task.environment_id else None
     return {
         "id": task.id,
         "code": task.code,
@@ -266,6 +267,12 @@ def external_task_config(task: TestTask) -> dict:
         "task_type": task.task_type,
         "runner_type": task.runner_type,
         "environment_id": task.environment_id,
+        "environment": {
+            "id": environment.id,
+            "name": environment.name,
+            "base_url": environment.base_url,
+            "variables": environment.variables or {},
+        } if environment else None,
         "is_active": task.is_active,
         "config": task.config or {},
         "jmeter": (task.config or {}).get("jmeter") or {},

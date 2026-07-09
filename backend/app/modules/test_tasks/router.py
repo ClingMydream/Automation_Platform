@@ -115,7 +115,7 @@ def get_external_task_config(
     """Return task config for CI, JMeter, or external runners with shared token auth."""
     ensure_external_trigger_token(x_automation_token)
     task = task_by_code(db, task_code)
-    return external_task_config(task)
+    return external_task_config(task, db)
 
 
 @router.post("/v1/execution-batches/{batch_id}/retry", response_model=ExecutionBatchRead, summary="重试失败的接口用例")
