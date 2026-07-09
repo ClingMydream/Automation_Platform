@@ -18,6 +18,7 @@ from app.security.target_guard import is_blocked_url
 UI_STEP_VISUAL_DELAY_MS = int(os.getenv("UI_STEP_VISUAL_DELAY_MS", "700"))
 UI_RECORD_VIDEO = os.getenv("UI_RECORD_VIDEO", "true").lower() not in {"0", "false", "no"}
 UI_RECORD_VIDEO_MAX_MB = int(os.getenv("UI_RECORD_VIDEO_MAX_MB", "25"))
+UI_DOM_SNAPSHOT_MAX_CHARS = int(os.getenv("UI_DOM_SNAPSHOT_MAX_CHARS", "60000"))
 
 
 def _screenshot_data_url(page) -> str:
@@ -45,6 +46,31 @@ def _recording_data_url(page) -> tuple[str | None, str | None, str | None]:
     return "data:video/webm;base64," + base64.b64encode(content).decode("ascii"), video_path.name, None
 
 
+def _failure_dom_snapshot(page) -> tuple[str | None, str | None]:
+    """Capture a bounded HTML snapshot and an actionable failure hint."""
+    try:
+        html = page.content()
+    except Exception as exc:
+        return None, f"DOM 快照采集失败：{exc}"
+    if len(html) > UI_DOM_SNAPSHOT_MAX_CHARS:
+        html = html[:UI_DOM_SNAPSHOT_MAX_CHARS] + "\n<!-- DOM snapshot truncated -->"
+    allure.attach(html, "failure dom snapshot", allure.attachment_type.HTML)
+    return html, None
+
+
+def _failure_advice(action: str, target: str | None, value: str | None, error: str) -> list[str]:
+    """Build human-readable advice for the failed UI step."""
+    advice = [f"失败动作：{action}", f"错误信息：{error}"]
+    if target:
+        advice.append(f"检查选择器是否仍存在：{target}")
+    if action in {"click", "fill"}:
+        advice.append("确认元素没有被弹窗、遮罩、加载态或 iframe 隔开。")
+    if action == "assert_text" and value:
+        advice.append(f"确认页面实际文案包含：{value}")
+    advice.append("结合最后截图、DOM 快照和录屏复现失败现场。")
+    return advice
+
+
 def _live_report(
     *,
     passed: bool,
@@ -59,6 +85,9 @@ def _live_report(
     recording_url: str | None = None,
     recording_name: str | None = None,
     recording_error: str | None = None,
+    dom_snapshot: str | None = None,
+    dom_snapshot_error: str | None = None,
+    failure_advice: list[str] | None = None,
 ) -> dict[str, Any]:
     """Write live UI execution status, events, and screenshots back to the run record."""
     return {
@@ -75,6 +104,9 @@ def _live_report(
         "recording_url": recording_url,
         "recording_name": recording_name,
         "recording_error": recording_error,
+        "dom_snapshot": dom_snapshot,
+        "dom_snapshot_error": dom_snapshot_error,
+        "failure_advice": failure_advice or [],
     }
 
 
@@ -169,6 +201,8 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                             screenshots.append({"step": index, "title": f"failed-step-{index}", "image": latest_screenshot})
                         except Exception:
                             pass
+                        dom_snapshot, dom_snapshot_error = _failure_dom_snapshot(page)
+                        advice = _failure_advice(action, target, value, error_message)
                         events.append({
                             "step": index,
                             "action": action,
@@ -179,6 +213,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                             "url": page.url,
                             "title": page.title(),
                             "error": error_message,
+                            "advice": advice,
                         })
                         final_report = _live_report(
                             passed=False,
@@ -190,6 +225,9 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                             screenshots=screenshots,
                             latest_screenshot=latest_screenshot,
                             error=error_message,
+                            dom_snapshot=dom_snapshot,
+                            dom_snapshot_error=dom_snapshot_error,
+                            failure_advice=advice,
                         )
                         break
 

@@ -22,7 +22,7 @@ class NoopStep:
 allure_stub = types.SimpleNamespace(
     attach=lambda *_args, **_kwargs: None,
     step=lambda *_args, **_kwargs: NoopStep(),
-    attachment_type=types.SimpleNamespace(JPG="jpg"),
+    attachment_type=types.SimpleNamespace(JPG="jpg", HTML="html"),
 )
 playwright_stub = types.ModuleType("playwright")
 sync_api_stub = types.ModuleType("playwright.sync_api")
@@ -52,6 +52,9 @@ class FakePage:
 
     def title(self):
         return "Example Login"
+
+    def content(self):
+        return '<html><body><button id="submit">Login</button></body></html>'
 
 
 class FakeBrowser:
@@ -120,4 +123,7 @@ def test_execute_ui_case_returns_structured_failed_step(monkeypatch):
     assert report["latest_screenshot"].startswith("data:image/jpeg;base64,")
     assert report["recording_url"].startswith("data:video/webm;base64,")
     assert report["recording_name"] == "ui-test.webm"
+    assert 'id="submit"' in report["dom_snapshot"]
+    assert report["dom_snapshot_error"] is None
+    assert any("#missing" in item for item in report["failure_advice"])
     assert updates[-1][1]["error"] == report["error"]

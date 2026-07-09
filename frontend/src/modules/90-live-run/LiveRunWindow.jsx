@@ -2,7 +2,7 @@
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Tag } from 'antd';
+import { Alert, Collapse, Tag } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 import { apiClient } from '../../shared/apiClient';
 import { formatDuration } from '../../shared/formatters';
@@ -62,6 +62,12 @@ export function LiveRunWindow({ token, runId }) {
           description={failedEvent?.error || report.error}
         />
       )}
+      {report.failure_advice?.length > 0 && (
+        <section className="live-diagnosis">
+          <h2>失败定位建议</h2>
+          <ul>{report.failure_advice.map((item) => <li key={item}>{item}</li>)}</ul>
+        </section>
+      )}
       <section className="live-stage">
         <div className="browser-chrome">
           <span></span><span></span><span></span>
@@ -102,6 +108,18 @@ export function LiveRunWindow({ token, runId }) {
             </video>
           ) : (
             <Alert type="warning" showIcon message={report.recording_error} />
+          )}
+        </section>
+      )}
+      {(report.dom_snapshot || report.dom_snapshot_error) && (
+        <section className="live-diagnosis">
+          <h2>DOM 快照</h2>
+          {report.dom_snapshot ? (
+            <Collapse
+              items={[{ key: 'dom', label: '查看失败时页面 HTML', children: <pre className="dom-snapshot">{report.dom_snapshot}</pre> }]}
+            />
+          ) : (
+            <Alert type="warning" showIcon message={report.dom_snapshot_error} />
           )}
         </section>
       )}

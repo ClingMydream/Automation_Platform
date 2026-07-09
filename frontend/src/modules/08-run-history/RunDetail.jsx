@@ -2,7 +2,7 @@
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
 import React from 'react';
-import { Alert, Button, Card, Descriptions, Drawer, Empty, Space, Table, Tag } from 'antd';
+import { Alert, Button, Card, Collapse, Descriptions, Drawer, Empty, Space, Table, Tag } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { formatDuration, formatTime } from '../../shared/formatters';
 import { StatusTag } from '../../shared/StatusTag.jsx';
@@ -41,6 +41,22 @@ export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
                 </video>
               ) : (
                 <Alert type="warning" showIcon message={report.recording_error} />
+              )}
+            </Card>
+          )}
+          {report.failure_advice?.length > 0 && (
+            <Card title="失败定位建议" size="small">
+              <ul className="diagnosis-list">{report.failure_advice.map((item) => <li key={item}>{item}</li>)}</ul>
+            </Card>
+          )}
+          {(report.dom_snapshot || report.dom_snapshot_error) && (
+            <Card title="DOM 快照" size="small">
+              {report.dom_snapshot ? (
+                <Collapse
+                  items={[{ key: 'dom', label: '查看失败时页面 HTML', children: <pre className="dom-snapshot">{report.dom_snapshot}</pre> }]}
+                />
+              ) : (
+                <Alert type="warning" showIcon message={report.dom_snapshot_error} />
               )}
             </Card>
           )}

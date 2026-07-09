@@ -56,6 +56,9 @@ export function downloadReportHtml(report) {
     ${detail.latest_screenshot ? `<h2>最新截图</h2><img src="${detail.latest_screenshot}" alt="latest screenshot" />` : ''}
     ${detail.recording_url ? `<h2>UI 执行录屏</h2><video controls src="${detail.recording_url}">当前浏览器不支持播放 UI 自动化录屏。</video>` : ''}
     ${detail.recording_error ? `<h2>UI 执行录屏</h2><p>${escapeHtml(detail.recording_error)}</p>` : ''}
+    ${detail.failure_advice?.length ? `<h2>失败定位建议</h2><ul>${detail.failure_advice.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
+    ${detail.dom_snapshot ? `<h2>DOM 快照</h2><pre>${escapeHtml(detail.dom_snapshot)}</pre>` : ''}
+    ${detail.dom_snapshot_error ? `<h2>DOM 快照</h2><p>${escapeHtml(detail.dom_snapshot_error)}</p>` : ''}
     <h2>原始报告 JSON</h2>
     <pre>${escapeHtml(JSON.stringify(detail, null, 2))}</pre>
   </main>
