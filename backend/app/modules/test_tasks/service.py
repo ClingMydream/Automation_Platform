@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.entities import ApiCase, Environment, ExecutionBatch, PerformanceScenario, Project, TestObject, TestResult, TestRun, TestTask
 from app.modules.test_tasks.schemas import TestTaskCreate
 
@@ -253,3 +254,24 @@ def task_by_code(db: Session, task_code: str) -> TestTask:
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
+
+def external_task_config(task: TestTask) -> dict:
+    """Build a safe read-only task config for CI, JMeter, or external runners."""
+    public_base = get_settings().public_base_url.rstrip("/")
+    return {
+        "id": task.id,
+        "code": task.code,
+        "name": task.name,
+        "task_type": task.task_type,
+        "runner_type": task.runner_type,
+        "environment_id": task.environment_id,
+        "is_active": task.is_active,
+        "config": task.config or {},
+        "jmeter": (task.config or {}).get("jmeter") or {},
+        "callbacks": {
+            "trigger_url": f"{public_base}/api/v1/test-tasks/by-code/{task.code}/trigger",
+            "result_upload_url": f"{public_base}/api/v1/test-tasks/by-code/{task.code}/results/batch",
+            "attachment_upload_url": f"{public_base}/api/v1/attachments/external",
+        },
+    }

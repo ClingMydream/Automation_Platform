@@ -597,7 +597,57 @@ worker 是否消费不过来
 
 ## 8. CI/API 触发与失败重试接口
 
-### 8.1 外部触发测试任务
+### 8.1 外部读取任务配置
+
+用途：
+
+```text
+给 Jenkins、GitHub Actions、GitLab CI、JMeter 或自研执行器读取任务配置使用。
+适合先读取 config.jmeter，再执行 .jmx，最后回传结果和附件。
+```
+
+接口：
+
+```text
+GET /api/v1/test-tasks/by-code/{task_code}/config
+Header: X-Automation-Token: 服务器 .env 中的 EXTERNAL_TRIGGER_TOKEN
+```
+
+返回示例：
+
+```json
+{
+  "code": "TASK-JMETER-LOGIN",
+  "task_type": "performance",
+  "runner_type": "jmeter",
+  "config": {
+    "performance_tags": ["smoke"],
+    "jmeter": {
+      "jmx_path": "tests/jmeter/login.jmx",
+      "report_dir": "reports/jmeter/login-html",
+      "jtl_path": "reports/jmeter/login.jtl",
+      "variables": {
+        "threads": 10,
+        "duration": 60
+      }
+    }
+  },
+  "callbacks": {
+    "trigger_url": "http://111.229.178.141/api/v1/test-tasks/by-code/TASK-JMETER-LOGIN/trigger",
+    "result_upload_url": "http://111.229.178.141/api/v1/test-tasks/by-code/TASK-JMETER-LOGIN/results/batch",
+    "attachment_upload_url": "http://111.229.178.141/api/v1/attachments/external"
+  }
+}
+```
+
+说明：
+
+```text
+该接口只返回任务配置和回传地址，不返回 EXTERNAL_TRIGGER_TOKEN。
+JMeter 字段只是执行资料，平台当前不会直接执行服务器上的 .jmx 或任意脚本。
+```
+
+### 8.2 外部触发测试任务
 
 用途：
 
@@ -634,7 +684,7 @@ trigger_type 建议填写 ci 或 api。
 EXTERNAL_TRIGGER_TOKEN 不要写进 GitHub，也不要直接写进 JMeter 脚本仓库。
 ```
 
-### 8.2 重试失败批次
+### 8.3 重试失败批次
 
 用途：
 

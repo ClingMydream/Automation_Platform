@@ -5,7 +5,8 @@ import pytest
 
 from app.models.entities import ExecutionBatch, PerformanceScenario, TestResult as ResultModel, TestRun as RunModel, TestTask as TaskModel
 from app.modules.test_tasks.schemas import TestTaskCreate as TaskCreateSchema
-from app.modules.test_tasks.service import api_case_ids_from_task, failed_api_case_ids_from_batch, performance_tags_from_task, validate_jmeter_config, validate_performance_task_scenarios
+from app.modules.test_tasks import service as task_service
+from app.modules.test_tasks.service import api_case_ids_from_task, external_task_config, failed_api_case_ids_from_batch, performance_tags_from_task, validate_jmeter_config, validate_performance_task_scenarios
 
 
 class FakeQuery:
@@ -150,3 +151,26 @@ def test_validate_jmeter_config_rejects_invalid_metadata_shape():
         validate_jmeter_config(payload)
 
     assert exc.value.status_code == 400
+
+
+def test_external_task_config_returns_jmeter_metadata_without_tokens(monkeypatch):
+    """External config should expose task metadata and callback URLs without secrets."""
+    settings = type("Settings", (), {"public_base_url": "http://example.test"})()
+    monkeypatch.setattr(task_service, "get_settings", lambda: settings)
+    task = TaskModel(
+        id=12,
+        code="TASK-JMETER-CONFIG",
+        name="JMeter config task",
+        task_type="performance",
+        runner_type="jmeter",
+        environment_id=3,
+        is_active=True,
+        config={"jmeter": {"jmx_path": "tests/login.jmx", "variables": {"threads": 10}}},
+    )
+
+    result = external_task_config(task)
+
+    assert result["code"] == "TASK-JMETER-CONFIG"
+    assert result["jmeter"]["jmx_path"] == "tests/login.jmx"
+    assert result["callbacks"]["result_upload_url"] == "http://example.test/api/v1/test-tasks/by-code/TASK-JMETER-CONFIG/results/batch"
+    assert "token" not in result

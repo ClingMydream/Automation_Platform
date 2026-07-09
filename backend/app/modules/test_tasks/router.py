@@ -8,7 +8,7 @@ from app.core.external_auth import ensure_external_trigger_token
 from app.db import get_db
 from app.models.entities import ExecutionBatch, TestTask
 from app.modules.test_tasks.schemas import ExecutionBatchRead, TaskRunRequest, TestTaskCreate, TestTaskRead
-from app.modules.test_tasks.service import create_api_task_runs, create_execution_batch, create_performance_task_runs, ensure_task_relations, ensure_unique_task_code, failed_api_case_ids_from_batch, task_by_code, task_payload_data, validate_api_task_cases, validate_jmeter_config, validate_performance_task_scenarios
+from app.modules.test_tasks.service import create_api_task_runs, create_execution_batch, create_performance_task_runs, ensure_task_relations, ensure_unique_task_code, external_task_config, failed_api_case_ids_from_batch, task_by_code, task_payload_data, validate_api_task_cases, validate_jmeter_config, validate_performance_task_scenarios
 from app.services.queue import enqueue_run
 
 
@@ -104,6 +104,18 @@ def trigger_task_by_code(
     trigger_payload = payload.model_copy(update={"trigger_type": payload.trigger_type if payload.trigger_type in {"ci", "api"} else "api"})
     summary = {**(trigger_payload.summary or {}), "source": "external_api", "task_code": task_code}
     return _start_task_batch(db, task, trigger_payload.model_copy(update={"summary": summary}))
+
+
+@router.get("/v1/test-tasks/by-code/{task_code}/config", summary="通过任务编号读取外部执行配置")
+def get_external_task_config(
+    task_code: str,
+    x_automation_token: str | None = Header(default=None, alias="X-Automation-Token"),
+    db: Session = Depends(get_db),
+):
+    """Return task config for CI, JMeter, or external runners with shared token auth."""
+    ensure_external_trigger_token(x_automation_token)
+    task = task_by_code(db, task_code)
+    return external_task_config(task)
 
 
 @router.post("/v1/execution-batches/{batch_id}/retry", response_model=ExecutionBatchRead, summary="重试失败的接口用例")
