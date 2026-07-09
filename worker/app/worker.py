@@ -7,6 +7,7 @@ from redis import Redis
 
 from app.infrastructure.db import fetch_run_case, persist_run_result, update_run
 from app.modules.api_automation.runner import run_api_case
+from app.modules.performance_automation.runner import run_performance_case
 from app.modules.ui_automation.runner import run_ui_case
 from app.scheduler import enqueue_due_scheduled_tasks
 from app.settings import QUEUE_NAME, REDIS_URL, SCHEDULER_ENABLED, SCHEDULER_POLL_SECONDS
@@ -26,7 +27,12 @@ def process_run(run_id: int) -> None:
     try:
         # The run record decides whether this dispatches to API automation or UI automation.
         run, case = fetch_run_case(run_id)
-        report = run_api_case(case) if run["case_type"] == "api" else run_ui_case(case, run_id)
+        if run["case_type"] == "api":
+            report = run_api_case(case)
+        elif run["case_type"] == "performance":
+            report = run_performance_case(case)
+        else:
+            report = run_ui_case(case, run_id)
         duration_ms = int((time.perf_counter() - start) * 1000)
         status = "passed" if report.get("passed") else "failed"
         # Persist the final status and report for execution records and test reports.

@@ -1,7 +1,7 @@
 // File purpose: Test task page. Maintain reusable tasks and start execution batches.
 
 import React, { useMemo, useState } from 'react';
-import { App as AntApp, Button, Card, Col, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Tag } from 'antd';
+import { Alert, App as AntApp, Button, Card, Col, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { buildTaskFormValues, deleteTask, runTask, saveTask, TASK_TYPES, taskTypeLabel, TRIGGER_TYPES } from './testTaskFeature.js';
 
@@ -101,6 +101,11 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
             <Form.Item label="负责人" name="owner"><Input placeholder="例如：张三 / QA Team" /></Form.Item>
             <Form.Item label="启用状态" name="is_active" valuePropName="checked"><Switch checkedChildren="启用" unCheckedChildren="停用" /></Form.Item>
             <Form.Item label="任务配置 JSON" name="configText"><TextArea rows={4} className="code-input" placeholder='{"api_case_ids":[1,2]}' /></Form.Item>
+            <Alert
+              type="info"
+              showIcon
+              message='性能任务配置示例：{"performance_scenario_ids":[1]}；接口任务配置示例：{"api_case_ids":[1,2]}'
+            />
             <Form.Item label="说明" name="description"><TextArea rows={3} placeholder="测试范围、触发来源、注意事项" /></Form.Item>
             <Button type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新任务' : '保存任务'}</Button>
           </Form>

@@ -39,3 +39,18 @@ Python 3 + pytest + Playwright + allure
 ```text
 worker/app/modules/ui_automation/runtime.py
 ```
+
+## performance_automation
+
+性能自动化模块：
+
+- `runner.py`：性能场景执行入口。
+- `runtime.py`：轻量性能执行实现，使用 `requests` 并发采样公网 URL。
+
+技术栈：
+
+```text
+Python 3 + requests + ThreadPoolExecutor
+```
+
+后续要接入 JMeter、Locust 或 PTS，优先在这个模块下新增适配器，不要把性能执行逻辑塞进前端页面。

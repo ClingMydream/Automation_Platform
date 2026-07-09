@@ -63,12 +63,18 @@ def update_run(run_id: int, **fields: Any) -> None:
 
 
 def fetch_run_case(run_id: int) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Load a test run and its related API or UI case from the database."""
+    """Load a test run and its related API, UI, or performance case from the database."""
     with closing(connect_db()) as conn, conn.cursor() as cur:
         cur.execute("SELECT * FROM test_runs WHERE id=%s", [run_id])
         run = cur.fetchone()
-        # API and UI cases live in different tables, selected by the run type.
-        table = "api_cases" if run["case_type"] == "api" else "ui_cases"
+        tables = {
+            "api": "api_cases",
+            "ui": "ui_cases",
+            "performance": "performance_scenarios",
+        }
+        table = tables.get(run["case_type"])
+        if table is None:
+            raise ValueError(f"Unsupported run case type: {run['case_type']}")
         cur.execute(f"SELECT * FROM {table} WHERE id=%s", [run["case_id"]])
         case = cur.fetchone()
         if run["case_type"] == "api" and case and case.get("environment_id"):
@@ -106,6 +112,7 @@ def persist_run_result(run_id: int, status: str, duration_ms: int | None, report
         metrics = {
             "pytest_exit_code": report.get("pytest_exit_code"),
             "framework": report.get("framework"),
+            **(report.get("metrics") or {}),
         }
         environment_id = request_data.get("environment_id")
         cur.execute(

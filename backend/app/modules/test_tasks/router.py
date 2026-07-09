@@ -8,7 +8,7 @@ from app.core.external_auth import ensure_external_trigger_token
 from app.db import get_db
 from app.models.entities import ExecutionBatch, TestTask
 from app.modules.test_tasks.schemas import ExecutionBatchRead, TaskRunRequest, TestTaskCreate, TestTaskRead
-from app.modules.test_tasks.service import create_api_task_runs, create_execution_batch, ensure_task_relations, ensure_unique_task_code, failed_api_case_ids_from_batch, task_by_code, task_payload_data, validate_api_task_cases
+from app.modules.test_tasks.service import create_api_task_runs, create_execution_batch, create_performance_task_runs, ensure_task_relations, ensure_unique_task_code, failed_api_case_ids_from_batch, task_by_code, task_payload_data, validate_api_task_cases, validate_performance_task_scenarios
 from app.services.queue import enqueue_run
 
 
@@ -21,9 +21,14 @@ def _start_task_batch(db: Session, task: TestTask, payload: TaskRunRequest) -> E
         raise HTTPException(status_code=400, detail="Task is disabled")
     environment_id = payload.environment_id or task.environment_id
     case_ids = validate_api_task_cases(db, task) if task.task_type == "api" else []
+    scenario_ids = validate_performance_task_scenarios(db, task) if task.task_type == "performance" else []
     batch = create_execution_batch(db, task, payload.trigger_type, environment_id, payload.summary)
     if task.task_type == "api":
         runs = create_api_task_runs(db, task, batch, case_ids)
+        for run in runs:
+            enqueue_run(run.id)
+    if task.task_type == "performance":
+        runs = create_performance_task_runs(db, task, batch, scenario_ids)
         for run in runs:
             enqueue_run(run.id)
     return batch

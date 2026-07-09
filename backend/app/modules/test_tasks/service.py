@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.entities import ApiCase, Environment, ExecutionBatch, Project, TestObject, TestResult, TestRun, TestTask
+from app.models.entities import ApiCase, Environment, ExecutionBatch, PerformanceScenario, Project, TestObject, TestResult, TestRun, TestTask
 from app.modules.test_tasks.schemas import TestTaskCreate
 
 
@@ -90,6 +90,36 @@ def validate_api_task_cases(db: Session, task: TestTask) -> list[int]:
     return case_ids
 
 
+def performance_scenario_ids_from_task(task: TestTask) -> list[int]:
+    """Read performance scenario IDs from task config."""
+    config = task.config or {}
+    raw_ids = config.get("performance_scenario_ids") or config.get("scenario_ids") or []
+    if not isinstance(raw_ids, list):
+        raise HTTPException(status_code=400, detail="Task config performance_scenario_ids must be a list")
+    scenario_ids: list[int] = []
+    for value in raw_ids:
+        try:
+            scenario_id = int(value)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Task config contains invalid performance scenario ID") from exc
+        if scenario_id not in scenario_ids:
+            scenario_ids.append(scenario_id)
+    return scenario_ids
+
+
+def validate_performance_task_scenarios(db: Session, task: TestTask) -> list[int]:
+    """Validate that a performance task references existing active scenarios."""
+    scenario_ids = performance_scenario_ids_from_task(task)
+    if not scenario_ids:
+        raise HTTPException(status_code=400, detail="Performance task config requires performance_scenario_ids")
+    rows = db.query(PerformanceScenario).filter(PerformanceScenario.id.in_(scenario_ids)).all()
+    found_ids = {row.id for row in rows}
+    missing_ids = [scenario_id for scenario_id in scenario_ids if scenario_id not in found_ids]
+    if missing_ids:
+        raise HTTPException(status_code=404, detail=f"Performance scenarios not found: {missing_ids}")
+    return scenario_ids
+
+
 def create_api_task_runs(db: Session, task: TestTask, batch: ExecutionBatch, case_ids: list[int]) -> list[TestRun]:
     """Create queued TestRun rows for every API case configured on a task."""
     runs = [
@@ -108,6 +138,31 @@ def create_api_task_runs(db: Session, task: TestTask, batch: ExecutionBatch, cas
         db.add(run)
     batch.total_count = len(runs)
     batch.summary = {**(batch.summary or {}), "api_case_ids": case_ids}
+    db.commit()
+    for run in runs:
+        db.refresh(run)
+    db.refresh(batch)
+    return runs
+
+
+def create_performance_task_runs(db: Session, task: TestTask, batch: ExecutionBatch, scenario_ids: list[int]) -> list[TestRun]:
+    """Create queued TestRun rows for every performance scenario configured on a task."""
+    runs = [
+        TestRun(
+            batch_id=batch.id,
+            task_id=task.id,
+            case_type="performance",
+            case_id=scenario_id,
+            status="queued",
+            logs="Performance task queued",
+            report={},
+        )
+        for scenario_id in scenario_ids
+    ]
+    for run in runs:
+        db.add(run)
+    batch.total_count = len(runs)
+    batch.summary = {**(batch.summary or {}), "performance_scenario_ids": scenario_ids}
     db.commit()
     for run in runs:
         db.refresh(run)
