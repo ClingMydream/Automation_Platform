@@ -1,4 +1,4 @@
-// File purpose: Run detail drawer. Display logs, checks, screenshots, errors, and response data.
+// File purpose: Run detail drawer. Display logs, checks, screenshots, errors, recordings, and response data.
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
 import React, { useEffect, useState } from 'react';
@@ -8,7 +8,7 @@ import { formatBytes, formatDuration, formatTime } from '../../shared/formatters
 import { StatusTag } from '../../shared/StatusTag.jsx';
 import { attachmentTypeOptions, downloadAttachment, listResultAttachments, uploadResultAttachment } from '../03-result-center/resultCenterFeature.js';
 
-// Run detail drawer: shows logs, assertions, screenshots, errors, and response data.
+// Run detail drawer: shows logs, assertions, screenshots, errors, videos, and attached evidence files.
 export function RunDetail({ client, run, open, onClose, onRefresh, refreshing }) {
   const report = run?.report || {};
   const events = report.events || [];
@@ -20,6 +20,7 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
   const [attachmentLoading, setAttachmentLoading] = useState(false);
   const { message } = AntApp.useApp();
 
+  // Load result attachments whenever the drawer opens for a persisted result row.
   useEffect(() => {
     if (!client || !run?.result_id || !open) {
       setAttachments([]);
@@ -41,9 +42,10 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
     return () => { ignore = true; };
   }, [client, run?.result_id, open]);
 
+  // Upload one evidence file to the result center.
   async function handleUploadAttachment(file) {
     if (!client || !run?.result_id) {
-      message.warning('这条执行记录还没有结果中心记录，暂不能上传附件');
+      message.warning('这条执行记录还没有结果中心记录，暂时不能上传附件');
       return false;
     }
     setAttachmentLoading(true);
@@ -59,6 +61,7 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
     return false;
   }
 
+  // Download one evidence file from the result center.
   async function handleDownloadAttachment(attachment) {
     try {
       await downloadAttachment(client, attachment);
@@ -66,9 +69,16 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
       message.error(err.message);
     }
   }
+
   // Render block: JSX below describes what the user sees on this page.
   return (
-    <Drawer title={run ? `执行详情 #${run.id}` : '执行详情'} width={720} open={open} onClose={onClose} extra={<Button icon={<ReloadOutlined />} onClick={onRefresh} loading={refreshing}>刷新</Button>}>
+    <Drawer
+      title={run ? `执行详情 #${run.id}` : '执行详情'}
+      width={720}
+      open={open}
+      onClose={onClose}
+      extra={<Button icon={<ReloadOutlined />} onClick={onRefresh} loading={refreshing}>刷新</Button>}
+    >
       {!run ? <Empty description="请选择一条执行记录" /> : (
         <Space direction="vertical" size={18} className="full-width">
           <Descriptions bordered column={2} size="small">
@@ -79,8 +89,10 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
             <Descriptions.Item label="创建时间">{formatTime(run.created_at)}</Descriptions.Item>
             <Descriptions.Item label="更新时间">{formatTime(run.updated_at)}</Descriptions.Item>
           </Descriptions>
+
           {run.logs && <Alert type="info" showIcon message={run.logs} />}
           {run.error && <Alert type="error" showIcon message={run.error} />}
+
           {run.result_id && (
             <Card
               title={<Space><PaperClipOutlined />结果附件</Space>}
@@ -111,6 +123,7 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
               />
             </Card>
           )}
+
           {run.case_type === 'performance' && Object.keys(metrics).length > 0 && (
             <Card title="性能指标" size="small">
               <Row gutter={[12, 12]}>
@@ -125,11 +138,13 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
               </Row>
             </Card>
           )}
+
           {report.latest_screenshot && (
             <Card title="当前页面截图" size="small">
               <img className="report-image" src={report.latest_screenshot} alt={`run-${run.id}-latest`} />
             </Card>
           )}
+
           {(report.recording_url || report.recording_error) && (
             <Card title="UI 执行录屏" size="small">
               {report.recording_url ? (
@@ -141,11 +156,13 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
               )}
             </Card>
           )}
+
           {report.failure_advice?.length > 0 && (
             <Card title="失败定位建议" size="small">
               <ul className="diagnosis-list">{report.failure_advice.map((item) => <li key={item}>{item}</li>)}</ul>
             </Card>
           )}
+
           {(report.dom_snapshot || report.dom_snapshot_error) && (
             <Card title="DOM 快照" size="small">
               {report.dom_snapshot ? (
@@ -157,6 +174,7 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
               )}
             </Card>
           )}
+
           {events.length > 0 && (
             <Card title="UI 步骤" size="small">
               <Table
@@ -176,6 +194,7 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
               />
             </Card>
           )}
+
           {checks.length > 0 && (
             <Card title="接口断言" size="small">
               <Table
@@ -192,11 +211,13 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
               />
             </Card>
           )}
+
           {report.response && (
             <Card title="接口响应" size="small">
               <pre className="json-report">{JSON.stringify(report.response, null, 2)}</pre>
             </Card>
           )}
+
           {screenshots.length > 0 && (
             <Card title="截图清单" size="small">
               <div className="thumb-grid">{screenshots.map((item) => <img key={`${item.step}-${item.title}`} src={item.image} alt={item.title} />)}</div>
@@ -208,4 +229,4 @@ export function RunDetail({ client, run, open, onClose, onRefresh, refreshing })
   );
 }
 
-// 执行记录模块：展示历史执行任务，并打开详情抽屉。
+// Run-history module: displays historical execution tasks and opens this detail drawer.

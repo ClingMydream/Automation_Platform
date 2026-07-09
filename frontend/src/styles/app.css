@@ -955,6 +955,19 @@ body {
   background: #0b1117;
 }
 
+.recording-attachments {
+  margin-top: 12px;
+}
+
+.recording-attachments .ant-btn {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 36px;
+  color: #dbeafe;
+  border-color: #304956;
+  background: #10202a;
+}
+
 .live-diagnosis {
   margin-top: 16px;
   padding: 14px;

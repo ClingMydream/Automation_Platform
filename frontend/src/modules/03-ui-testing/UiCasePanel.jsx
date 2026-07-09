@@ -17,7 +17,7 @@ import {
 
 const { TextArea } = Input;
 
-// UI testing page: edits low-code steps, saves cases, and starts runs.
+// UI testing page: edits low-code steps, saves cases, and starts live browser runs.
 export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated }) {
   // State block: values here control loading, selection, form state, and visible page data.
   const [form] = Form.useForm();
@@ -97,10 +97,10 @@ export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated })
           <JsonHelpCard
             title="UI 步骤 JSON 使用说明"
             tips={[
-              '步骤 JSON 必须是数组，每一行对象代表一个自动化步骤。',
+              '步骤 JSON 必须是数组，每个对象代表一个自动化步骤。',
               'goto 用 value 填要打开的网址，必须是公网 http/https 地址。',
-              'click 用 selector 填要点击的元素，例如 text=登录、#submit、.btn-primary。',
-              'fill 用 selector 定位输入框，用 value 填要输入的内容。',
+              'click 用 target 填要点击的元素，例如 text=登录、#submit、.btn-primary。',
+              'fill 用 target 定位输入框，用 value 填要输入的内容。',
               'wait 用 value 填等待毫秒数，例如 1000 表示等待 1 秒。',
               'assert_text 用 value 填期望页面出现的文字；screenshot 不需要额外字段。',
             ]}
@@ -118,7 +118,9 @@ export function UiCasePanel({ client, projects, uiCases, reload, onRunCreated })
                 <TextArea rows={12} className="code-input" />
               </Form.Item>
               <Alert type="info" showIcon message="支持 action: goto, click, fill, wait, assert_text, screenshot。公网部署默认禁止访问内网地址。" />
-              <Button className="form-submit" type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新 UI 用例' : '保存 UI 用例'}</Button>
+              <Button className="form-submit" type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>
+                {editingId ? '更新 UI 用例' : '保存 UI 用例'}
+              </Button>
             </Form>
           </Card>
         </Space>

@@ -33,6 +33,25 @@ def _screenshot_data_url(page) -> str:
     return "data:image/jpeg;base64," + base64.b64encode(image).decode("ascii")
 
 
+def _copy_recording_attachment(video_path: Path) -> dict[str, Any] | None:
+    """Copy a Playwright video to the shared attachment directory for later DB binding."""
+    size_bytes = video_path.stat().st_size
+    if size_bytes <= 0 or size_bytes > RESULT_ATTACHMENT_MAX_MB * 1024 * 1024:
+        return None
+    RESULT_ATTACHMENT_DIR.mkdir(parents=True, exist_ok=True)
+    original_name = video_path.name or "ui-recording.webm"
+    stored_name = f"{uuid4().hex}-{original_name[:120]}"
+    stored_path = RESULT_ATTACHMENT_DIR / stored_name
+    shutil.copy2(video_path, stored_path)
+    return {
+        "attachment_type": "recording",
+        "original_name": original_name,
+        "stored_name": stored_name,
+        "content_type": "video/webm",
+        "size_bytes": size_bytes,
+    }
+
+
 def _recording_data_url(page) -> tuple[str | None, str | None, str | None, dict[str, Any] | None]:
     """Return a browser recording preview and a pending attachment after Playwright saves video."""
     video = getattr(page, "video", None)
@@ -54,25 +73,6 @@ def _recording_data_url(page) -> tuple[str | None, str | None, str | None, dict[
     content = video_path.read_bytes()
     allure.attach(content, "browser recording", "video/webm")
     return "data:video/webm;base64," + base64.b64encode(content).decode("ascii"), video_path.name, None, attachment
-
-
-def _copy_recording_attachment(video_path: Path) -> dict[str, Any] | None:
-    """Copy a Playwright video to the shared attachment directory for later DB binding."""
-    size_bytes = video_path.stat().st_size
-    if size_bytes <= 0 or size_bytes > RESULT_ATTACHMENT_MAX_MB * 1024 * 1024:
-        return None
-    RESULT_ATTACHMENT_DIR.mkdir(parents=True, exist_ok=True)
-    original_name = video_path.name or "ui-recording.webm"
-    stored_name = f"{uuid4().hex}-{original_name[:120]}"
-    stored_path = RESULT_ATTACHMENT_DIR / stored_name
-    shutil.copy2(video_path, stored_path)
-    return {
-        "attachment_type": "recording",
-        "original_name": original_name,
-        "stored_name": stored_name,
-        "content_type": "video/webm",
-        "size_bytes": size_bytes,
-    }
 
 
 def _failure_dom_snapshot(page) -> tuple[str | None, str | None]:
@@ -143,7 +143,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
     """Execute one UI case with Playwright.
 
     这里是 UI 自动化代码侧的核心。pytest 负责调度，Playwright 负责浏览器操作，
-    allure 负责附件和步骤记录，数据库回写负责页面实时执行窗口。
+    Allure 负责附件和步骤记录，数据库回写负责页面实时执行窗口。
     """
     steps = json.loads(case["steps"]) if isinstance(case["steps"], str) else case["steps"]
     total_steps = len(steps)
@@ -280,6 +280,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                     if UI_STEP_VISUAL_DELAY_MS > 0:
                         # A small delay makes the live execution window readable for humans.
                         page.wait_for_timeout(UI_STEP_VISUAL_DELAY_MS)
+
                 if final_report is None:
                     final_report = _live_report(
                         passed=True,
@@ -299,7 +300,12 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
             final_report["recording_name"] = recording_name
             final_report["recording_error"] = recording_error
             if run_id and not final_report["passed"]:
-                update_run(run_id, logs=f"Failed UI step {final_report['current_step']}/{total_steps}: {final_report['current_action']}", error=final_report.get("error"), report=final_report)
+                update_run(
+                    run_id,
+                    logs=f"Failed UI step {final_report['current_step']}/{total_steps}: {final_report['current_action']}",
+                    error=final_report.get("error"),
+                    report=final_report,
+                )
             if recording_attachment:
                 final_report["__pending_attachments"] = [recording_attachment]
         browser.close()

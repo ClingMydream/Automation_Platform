@@ -1,11 +1,7 @@
 // File purpose: UI testing feature helpers. Keep payload shaping, backend calls, and live-window logic out of UI.
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
-// UI test feature functions.
-// UI pages should describe the workflow; parsing, saving, deleting, and run creation live here.
-
 // Convert UI case form values into the backend request payload.
-// Feature block: exported helpers below are used by the page component and can be tested independently.
 export function buildUiCasePayload(values) {
   return {
     project_id: Number(values.project_id),
@@ -24,7 +20,6 @@ export function buildUiCaseFormValues(item) {
 }
 
 // Create or update a UI test case depending on edit state.
-// API operation block: async helpers below call the backend and return normalized results.
 export async function saveUiCase(client, editingId, values) {
   const payload = buildUiCasePayload(values);
   if (editingId) {

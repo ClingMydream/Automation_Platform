@@ -3,23 +3,20 @@
 
 import { API_BASE, AUTH_EXPIRED_EVENT } from './constants';
 
-// 前端 API 客户端。
-// 页面模块只调用 get/post/put/delete，不直接拼 fetch，方便以后统一加日志、重试或错误提示。
-
-// Create a marked error so callers can detect expired authentication.
+// 前端 API 客户端：页面模块只调用 get/post/put/delete，不直接拼 fetch。
+// 这样后续统一加日志、重试、鉴权过期处理时，只需要改这一个文件。
 function authExpiredError() {
   const err = new Error('登录已过期，请重新登录');
   err.authExpired = true;
   return err;
 }
 
-// Broadcast the auth-expired event so the app returns to login.
+// 广播登录过期事件，让主应用回到登录页并提示用户。
 function notifyAuthExpired() {
   window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
 }
 
 // Create a shared API client that attaches tokens and handles expired sessions.
-// Shared helper block: exported helpers below are reused by multiple modules.
 export function apiClient(token) {
   // Send one HTTP request, parse the response, and normalize API errors.
   async function request(path, options = {}) {
@@ -40,6 +37,7 @@ export function apiClient(token) {
     if (!res.ok) throw new Error(data.detail || '请求失败');
     return data;
   }
+
   return {
     get: (path) => request(path),
     post: (path, body) => request(path, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) }),
@@ -70,8 +68,8 @@ export function apiClient(token) {
 // Parse backend file names from Content-Disposition when downloading evidence attachments.
 function filenameFromDisposition(value) {
   if (!value) return '';
-  const utf8Match = value.match(/filename\\*=UTF-8''([^;]+)/i);
+  const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i);
   if (utf8Match) return decodeURIComponent(utf8Match[1]);
-  const plainMatch = value.match(/filename=\"?([^\";]+)\"?/i);
+  const plainMatch = value.match(/filename="?([^";]+)"?/i);
   return plainMatch ? plainMatch[1] : '';
 }
