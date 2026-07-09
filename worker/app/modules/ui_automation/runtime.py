@@ -3,10 +3,12 @@
 import base64
 import json
 import os
+import shutil
 import tempfile
 import time
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import allure
 from playwright.sync_api import sync_playwright
@@ -19,6 +21,8 @@ UI_STEP_VISUAL_DELAY_MS = int(os.getenv("UI_STEP_VISUAL_DELAY_MS", "700"))
 UI_RECORD_VIDEO = os.getenv("UI_RECORD_VIDEO", "true").lower() not in {"0", "false", "no"}
 UI_RECORD_VIDEO_MAX_MB = int(os.getenv("UI_RECORD_VIDEO_MAX_MB", "25"))
 UI_DOM_SNAPSHOT_MAX_CHARS = int(os.getenv("UI_DOM_SNAPSHOT_MAX_CHARS", "60000"))
+RESULT_ATTACHMENT_DIR = Path(os.getenv("RESULT_ATTACHMENT_DIR", "/tmp/automation-platform-attachments"))
+RESULT_ATTACHMENT_MAX_MB = int(os.getenv("RESULT_ATTACHMENT_MAX_MB", "200"))
 
 
 def _screenshot_data_url(page) -> str:
@@ -29,21 +33,46 @@ def _screenshot_data_url(page) -> str:
     return "data:image/jpeg;base64," + base64.b64encode(image).decode("ascii")
 
 
-def _recording_data_url(page) -> tuple[str | None, str | None, str | None]:
-    """Return a browser recording as a data URL after Playwright saves the video file."""
+def _recording_data_url(page) -> tuple[str | None, str | None, str | None, dict[str, Any] | None]:
+    """Return a browser recording preview and a pending attachment after Playwright saves video."""
     video = getattr(page, "video", None)
     if not video:
-        return None, None, None
+        return None, None, None, None
     try:
         video_path = Path(video.path())
-        content = video_path.read_bytes()
     except Exception as exc:
-        return None, None, f"读取 UI 录屏失败：{exc}"
-    max_bytes = UI_RECORD_VIDEO_MAX_MB * 1024 * 1024
-    if len(content) > max_bytes:
-        return None, None, f"UI 录屏超过 {UI_RECORD_VIDEO_MAX_MB}MB，已跳过内嵌保存"
+        return None, None, f"读取 UI 录屏失败：{exc}", None
+
+    attachment = _copy_recording_attachment(video_path)
+    size_bytes = video_path.stat().st_size
+    max_inline_bytes = UI_RECORD_VIDEO_MAX_MB * 1024 * 1024
+    if size_bytes > max_inline_bytes:
+        if attachment:
+            return None, video_path.name, f"UI 录屏超过 {UI_RECORD_VIDEO_MAX_MB}MB，已保存为结果附件", attachment
+        return None, video_path.name, f"UI 录屏超过 {UI_RECORD_VIDEO_MAX_MB}MB，且超过附件大小限制，未保存", None
+
+    content = video_path.read_bytes()
     allure.attach(content, "browser recording", "video/webm")
-    return "data:video/webm;base64," + base64.b64encode(content).decode("ascii"), video_path.name, None
+    return "data:video/webm;base64," + base64.b64encode(content).decode("ascii"), video_path.name, None, attachment
+
+
+def _copy_recording_attachment(video_path: Path) -> dict[str, Any] | None:
+    """Copy a Playwright video to the shared attachment directory for later DB binding."""
+    size_bytes = video_path.stat().st_size
+    if size_bytes <= 0 or size_bytes > RESULT_ATTACHMENT_MAX_MB * 1024 * 1024:
+        return None
+    RESULT_ATTACHMENT_DIR.mkdir(parents=True, exist_ok=True)
+    original_name = video_path.name or "ui-recording.webm"
+    stored_name = f"{uuid4().hex}-{original_name[:120]}"
+    stored_path = RESULT_ATTACHMENT_DIR / stored_name
+    shutil.copy2(video_path, stored_path)
+    return {
+        "attachment_type": "recording",
+        "original_name": original_name,
+        "stored_name": stored_name,
+        "content_type": "video/webm",
+        "size_bytes": size_bytes,
+    }
 
 
 def _failure_dom_snapshot(page) -> tuple[str | None, str | None]:
@@ -265,12 +294,14 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
             finally:
                 context.close()
 
-            recording_url, recording_name, recording_error = _recording_data_url(page)
+            recording_url, recording_name, recording_error, recording_attachment = _recording_data_url(page)
             final_report["recording_url"] = recording_url
             final_report["recording_name"] = recording_name
             final_report["recording_error"] = recording_error
             if run_id and not final_report["passed"]:
                 update_run(run_id, logs=f"Failed UI step {final_report['current_step']}/{total_steps}: {final_report['current_action']}", error=final_report.get("error"), report=final_report)
+            if recording_attachment:
+                final_report["__pending_attachments"] = [recording_attachment]
         browser.close()
 
     return final_report

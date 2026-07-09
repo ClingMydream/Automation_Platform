@@ -66,6 +66,8 @@ services:
       dockerfile: worker/Dockerfile
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - attachment-data:/tmp/automation-platform-attachments
     depends_on:
       mysql:
         condition: service_healthy

@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import Path
 from contextlib import closing
 from dataclasses import dataclass
 from typing import Any
@@ -99,12 +100,55 @@ def _result_failure_category(status: str, report: dict[str, Any], error: str | N
     return "assertion"
 
 
+def report_without_runtime_artifacts(report: dict[str, Any]) -> dict[str, Any]:
+    """Return a report copy that excludes worker-only attachment metadata."""
+    return {key: value for key, value in (report or {}).items() if key != "__pending_attachments"}
+
+
+def _pending_attachments(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Read pending attachment metadata produced by automation runtimes."""
+    raw_items = (report or {}).get("__pending_attachments") or []
+    return [item for item in raw_items if isinstance(item, dict) and item.get("stored_name")]
+
+
+def _cleanup_pending_attachments(report: dict[str, Any]) -> None:
+    """Delete copied attachment files when no result row can reference them."""
+    for item in _pending_attachments(report):
+        try:
+            Path(os.getenv("RESULT_ATTACHMENT_DIR", "/tmp/automation-platform-attachments"), item["stored_name"]).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _persist_pending_attachments(cur, result_id: int, batch_id: int | None, report: dict[str, Any]) -> None:
+    """Bind runtime-generated attachment files to a result-center row."""
+    for item in _pending_attachments(report):
+        cur.execute(
+            """
+            INSERT INTO test_attachments
+              (result_id, batch_id, attachment_type, original_name, stored_name, content_type, size_bytes, created_at, updated_at)
+            VALUES
+              (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            """,
+            [
+                result_id,
+                batch_id,
+                item.get("attachment_type") or "recording",
+                item.get("original_name") or "attachment",
+                item["stored_name"],
+                item.get("content_type"),
+                int(item.get("size_bytes") or 0),
+            ],
+        )
+
+
 def persist_run_result(run_id: int, status: str, duration_ms: int | None, report: dict[str, Any], error: str | None) -> None:
     """Persist a completed batch run into the result center and refresh batch totals."""
     with closing(connect_db()) as conn, conn.cursor() as cur:
         cur.execute("SELECT * FROM test_runs WHERE id=%s", [run_id])
         run = cur.fetchone()
         if not run or not run.get("batch_id"):
+            _cleanup_pending_attachments(report)
             return
         request_data = {**(report.get("request") or {}), "run_id": run_id}
         response_data = report.get("response") or {}
@@ -143,6 +187,8 @@ def persist_run_result(run_id: int, status: str, duration_ms: int | None, report
                 _json_value({}),
             ],
         )
+        result_id = cur.lastrowid
+        _persist_pending_attachments(cur, result_id, run.get("batch_id"), report)
         _refresh_batch_statistics(cur, run["batch_id"], run.get("task_id"))
 
 

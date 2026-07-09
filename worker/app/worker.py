@@ -5,7 +5,7 @@ import time
 
 from redis import Redis
 
-from app.infrastructure.db import fetch_run_case, persist_run_result, update_run
+from app.infrastructure.db import fetch_run_case, persist_run_result, report_without_runtime_artifacts, update_run
 from app.modules.api_automation.runner import run_api_case
 from app.modules.performance_automation.runner import run_performance_case
 from app.modules.ui_automation.runner import run_ui_case
@@ -35,8 +35,9 @@ def process_run(run_id: int) -> None:
             report = run_ui_case(case, run_id)
         duration_ms = int((time.perf_counter() - start) * 1000)
         status = "passed" if report.get("passed") else "failed"
+        report_for_display = report_without_runtime_artifacts(report)
         # Persist the final status and report for execution records and test reports.
-        update_run(run_id, status=status, duration_ms=duration_ms, logs="Run completed", error=report.get("error"), report=report)
+        update_run(run_id, status=status, duration_ms=duration_ms, logs="Run completed", error=report.get("error"), report=report_for_display)
         persist_run_result(run_id, status, duration_ms, report, report.get("error"))
     except Exception as exc:
         # Any unexpected error is converted into a failed report instead of crashing the worker loop.

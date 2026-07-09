@@ -2,6 +2,7 @@
 
 import os
 import sys
+import tempfile
 import types
 from pathlib import Path
 
@@ -108,6 +109,7 @@ def test_execute_ui_case_returns_structured_failed_step(monkeypatch):
     monkeypatch.setattr(runtime, "sync_playwright", lambda: FakePlaywright())
     monkeypatch.setattr(runtime.allure, "attach", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(runtime, "update_run", lambda *args, **kwargs: updates.append((args, kwargs)))
+    monkeypatch.setattr(runtime, "RESULT_ATTACHMENT_DIR", Path(os.environ.get("PYTEST_TMPDIR", tempfile.gettempdir())))
 
     report = runtime.execute_ui_case(
         {"steps": [{"action": "click", "target": "#missing", "timeout_ms": 50}]},
@@ -123,6 +125,8 @@ def test_execute_ui_case_returns_structured_failed_step(monkeypatch):
     assert report["latest_screenshot"].startswith("data:image/jpeg;base64,")
     assert report["recording_url"].startswith("data:video/webm;base64,")
     assert report["recording_name"] == "ui-test.webm"
+    assert report["__pending_attachments"][0]["attachment_type"] == "recording"
+    assert report["__pending_attachments"][0]["content_type"] == "video/webm"
     assert 'id="submit"' in report["dom_snapshot"]
     assert report["dom_snapshot_error"] is None
     assert any("#missing" in item for item in report["failure_advice"])
