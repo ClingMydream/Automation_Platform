@@ -11,6 +11,12 @@ import { RunDetail } from '../08-run-history/RunDetail.jsx';
 import { BatchReportDetail } from './BatchReportDetail.jsx';
 import { buildReportSummary, filterReports, findReportById } from './testReportFeature.js';
 
+// Convert backend case type values to compact report-table labels.
+function reportTypeLabel(value) {
+  const labels = { api: '接口', ui: 'UI', performance: '性能', batch: '批次' };
+  return labels[value] || value || '-';
+}
+
 // Reports page: shows report statistics, filters, details, and export action.
 export function ReportsPanel({ reports, reload, refreshing }) {
   // State block: values here control loading, selection, form state, and visible page data.
@@ -43,6 +49,7 @@ export function ReportsPanel({ reports, reload, refreshing }) {
                 { value: 'batch', label: '批次报告' },
                 { value: 'api', label: '接口测试' },
                 { value: 'ui', label: 'UI 测试' },
+                { value: 'performance', label: '性能测试' },
               ]}
             />
             <Select
@@ -69,7 +76,7 @@ export function ReportsPanel({ reports, reload, refreshing }) {
           columns={[
             { title: '报告 ID', dataIndex: 'id', width: 90 },
             { title: '报告类型', dataIndex: 'report_kind', width: 110, render: (value) => <Tag color={value === 'batch' ? 'purple' : 'blue'}>{value === 'batch' ? '批次' : '单次'}</Tag> },
-            { title: '类型', dataIndex: 'case_type', width: 100, render: (value) => <Tag>{value === 'api' ? '接口' : value === 'ui' ? 'UI' : '批次'}</Tag> },
+            { title: '类型', dataIndex: 'case_type', width: 100, render: (value) => <Tag>{reportTypeLabel(value)}</Tag> },
             { title: '名称', dataIndex: 'case_name', ellipsis: true },
             { title: '状态', dataIndex: 'status', width: 110, render: (value) => <StatusTag status={value} /> },
             { title: '耗时', dataIndex: 'duration_ms', width: 110, render: formatDuration },

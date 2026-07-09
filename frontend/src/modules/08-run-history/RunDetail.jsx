@@ -2,7 +2,7 @@
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
 import React from 'react';
-import { Alert, Button, Card, Collapse, Descriptions, Drawer, Empty, Space, Table, Tag } from 'antd';
+import { Alert, Button, Card, Collapse, Descriptions, Drawer, Empty, Space, Table, Tag, Statistic, Row, Col } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { formatDuration, formatTime } from '../../shared/formatters';
 import { StatusTag } from '../../shared/StatusTag.jsx';
@@ -13,6 +13,7 @@ export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
   const events = report.events || [];
   const checks = report.checks || [];
   const screenshots = report.screenshots || [];
+  const metrics = run?.metrics || report.metrics || {};
   // Render block: JSX below describes what the user sees on this page.
   return (
     <Drawer title={run ? `执行详情 #${run.id}` : '执行详情'} width={720} open={open} onClose={onClose} extra={<Button icon={<ReloadOutlined />} onClick={onRefresh} loading={refreshing}>刷新</Button>}>
@@ -28,6 +29,20 @@ export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
           </Descriptions>
           {run.logs && <Alert type="info" showIcon message={run.logs} />}
           {run.error && <Alert type="error" showIcon message={run.error} />}
+          {run.case_type === 'performance' && Object.keys(metrics).length > 0 && (
+            <Card title="性能指标" size="small">
+              <Row gutter={[12, 12]}>
+                <Col xs={12} md={6}><Statistic title="平均响应" value={metrics.avg_ms || 0} suffix="ms" precision={2} /></Col>
+                <Col xs={12} md={6}><Statistic title="P95" value={metrics.p95_ms || 0} suffix="ms" precision={2} /></Col>
+                <Col xs={12} md={6}><Statistic title="P99" value={metrics.p99_ms || 0} suffix="ms" precision={2} /></Col>
+                <Col xs={12} md={6}><Statistic title="TPS" value={metrics.tps || 0} precision={2} /></Col>
+                <Col xs={12} md={6}><Statistic title="错误率" value={metrics.error_rate || 0} suffix="%" precision={2} /></Col>
+                <Col xs={12} md={6}><Statistic title="样本数" value={metrics.samples || 0} /></Col>
+                <Col xs={12} md={6}><Statistic title="并发" value={metrics.concurrency || 0} /></Col>
+                <Col xs={12} md={6}><Statistic title="成功数" value={metrics.successes || 0} /></Col>
+              </Row>
+            </Card>
+          )}
           {report.latest_screenshot && (
             <Card title="当前页面截图" size="small">
               <img className="report-image" src={report.latest_screenshot} alt={`run-${run.id}-latest`} />

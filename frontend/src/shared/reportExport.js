@@ -17,6 +17,7 @@ export function downloadReportHtml(report) {
   const detail = report?.report || {};
   const checks = detail.checks || [];
   const events = detail.events || [];
+  const metrics = report?.metrics || detail.metrics || {};
   const html = `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -52,6 +53,13 @@ export function downloadReportHtml(report) {
     ${checks.length ? `<table><thead><tr><th>名称</th><th>结果</th><th>期望</th><th>实际</th></tr></thead><tbody>${checks.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.passed ? '通过' : '失败'}</td><td>${escapeHtml(item.expected)}</td><td>${escapeHtml(item.actual)}</td></tr>`).join('')}</tbody></table>` : '<p>无断言检查。</p>'}
     <h2>UI 步骤</h2>
     ${events.length ? `<table><thead><tr><th>步骤</th><th>动作</th><th>目标</th><th>值</th><th>耗时</th></tr></thead><tbody>${events.map((item) => `<tr><td>${escapeHtml(item.step)}</td><td>${escapeHtml(item.action)}</td><td>${escapeHtml(item.target || '-')}</td><td>${escapeHtml(item.value || '-')}</td><td>${escapeHtml(formatDuration(item.elapsed_ms))}</td></tr>`).join('')}</tbody></table>` : '<p>无 UI 步骤。</p>'}
+    ${report.case_type === 'performance' && Object.keys(metrics).length ? `<h2>性能指标</h2>
+    <table><tbody>
+      <tr><th>平均响应</th><td>${escapeHtml(`${metrics.avg_ms ?? 0} ms`)}</td><th>P95</th><td>${escapeHtml(`${metrics.p95_ms ?? 0} ms`)}</td></tr>
+      <tr><th>P99</th><td>${escapeHtml(`${metrics.p99_ms ?? 0} ms`)}</td><th>TPS</th><td>${escapeHtml(metrics.tps ?? 0)}</td></tr>
+      <tr><th>错误率</th><td>${escapeHtml(`${metrics.error_rate ?? 0}%`)}</td><th>样本数</th><td>${escapeHtml(metrics.samples ?? 0)}</td></tr>
+      <tr><th>并发</th><td>${escapeHtml(metrics.concurrency ?? 0)}</td><th>成功数</th><td>${escapeHtml(metrics.successes ?? 0)}</td></tr>
+    </tbody></table>` : ''}
     ${detail.response ? `<h2>接口响应</h2><pre>${escapeHtml(JSON.stringify(detail.response, null, 2))}</pre>` : ''}
     ${detail.latest_screenshot ? `<h2>最新截图</h2><img src="${detail.latest_screenshot}" alt="latest screenshot" />` : ''}
     ${detail.recording_url ? `<h2>UI 执行录屏</h2><video controls src="${detail.recording_url}">当前浏览器不支持播放 UI 自动化录屏。</video>` : ''}
