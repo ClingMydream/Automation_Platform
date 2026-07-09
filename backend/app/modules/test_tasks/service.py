@@ -40,6 +40,23 @@ def task_payload_data(payload: TestTaskCreate) -> dict:
     return data
 
 
+def validate_jmeter_config(payload: TestTaskCreate) -> None:
+    """Validate optional JMeter metadata saved in task config."""
+    config = payload.config or {}
+    jmeter = config.get("jmeter")
+    if jmeter is None:
+        return
+    if not isinstance(jmeter, dict):
+        raise HTTPException(status_code=400, detail="Task config jmeter must be an object")
+    variables = jmeter.get("variables") or {}
+    if not isinstance(variables, dict):
+        raise HTTPException(status_code=400, detail="Task config jmeter.variables must be an object")
+    for key in ("jmx_path", "report_dir", "jtl_path"):
+        value = jmeter.get(key)
+        if value is not None and not isinstance(value, str):
+            raise HTTPException(status_code=400, detail=f"Task config jmeter.{key} must be a string")
+
+
 def create_execution_batch(db: Session, task: TestTask | None, trigger_type: str, environment_id: int | None, summary: dict) -> ExecutionBatch:
     """Create a traceable execution batch for one task run or external result upload."""
     batch = ExecutionBatch(

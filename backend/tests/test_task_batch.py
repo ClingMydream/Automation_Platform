@@ -4,7 +4,8 @@ from fastapi import HTTPException
 import pytest
 
 from app.models.entities import ExecutionBatch, PerformanceScenario, TestResult as ResultModel, TestRun as RunModel, TestTask as TaskModel
-from app.modules.test_tasks.service import api_case_ids_from_task, failed_api_case_ids_from_batch, performance_tags_from_task, validate_performance_task_scenarios
+from app.modules.test_tasks.schemas import TestTaskCreate as TaskCreateSchema
+from app.modules.test_tasks.service import api_case_ids_from_task, failed_api_case_ids_from_batch, performance_tags_from_task, validate_jmeter_config, validate_performance_task_scenarios
 
 
 class FakeQuery:
@@ -118,5 +119,34 @@ def test_performance_tags_from_task_rejects_invalid_shape():
 
     with pytest.raises(HTTPException) as exc:
         performance_tags_from_task(task)
+
+    assert exc.value.status_code == 400
+
+
+def test_validate_jmeter_config_accepts_metadata_object():
+    """JMeter metadata should allow CI runners to read task execution hints."""
+    payload = TaskCreateSchema(
+        code="TASK-JMETER",
+        name="JMeter task",
+        task_type="performance",
+        runner_type="jmeter",
+        config={"jmeter": {"jmx_path": "tests/login.jmx", "report_dir": "reports/login", "jtl_path": "reports/login.jtl", "variables": {"threads": 10}}},
+    )
+
+    validate_jmeter_config(payload)
+
+
+def test_validate_jmeter_config_rejects_invalid_metadata_shape():
+    """JMeter metadata should stay predictable for external runners."""
+    payload = TaskCreateSchema(
+        code="TASK-JMETER-BAD",
+        name="Bad JMeter task",
+        task_type="performance",
+        runner_type="jmeter",
+        config={"jmeter": {"jmx_path": ["bad"], "variables": []}},
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        validate_jmeter_config(payload)
 
     assert exc.value.status_code == 400

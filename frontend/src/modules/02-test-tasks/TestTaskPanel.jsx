@@ -26,7 +26,7 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
   function resetForm() {
     setEditingId(null);
     form.resetFields();
-    form.setFieldsValue({ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, schedule_cron: '', owner: '', is_active: true, api_case_ids: [], performance_scenario_ids: [], performance_tags: [], performance_tag_match: 'any', configText: '{}' });
+    form.setFieldsValue({ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, schedule_cron: '', owner: '', is_active: true, api_case_ids: [], performance_scenario_ids: [], performance_tags: [], performance_tag_match: 'any', jmeter_jmx_path: '', jmeter_report_dir: '', jmeter_jtl_path: '', jmeter_variablesText: '{}', configText: '{}' });
   }
 
   function startEdit(item) {
@@ -77,7 +77,7 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
     <Row gutter={[16, 16]}>
       <Col xs={24} xl={9}>
         <Card title={editingId ? '修改测试任务' : '新建测试任务'} extra={editingId && <Button onClick={resetForm}>取消编辑</Button>}>
-          <Form form={form} layout="vertical" initialValues={{ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, is_active: true, api_case_ids: [], performance_scenario_ids: [], performance_tags: [], performance_tag_match: 'any', configText: '{}' }} onFinish={submit}>
+          <Form form={form} layout="vertical" initialValues={{ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, is_active: true, api_case_ids: [], performance_scenario_ids: [], performance_tags: [], performance_tag_match: 'any', jmeter_variablesText: '{}', configText: '{}' }} onFinish={submit}>
             <Form.Item label="任务编号" name="code" rules={[{ required: true, message: '请输入任务编号' }]}><Input placeholder="TASK-SMOKE-001" /></Form.Item>
             <Form.Item label="任务名称" name="name" rules={[{ required: true, message: '请输入任务名称' }]}><Input placeholder="冒烟自动化任务" /></Form.Item>
             <Form.Item label="任务类型" name="task_type"><Select options={TASK_TYPES} /></Form.Item>
@@ -122,6 +122,18 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
                 ]}
               />
             </Form.Item>
+            <Form.Item label="JMeter JMX 路径" name="jmeter_jmx_path" tooltip="保存给 CI/JMeter 外部执行器读取；平台当前不会直接执行本地脚本">
+              <Input placeholder="例如：tests/jmeter/login-smoke.jmx" />
+            </Form.Item>
+            <Form.Item label="JMeter 报告目录" name="jmeter_report_dir">
+              <Input placeholder="例如：reports/jmeter/login-smoke-html" />
+            </Form.Item>
+            <Form.Item label="JMeter JTL 路径" name="jmeter_jtl_path">
+              <Input placeholder="例如：reports/jmeter/login-smoke.jtl" />
+            </Form.Item>
+            <Form.Item label="JMeter 变量 JSON" name="jmeter_variablesText">
+              <TextArea rows={3} className="code-input" placeholder='{"threads":10,"duration":60}' />
+            </Form.Item>
             <Form.Item label="触发方式" name="trigger_type"><Select options={TRIGGER_TYPES} /></Form.Item>
             <Form.Item
               label="定时 cron"
@@ -138,7 +150,7 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
             <Alert
               type="info"
               showIcon
-              message="可优先使用上方选择器；性能任务可手选场景，也可按标签自动选择。保存时会自动写入任务配置 JSON。"
+              message="可优先使用上方选择器；JMeter 字段只保存执行资料，供 CI/JMeter 读取并回传报告，不会在平台内执行任意脚本。"
             />
             <Form.Item label="说明" name="description"><TextArea rows={3} placeholder="测试范围、触发来源、注意事项" /></Form.Item>
             <Button type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新任务' : '保存任务'}</Button>

@@ -8,3 +8,5 @@
 - API 任务会读取 `config.api_case_ids` 并创建接口执行记录。
 - 性能任务会读取 `config.performance_scenario_ids` 并创建性能执行记录。
 - 性能任务也支持读取 `config.performance_tags` 和 `config.performance_tag_match`，按标签自动选择启用中的性能场景。
+- `config.jmeter` 用于保存 JMeter 外部执行资料，包括 `jmx_path`、`report_dir`、`jtl_path` 和 `variables`。
+- 当前平台不会直接执行 `.jmx`，避免把任务配置变成任意脚本执行入口。

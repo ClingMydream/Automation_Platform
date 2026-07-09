@@ -39,6 +39,10 @@ export function buildTaskFormValues(item) {
     performance_scenario_ids: config.performance_scenario_ids || config.scenario_ids || [],
     performance_tags: config.performance_tags || [],
     performance_tag_match: config.performance_tag_match || 'any',
+    jmeter_jmx_path: config.jmeter?.jmx_path || '',
+    jmeter_report_dir: config.jmeter?.report_dir || '',
+    jmeter_jtl_path: config.jmeter?.jtl_path || '',
+    jmeter_variablesText: JSON.stringify(config.jmeter?.variables || {}, null, 2),
     configText: JSON.stringify(config, null, 2),
     description: item.description || '',
   };
@@ -56,6 +60,12 @@ export function buildTaskPayload(values) {
     config.performance_scenario_ids = performanceScenarioIds;
     config.performance_tags = values.performance_tags || [];
     config.performance_tag_match = values.performance_tag_match || 'any';
+    config.jmeter = {
+      jmx_path: values.jmeter_jmx_path?.trim() || null,
+      report_dir: values.jmeter_report_dir?.trim() || null,
+      jtl_path: values.jmeter_jtl_path?.trim() || null,
+      variables: values.jmeter_variablesText ? JSON.parse(values.jmeter_variablesText) : {},
+    };
     delete config.scenario_ids;
   }
   return {

@@ -8,7 +8,7 @@ from app.core.external_auth import ensure_external_trigger_token
 from app.db import get_db
 from app.models.entities import ExecutionBatch, TestTask
 from app.modules.test_tasks.schemas import ExecutionBatchRead, TaskRunRequest, TestTaskCreate, TestTaskRead
-from app.modules.test_tasks.service import create_api_task_runs, create_execution_batch, create_performance_task_runs, ensure_task_relations, ensure_unique_task_code, failed_api_case_ids_from_batch, task_by_code, task_payload_data, validate_api_task_cases, validate_performance_task_scenarios
+from app.modules.test_tasks.service import create_api_task_runs, create_execution_batch, create_performance_task_runs, ensure_task_relations, ensure_unique_task_code, failed_api_case_ids_from_batch, task_by_code, task_payload_data, validate_api_task_cases, validate_jmeter_config, validate_performance_task_scenarios
 from app.services.queue import enqueue_run
 
 
@@ -44,6 +44,7 @@ def list_test_tasks(_: AuthContext = Depends(require_menu("test_tasks")), db: Se
 def create_test_task(payload: TestTaskCreate, _: AuthContext = Depends(require_menu("test_tasks")), db: Session = Depends(get_db)):
     """Create a reusable task definition without touching legacy test cases."""
     ensure_task_relations(db, payload)
+    validate_jmeter_config(payload)
     data = task_payload_data(payload)
     ensure_unique_task_code(db, data["code"])
     task = TestTask(**data)
@@ -60,6 +61,7 @@ def update_test_task(task_id: int, payload: TestTaskCreate, _: AuthContext = Dep
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     ensure_task_relations(db, payload)
+    validate_jmeter_config(payload)
     data = task_payload_data(payload)
     ensure_unique_task_code(db, data["code"], exclude_id=task_id)
     for key, value in data.items():
