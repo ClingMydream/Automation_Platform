@@ -18,7 +18,7 @@ function reportTypeLabel(value) {
 }
 
 // Reports page: shows report statistics, filters, details, and export action.
-export function ReportsPanel({ reports, reload, refreshing }) {
+export function ReportsPanel({ client, reports, reload, refreshing }) {
   // State block: values here control loading, selection, form state, and visible page data.
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -99,7 +99,7 @@ export function ReportsPanel({ reports, reload, refreshing }) {
           ]}
         />
       </Card>
-      <RunDetail run={selectedReport?.report_kind === 'batch' ? null : selectedReport} open={Boolean(selectedReportId) && selectedReport?.report_kind !== 'batch'} onClose={() => setSelectedReportId(null)} onRefresh={reload} refreshing={refreshing} />
+      <RunDetail client={client} run={selectedReport?.report_kind === 'batch' ? null : selectedReport} open={Boolean(selectedReportId) && selectedReport?.report_kind !== 'batch'} onClose={() => setSelectedReportId(null)} onRefresh={reload} refreshing={refreshing} />
       <BatchReportDetail report={selectedReport?.report_kind === 'batch' ? selectedReport : null} open={Boolean(selectedReportId) && selectedReport?.report_kind === 'batch'} onClose={() => setSelectedReportId(null)} />
     </Space>
   );

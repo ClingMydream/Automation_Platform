@@ -10,7 +10,7 @@ import { RunDetail } from './RunDetail.jsx';
 import { buildRunSummary, findRunById } from './runHistoryFeature.js';
 
 // Run history page: shows run statistics, run table, and detail drawer entry.
-export function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun }) {
+export function RunsPanel({ client, runs, reload, refreshing, selectedRunId, onSelectRun }) {
   const selectedRun = findRunById(runs, selectedRunId);
   const summary = buildRunSummary(runs);
   // Render block: JSX below describes what the user sees on this page.
@@ -41,7 +41,7 @@ export function RunsPanel({ runs, reload, refreshing, selectedRunId, onSelectRun
           ]}
         />
       </Card>
-      <RunDetail run={selectedRun} open={Boolean(selectedRunId)} onClose={() => onSelectRun(null)} onRefresh={reload} refreshing={refreshing} />
+      <RunDetail client={client} run={selectedRun} open={Boolean(selectedRunId)} onClose={() => onSelectRun(null)} onRefresh={reload} refreshing={refreshing} />
     </Space>
   );
 }

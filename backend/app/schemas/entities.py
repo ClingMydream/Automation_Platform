@@ -153,6 +153,7 @@ class RunRead(BaseModel):
     id: int
     batch_id: int | None = None
     task_id: int | None = None
+    result_id: int | None = None
     case_type: str
     case_id: int
     status: str

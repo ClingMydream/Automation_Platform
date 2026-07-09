@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import AuthContext, get_current_user, require_menu
 from app.db import get_db
 from app.models.entities import ApiCase, TestRun, UiCase
+from app.modules.reports.service import result_id_for_run
 from app.schemas.entities import RunCreate, RunRead
 from app.services.queue import enqueue_run
 
@@ -21,7 +22,8 @@ router = APIRouter(tags=["执行记录"])
 )
 def list_runs(_: AuthContext = Depends(require_menu("runs")), db: Session = Depends(get_db)):
     """List recent test execution records."""
-    return db.query(TestRun).order_by(TestRun.id.desc()).limit(100).all()
+    runs = db.query(TestRun).order_by(TestRun.id.desc()).limit(100).all()
+    return [run_read_payload(db, run) for run in runs]
 
 
 @router.post(
@@ -62,4 +64,23 @@ def get_run(run_id: int, _: AuthContext = Depends(require_menu("runs")), db: Ses
     run = db.get(TestRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
-    return run
+    return run_read_payload(db, run)
+
+
+def run_read_payload(db: Session, run: TestRun) -> dict:
+    """Serialize a run and include its linked result-center row when available."""
+    return {
+        "id": run.id,
+        "batch_id": run.batch_id,
+        "task_id": run.task_id,
+        "result_id": result_id_for_run(db, run),
+        "case_type": run.case_type,
+        "case_id": run.case_id,
+        "status": run.status,
+        "duration_ms": run.duration_ms,
+        "logs": run.logs,
+        "error": run.error,
+        "report": run.report or {},
+        "created_at": run.created_at,
+        "updated_at": run.updated_at,
+    }

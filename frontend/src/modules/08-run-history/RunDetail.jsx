@@ -1,19 +1,71 @@
 // File purpose: Run detail drawer. Display logs, checks, screenshots, errors, and response data.
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
-import React from 'react';
-import { Alert, Button, Card, Collapse, Descriptions, Drawer, Empty, Space, Table, Tag, Statistic, Row, Col } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
-import { formatDuration, formatTime } from '../../shared/formatters';
+import React, { useEffect, useState } from 'react';
+import { Alert, App as AntApp, Button, Card, Collapse, Descriptions, Drawer, Empty, Space, Table, Tag, Statistic, Row, Col, Select, Upload } from 'antd';
+import { DownloadOutlined, PaperClipOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { formatBytes, formatDuration, formatTime } from '../../shared/formatters';
 import { StatusTag } from '../../shared/StatusTag.jsx';
+import { attachmentTypeOptions, downloadAttachment, listResultAttachments, uploadResultAttachment } from '../03-result-center/resultCenterFeature.js';
 
 // Run detail drawer: shows logs, assertions, screenshots, errors, and response data.
-export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
+export function RunDetail({ client, run, open, onClose, onRefresh, refreshing }) {
   const report = run?.report || {};
   const events = report.events || [];
   const checks = report.checks || [];
   const screenshots = report.screenshots || [];
   const metrics = run?.metrics || report.metrics || {};
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentType, setAttachmentType] = useState('log');
+  const [attachmentLoading, setAttachmentLoading] = useState(false);
+  const { message } = AntApp.useApp();
+
+  useEffect(() => {
+    if (!client || !run?.result_id || !open) {
+      setAttachments([]);
+      return undefined;
+    }
+    let ignore = false;
+    async function loadAttachments() {
+      setAttachmentLoading(true);
+      try {
+        const rows = await listResultAttachments(client, run.result_id);
+        if (!ignore) setAttachments(rows);
+      } catch (err) {
+        if (!ignore) message.error(err.message);
+      } finally {
+        if (!ignore) setAttachmentLoading(false);
+      }
+    }
+    loadAttachments();
+    return () => { ignore = true; };
+  }, [client, run?.result_id, open]);
+
+  async function handleUploadAttachment(file) {
+    if (!client || !run?.result_id) {
+      message.warning('这条执行记录还没有结果中心记录，暂不能上传附件');
+      return false;
+    }
+    setAttachmentLoading(true);
+    try {
+      await uploadResultAttachment(client, run.result_id, attachmentType, file);
+      message.success('附件已上传');
+      setAttachments(await listResultAttachments(client, run.result_id));
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setAttachmentLoading(false);
+    }
+    return false;
+  }
+
+  async function handleDownloadAttachment(attachment) {
+    try {
+      await downloadAttachment(client, attachment);
+    } catch (err) {
+      message.error(err.message);
+    }
+  }
   // Render block: JSX below describes what the user sees on this page.
   return (
     <Drawer title={run ? `执行详情 #${run.id}` : '执行详情'} width={720} open={open} onClose={onClose} extra={<Button icon={<ReloadOutlined />} onClick={onRefresh} loading={refreshing}>刷新</Button>}>
@@ -29,6 +81,36 @@ export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
           </Descriptions>
           {run.logs && <Alert type="info" showIcon message={run.logs} />}
           {run.error && <Alert type="error" showIcon message={run.error} />}
+          {run.result_id && (
+            <Card
+              title={<Space><PaperClipOutlined />结果附件</Space>}
+              size="small"
+              extra={(
+                <Space wrap>
+                  <Select size="small" value={attachmentType} options={attachmentTypeOptions} style={{ width: 118 }} onChange={setAttachmentType} />
+                  <Upload showUploadList={false} beforeUpload={handleUploadAttachment}>
+                    <Button size="small" icon={<UploadOutlined />} loading={attachmentLoading}>上传</Button>
+                  </Upload>
+                </Space>
+              )}
+            >
+              <Table
+                rowKey="id"
+                size="small"
+                loading={attachmentLoading}
+                dataSource={attachments}
+                pagination={false}
+                locale={{ emptyText: '暂无附件，可上传日志、截图、录屏、HAR 或性能报告' }}
+                columns={[
+                  { title: '类型', dataIndex: 'attachment_type', width: 110, render: (value) => attachmentTypeOptions.find((item) => item.value === value)?.label || value },
+                  { title: '文件名', dataIndex: 'original_name', ellipsis: true },
+                  { title: '大小', dataIndex: 'size_bytes', width: 90, render: formatBytes },
+                  { title: '时间', dataIndex: 'created_at', width: 165, render: formatTime },
+                  { title: '操作', width: 82, render: (_, record) => <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadAttachment(record)}>下载</Button> },
+                ]}
+              />
+            </Card>
+          )}
           {run.case_type === 'performance' && Object.keys(metrics).length > 0 && (
             <Card title="性能指标" size="small">
               <Row gutter={[12, 12]}>

@@ -2,18 +2,40 @@
 
 from sqlalchemy.orm import Session
 
-from app.models.entities import ApiCase, ExecutionBatch, TestResult, TestRun, TestTask, UiCase
+from app.models.entities import ApiCase, ExecutionBatch, PerformanceScenario, TestResult, TestRun, TestTask, UiCase
 from app.modules.result_center.performance import performance_summary_from_results
 
 
 def case_name_for_run(db: Session, run: TestRun) -> str:
     """Resolve the display case name for a run."""
-    model = ApiCase if run.case_type == "api" else UiCase
+    model_by_type = {
+        "api": ApiCase,
+        "ui": UiCase,
+        "performance": PerformanceScenario,
+    }
+    model = model_by_type.get(run.case_type)
+    if model is None:
+        return f"{run.case_type} 用例 #{run.case_id}"
     case = db.get(model, run.case_id)
     return case.name if case else f"已删除用例 #{run.case_id}"
 
 
-def report_summary(run: TestRun, case_name: str) -> dict:
+def result_id_for_run(db: Session, run: TestRun) -> int | None:
+    """Find the result-center row written for a worker run."""
+    if not run.batch_id:
+        return None
+    result = (
+        db.query(TestResult)
+        .filter(TestResult.batch_id == run.batch_id)
+        .filter(TestResult.case_type == run.case_type)
+        .filter(TestResult.case_id == run.case_id)
+        .order_by(TestResult.id.desc())
+        .first()
+    )
+    return result.id if result else None
+
+
+def report_summary(db: Session, run: TestRun, case_name: str) -> dict:
     """Convert a run into a report-list summary object."""
     report = run.report or {}
     # These counts let the frontend build a useful report list without parsing every report deeply.
@@ -26,6 +48,7 @@ def report_summary(run: TestRun, case_name: str) -> dict:
         "id": run.id,
         "case_type": run.case_type,
         "case_id": run.case_id,
+        "result_id": result_id_for_run(db, run),
         "case_name": case_name,
         "status": run.status,
         "passed": report.get("passed") if report else run.status == "passed",

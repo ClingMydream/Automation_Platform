@@ -22,7 +22,7 @@ def list_reports(_: AuthContext = Depends(require_menu("reports")), db: Session 
     runs = db.query(TestRun).order_by(TestRun.id.desc()).limit(200).all()
     batches = db.query(ExecutionBatch).order_by(ExecutionBatch.id.desc()).limit(100).all()
     batch_reports = [batch_report_summary(db, batch) for batch in batches]
-    run_reports = [report_summary(run, case_name_for_run(db, run)) for run in runs]
+    run_reports = [report_summary(db, run, case_name_for_run(db, run)) for run in runs]
     return [*batch_reports, *run_reports]
 
 
@@ -49,4 +49,4 @@ def get_report(run_id: int, _: AuthContext = Depends(require_menu("reports")), d
     run = db.get(TestRun, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Report not found")
-    return report_summary(run, case_name_for_run(db, run))
+    return report_summary(db, run, case_name_for_run(db, run))

@@ -355,8 +355,8 @@ function PlatformApp() {
             {tab === 'images' && <ImageToolPanel token={token} />}
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
-            {tab === 'runs' && <RunsPanel runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
-            {tab === 'reports' && <ReportsPanel reports={data.reports} reload={reload} refreshing={refreshing} />}
+            {tab === 'runs' && <RunsPanel client={client} runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
+            {tab === 'reports' && <ReportsPanel client={client} reports={data.reports} reload={reload} refreshing={refreshing} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={data.integrations} reload={reload} />}
             {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
           </div>
