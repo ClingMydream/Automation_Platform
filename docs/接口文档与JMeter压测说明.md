@@ -656,7 +656,53 @@ Header: X-Automation-Token: 服务器 .env 中的 EXTERNAL_TRIGGER_TOKEN
 JMeter 字段只是执行资料，平台当前不会直接执行服务器上的 .jmx 或任意脚本。
 ```
 
-### 8.2 外部触发测试任务
+### 8.2 示例外部执行器脚本
+
+仓库提供了一个只依赖 Python 标准库的示例脚本：
+
+```text
+tools/jmeter_external_runner.py
+```
+
+用途：
+
+```text
+1. 读取 /api/v1/test-tasks/by-code/{task_code}/config。
+2. 根据 config.jmeter.jmx_path 执行本机或 CI 机器上的 JMeter。
+3. 解析 JTL 文件中的样本数、平均响应、P95、P99、TPS、错误率。
+4. 调用 result_upload_url 回传 performance 结果。
+5. 将 HTML 报告目录压缩后调用 attachment_upload_url 上传为 performance_report 附件。
+```
+
+本地试运行：
+
+```bash
+set EXTERNAL_TRIGGER_TOKEN=服务器.env里的令牌
+python tools/jmeter_external_runner.py ^
+  --base-url http://111.229.178.141 ^
+  --task-code TASK-JMETER-LOGIN ^
+  --dry-run
+```
+
+真实执行：
+
+```bash
+set EXTERNAL_TRIGGER_TOKEN=服务器.env里的令牌
+set JMETER_BIN=D:\apache-jmeter\bin\jmeter.bat
+python tools/jmeter_external_runner.py ^
+  --base-url http://111.229.178.141 ^
+  --task-code TASK-JMETER-LOGIN
+```
+
+安全边界：
+
+```text
+脚本运行在你的电脑、Jenkins、GitHub Actions Runner 或其他可信执行机上。
+平台服务器不会直接执行 .jmx，也不会接收任意脚本执行请求。
+不要把 EXTERNAL_TRIGGER_TOKEN 写进 Git 仓库；建议用 CI Secret 或本机环境变量。
+```
+
+### 8.3 外部触发测试任务
 
 用途：
 
@@ -693,7 +739,7 @@ trigger_type 建议填写 ci 或 api。
 EXTERNAL_TRIGGER_TOKEN 不要写进 GitHub，也不要直接写进 JMeter 脚本仓库。
 ```
 
-### 8.3 重试失败批次
+### 8.4 重试失败批次
 
 用途：
 
@@ -728,7 +774,7 @@ JMeter 建议：
 4. 不要无限循环重试，建议最多 1 到 2 次。
 ```
 
-### 8.3 外部脚本按任务编号回传结果
+### 8.5 外部脚本按任务编号回传结果
 
 用途：
 
