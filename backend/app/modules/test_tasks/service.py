@@ -91,7 +91,7 @@ def validate_api_task_cases(db: Session, task: TestTask) -> list[int]:
 
 
 def performance_scenario_ids_from_task(task: TestTask) -> list[int]:
-    """Read performance scenario IDs from task config."""
+    """Read explicit performance scenario IDs from task config."""
     config = task.config or {}
     raw_ids = config.get("performance_scenario_ids") or config.get("scenario_ids") or []
     if not isinstance(raw_ids, list):
@@ -107,11 +107,43 @@ def performance_scenario_ids_from_task(task: TestTask) -> list[int]:
     return scenario_ids
 
 
+def performance_tags_from_task(task: TestTask) -> tuple[list[str], str]:
+    """Read performance scenario tag selectors from task config."""
+    config = task.config or {}
+    raw_tags = config.get("performance_tags") or []
+    if not isinstance(raw_tags, list):
+        raise HTTPException(status_code=400, detail="Task config performance_tags must be a list")
+    tags = []
+    for value in raw_tags:
+        text = str(value).strip()
+        if text and text not in tags:
+            tags.append(text)
+    match_mode = str(config.get("performance_tag_match") or "any").lower()
+    if match_mode not in {"any", "all"}:
+        raise HTTPException(status_code=400, detail="Task config performance_tag_match must be any or all")
+    return tags, match_mode
+
+
+def _scenario_matches_tags(row: PerformanceScenario, tags: list[str], match_mode: str) -> bool:
+    """Return whether one scenario matches the configured tag selector."""
+    row_tags = set(row.tags or [])
+    selector_tags = set(tags)
+    if match_mode == "all":
+        return selector_tags.issubset(row_tags)
+    return bool(row_tags.intersection(selector_tags))
+
+
 def validate_performance_task_scenarios(db: Session, task: TestTask) -> list[int]:
-    """Validate that a performance task references existing active scenarios."""
+    """Validate that a performance task references existing active scenarios by ID or tag."""
     scenario_ids = performance_scenario_ids_from_task(task)
+    tags, match_mode = performance_tags_from_task(task)
+    if tags:
+        active_rows = db.query(PerformanceScenario).all()
+        for row in active_rows:
+            if row.is_active and _scenario_matches_tags(row, tags, match_mode) and row.id not in scenario_ids:
+                scenario_ids.append(row.id)
     if not scenario_ids:
-        raise HTTPException(status_code=400, detail="Performance task config requires performance_scenario_ids")
+        raise HTTPException(status_code=400, detail="Performance task config requires performance_scenario_ids or performance_tags")
     rows = db.query(PerformanceScenario).filter(PerformanceScenario.id.in_(scenario_ids)).all()
     found_ids = {row.id for row in rows}
     missing_ids = [scenario_id for scenario_id in scenario_ids if scenario_id not in found_ids]

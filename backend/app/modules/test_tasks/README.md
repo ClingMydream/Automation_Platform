@@ -7,3 +7,4 @@
 - `service.py`：任务关系校验、编号唯一性、批次创建。
 - API 任务会读取 `config.api_case_ids` 并创建接口执行记录。
 - 性能任务会读取 `config.performance_scenario_ids` 并创建性能执行记录。
+- 性能任务也支持读取 `config.performance_tags` 和 `config.performance_tag_match`，按标签自动选择启用中的性能场景。

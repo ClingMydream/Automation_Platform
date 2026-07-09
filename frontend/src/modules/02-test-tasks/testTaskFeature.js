@@ -37,6 +37,8 @@ export function buildTaskFormValues(item) {
     is_active: item.is_active,
     api_case_ids: config.api_case_ids || config.case_ids || [],
     performance_scenario_ids: config.performance_scenario_ids || config.scenario_ids || [],
+    performance_tags: config.performance_tags || [],
+    performance_tag_match: config.performance_tag_match || 'any',
     configText: JSON.stringify(config, null, 2),
     description: item.description || '',
   };
@@ -52,6 +54,8 @@ export function buildTaskPayload(values) {
   const performanceScenarioIds = (values.performance_scenario_ids || []).map((value) => Number(value)).filter(Boolean);
   if (['performance', 'mixed'].includes(values.task_type)) {
     config.performance_scenario_ids = performanceScenarioIds;
+    config.performance_tags = values.performance_tags || [];
+    config.performance_tag_match = values.performance_tag_match || 'any';
     delete config.scenario_ids;
   }
   return {

@@ -3,8 +3,8 @@
 from fastapi import HTTPException
 import pytest
 
-from app.models.entities import ExecutionBatch, TestResult as ResultModel, TestRun as RunModel, TestTask as TaskModel
-from app.modules.test_tasks.service import api_case_ids_from_task, failed_api_case_ids_from_batch
+from app.models.entities import ExecutionBatch, PerformanceScenario, TestResult as ResultModel, TestRun as RunModel, TestTask as TaskModel
+from app.modules.test_tasks.service import api_case_ids_from_task, failed_api_case_ids_from_batch, performance_tags_from_task, validate_performance_task_scenarios
 
 
 class FakeQuery:
@@ -85,3 +85,38 @@ def test_failed_api_case_ids_from_batch_falls_back_to_run_rows():
     })
 
     assert failed_api_case_ids_from_batch(db, batch) == [31, 32]
+
+
+def test_performance_task_can_select_scenarios_by_any_tag():
+    """Performance tasks should expand tag selectors into active scenario IDs."""
+    task = TaskModel(code="TASK-PERF", name="Perf task", task_type="performance", config={"performance_tags": ["smoke"]})
+    rows = [
+        PerformanceScenario(id=1, code="P1", name="Home", target_url="https://example.com", tags=["smoke"], is_active=True),
+        PerformanceScenario(id=2, code="P2", name="Cart", target_url="https://example.com/cart", tags=["regression"], is_active=True),
+        PerformanceScenario(id=3, code="P3", name="Old", target_url="https://example.com/old", tags=["smoke"], is_active=False),
+    ]
+    db = FakeDb({PerformanceScenario: rows})
+
+    assert validate_performance_task_scenarios(db, task) == [1]
+
+
+def test_performance_task_can_select_scenarios_by_all_tags():
+    """The all match mode should require every selected tag to exist on a scenario."""
+    task = TaskModel(code="TASK-PERF-ALL", name="Perf all", task_type="performance", config={"performance_tags": ["smoke", "checkout"], "performance_tag_match": "all"})
+    rows = [
+        PerformanceScenario(id=4, code="P4", name="Smoke only", target_url="https://example.com", tags=["smoke"], is_active=True),
+        PerformanceScenario(id=5, code="P5", name="Checkout", target_url="https://example.com/cart", tags=["smoke", "checkout"], is_active=True),
+    ]
+    db = FakeDb({PerformanceScenario: rows})
+
+    assert validate_performance_task_scenarios(db, task) == [5]
+
+
+def test_performance_tags_from_task_rejects_invalid_shape():
+    """Tag selectors should be lists and the match mode should be explicit."""
+    task = TaskModel(code="TASK-BAD-TAGS", name="Bad tags", task_type="performance", config={"performance_tags": "smoke"})
+
+    with pytest.raises(HTTPException) as exc:
+        performance_tags_from_task(task)
+
+    assert exc.value.status_code == 400
