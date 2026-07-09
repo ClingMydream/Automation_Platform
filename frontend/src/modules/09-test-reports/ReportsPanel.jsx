@@ -100,7 +100,7 @@ export function ReportsPanel({ client, reports, reload, refreshing }) {
         />
       </Card>
       <RunDetail client={client} run={selectedReport?.report_kind === 'batch' ? null : selectedReport} open={Boolean(selectedReportId) && selectedReport?.report_kind !== 'batch'} onClose={() => setSelectedReportId(null)} onRefresh={reload} refreshing={refreshing} />
-      <BatchReportDetail report={selectedReport?.report_kind === 'batch' ? selectedReport : null} open={Boolean(selectedReportId) && selectedReport?.report_kind === 'batch'} onClose={() => setSelectedReportId(null)} />
+      <BatchReportDetail client={client} report={selectedReport?.report_kind === 'batch' ? selectedReport : null} open={Boolean(selectedReportId) && selectedReport?.report_kind === 'batch'} onClose={() => setSelectedReportId(null)} />
     </Space>
   );
 }

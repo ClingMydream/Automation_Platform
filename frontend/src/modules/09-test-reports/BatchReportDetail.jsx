@@ -1,19 +1,72 @@
 // File purpose: Batch report drawer. It displays execution-batch statistics and result evidence.
 // How to change: keep batch-report UI here; keep filtering and export logic in testReportFeature/reportExport.
 
-import React from 'react';
-import { Card, Descriptions, Drawer, Empty, Space, Statistic, Table, Tag, Row, Col } from 'antd';
-import { formatDuration, formatTime } from '../../shared/formatters';
+import React, { useEffect, useState } from 'react';
+import { App as AntApp, Button, Card, Descriptions, Drawer, Empty, Space, Statistic, Table, Tag, Row, Col, Select, Upload } from 'antd';
+import { DownloadOutlined, PaperClipOutlined, UploadOutlined } from '@ant-design/icons';
+import { formatBytes, formatDuration, formatTime } from '../../shared/formatters';
 import { StatusTag } from '../../shared/StatusTag.jsx';
+import { attachmentTypeOptions, downloadAttachment, listBatchAttachments, uploadBatchAttachment } from '../03-result-center/resultCenterFeature.js';
 
 // Batch report drawer: summarizes one execution batch and lists all collected result rows.
-export function BatchReportDetail({ report, open, onClose }) {
+export function BatchReportDetail({ client, report, open, onClose }) {
   // Derived data keeps rendering safe for old reports that do not contain batch fields.
   const detail = report?.report || {};
   const batch = detail.batch || {};
   const stats = detail.stats || {};
   const results = detail.results || [];
   const performance = detail.performance_summary || {};
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentType, setAttachmentType] = useState('performance_report');
+  const [attachmentLoading, setAttachmentLoading] = useState(false);
+  const { message } = AntApp.useApp();
+
+  useEffect(() => {
+    if (!client || !batch.id || !open) {
+      setAttachments([]);
+      return undefined;
+    }
+    let ignore = false;
+    async function loadAttachments() {
+      setAttachmentLoading(true);
+      try {
+        const rows = await listBatchAttachments(client, batch.id);
+        if (!ignore) setAttachments(rows);
+      } catch (err) {
+        if (!ignore) message.error(err.message);
+      } finally {
+        if (!ignore) setAttachmentLoading(false);
+      }
+    }
+    loadAttachments();
+    return () => { ignore = true; };
+  }, [client, batch.id, open]);
+
+  async function handleUploadAttachment(file) {
+    if (!client || !batch.id) {
+      message.warning('缺少批次 ID，暂不能上传附件');
+      return false;
+    }
+    setAttachmentLoading(true);
+    try {
+      await uploadBatchAttachment(client, batch.id, attachmentType, file);
+      message.success('批次附件已上传');
+      setAttachments(await listBatchAttachments(client, batch.id));
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setAttachmentLoading(false);
+    }
+    return false;
+  }
+
+  async function handleDownloadAttachment(attachment) {
+    try {
+      await downloadAttachment(client, attachment);
+    } catch (err) {
+      message.error(err.message);
+    }
+  }
 
   // Render block: JSX below describes the batch report evidence view.
   return (
@@ -50,6 +103,34 @@ export function BatchReportDetail({ report, open, onClose }) {
               </Row>
             </Card>
           )}
+          <Card
+            title={<Space><PaperClipOutlined />批次附件</Space>}
+            size="small"
+            extra={(
+              <Space wrap>
+                <Select size="small" value={attachmentType} options={attachmentTypeOptions} style={{ width: 118 }} onChange={setAttachmentType} />
+                <Upload showUploadList={false} beforeUpload={handleUploadAttachment}>
+                  <Button size="small" icon={<UploadOutlined />} loading={attachmentLoading}>上传</Button>
+                </Upload>
+              </Space>
+            )}
+          >
+            <Table
+              rowKey="id"
+              size="small"
+              loading={attachmentLoading}
+              dataSource={attachments}
+              pagination={false}
+              locale={{ emptyText: '暂无批次附件，可上传 JMeter HTML 报告、JTL、日志、HAR 或录屏' }}
+              columns={[
+                { title: '类型', dataIndex: 'attachment_type', width: 120, render: (value) => attachmentTypeOptions.find((item) => item.value === value)?.label || value },
+                { title: '文件名', dataIndex: 'original_name', ellipsis: true },
+                { title: '大小', dataIndex: 'size_bytes', width: 100, render: formatBytes },
+                { title: '时间', dataIndex: 'created_at', width: 170, render: formatTime },
+                { title: '操作', width: 90, render: (_, record) => <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownloadAttachment(record)}>下载</Button> },
+              ]}
+            />
+          </Card>
           <Card title="结果明细" size="small">
             <Table
               rowKey="id"

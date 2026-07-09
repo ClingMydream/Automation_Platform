@@ -56,6 +56,21 @@ export async function uploadResultAttachment(client, resultId, attachmentType, f
   return client.post('/v1/attachments', formData);
 }
 
+// Load files attached to one execution batch.
+export async function listBatchAttachments(client, batchId) {
+  if (!batchId) return [];
+  return client.get(`/v1/attachments?batch_id=${batchId}`);
+}
+
+// Upload one evidence file and bind it to the selected execution batch.
+export async function uploadBatchAttachment(client, batchId, attachmentType, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('batch_id', batchId);
+  formData.append('attachment_type', attachmentType);
+  return client.post('/v1/attachments', formData);
+}
+
 // Download an attachment with the logged-in token and trigger a browser save.
 export async function downloadAttachment(client, attachment) {
   const { blob, filename } = await client.download(`/v1/attachments/${attachment.id}/download`);
