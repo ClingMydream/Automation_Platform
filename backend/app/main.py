@@ -36,6 +36,10 @@ OPENAPI_TAGS = [
         "description": "维护接口场景编排、Mock、性能场景和执行机 Runner，不执行任意脚本。",
     },
     {
+        "name": "Mock服务",
+        "description": "公开 Mock 响应出口，根据已启用 Mock 规则返回配置的状态码、响应头和响应体。",
+    },
+    {
         "name": "测试任务",
         "description": "维护可手动、定时、CI 或 API 触发的测试任务，并为每次执行创建独立批次。",
     },

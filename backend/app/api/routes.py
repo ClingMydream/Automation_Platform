@@ -8,6 +8,7 @@ from app.modules.file_transfer.router import router as file_transfer_router
 from app.modules.health.router import router as health_router
 from app.modules.image_tools.router import router as image_tools_router
 from app.modules.integrations.router import router as integrations_router
+from app.modules.mock_service.router import router as mock_service_router
 from app.modules.projects.router import router as projects_router
 from app.modules.problem_diagnosis.router import router as problem_diagnosis_router
 from app.modules.quality_analysis.router import router as quality_analysis_router
@@ -32,6 +33,7 @@ for module_router in [
     projects_router,
     test_objects_router,
     test_capabilities_router,
+    mock_service_router,
     test_tasks_router,
     result_center_router,
     problem_diagnosis_router,
