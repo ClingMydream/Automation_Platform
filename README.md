@@ -18,6 +18,7 @@ docker compose up -d --build
 如果你需要在不同电脑之间同步开发进度，先看：
 
 - `docs/改造进度同步记录.md`
+- `CONTRIBUTING.md`
 - `项目总说明.md`
 
 ## 参与代码改造
