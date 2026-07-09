@@ -7,7 +7,7 @@ import { buildTaskFormValues, deleteTask, runTask, saveTask, TASK_TYPES, taskTyp
 
 const { TextArea } = Input;
 
-export function TestTaskPanel({ client, projects, environments = [], testObjects, apiCases = [], testTasks, reload }) {
+export function TestTaskPanel({ client, projects, environments = [], testObjects, apiCases = [], performanceScenarios = [], testTasks, reload }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -16,11 +16,12 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
   const environmentOptions = useMemo(() => environments.map((item) => ({ value: item.id, label: `${item.name} - ${item.base_url}` })), [environments]);
   const objectOptions = useMemo(() => testObjects.map((item) => ({ value: item.id, label: `${item.code} ${item.name}` })), [testObjects]);
   const apiCaseOptions = useMemo(() => apiCases.map((item) => ({ value: item.id, label: `#${item.id} ${item.name}` })), [apiCases]);
+  const performanceScenarioOptions = useMemo(() => performanceScenarios.map((item) => ({ value: item.id, label: `#${item.id} ${item.code} ${item.name}` })), [performanceScenarios]);
 
   function resetForm() {
     setEditingId(null);
     form.resetFields();
-    form.setFieldsValue({ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, schedule_cron: '', owner: '', is_active: true, configText: '{}' });
+    form.setFieldsValue({ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, schedule_cron: '', owner: '', is_active: true, api_case_ids: [], performance_scenario_ids: [], configText: '{}' });
   }
 
   function startEdit(item) {
@@ -71,7 +72,7 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
     <Row gutter={[16, 16]}>
       <Col xs={24} xl={9}>
         <Card title={editingId ? '修改测试任务' : '新建测试任务'} extra={editingId && <Button onClick={resetForm}>取消编辑</Button>}>
-          <Form form={form} layout="vertical" initialValues={{ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, is_active: true, configText: '{}' }} onFinish={submit}>
+          <Form form={form} layout="vertical" initialValues={{ task_type: 'api', trigger_type: 'manual', runner_type: 'platform', retry_count: 0, is_active: true, api_case_ids: [], performance_scenario_ids: [], configText: '{}' }} onFinish={submit}>
             <Form.Item label="任务编号" name="code" rules={[{ required: true, message: '请输入任务编号' }]}><Input placeholder="TASK-SMOKE-001" /></Form.Item>
             <Form.Item label="任务名称" name="name" rules={[{ required: true, message: '请输入任务名称' }]}><Input placeholder="冒烟自动化任务" /></Form.Item>
             <Form.Item label="任务类型" name="task_type"><Select options={TASK_TYPES} /></Form.Item>
@@ -86,6 +87,16 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
                 optionFilterProp="label"
                 options={apiCaseOptions}
                 placeholder="API 任务请选择要批量执行的接口用例"
+              />
+            </Form.Item>
+            <Form.Item label="性能场景集合" name="performance_scenario_ids">
+              <Select
+                mode="multiple"
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                options={performanceScenarioOptions}
+                placeholder="性能任务请选择要执行的性能场景"
               />
             </Form.Item>
             <Form.Item label="触发方式" name="trigger_type"><Select options={TRIGGER_TYPES} /></Form.Item>
@@ -104,7 +115,7 @@ export function TestTaskPanel({ client, projects, environments = [], testObjects
             <Alert
               type="info"
               showIcon
-              message='性能任务配置示例：{"performance_scenario_ids":[1]}；接口任务配置示例：{"api_case_ids":[1,2]}'
+              message="可优先使用上方选择器；保存时会自动写入任务配置 JSON。高级配置仍可在 JSON 中手动补充。"
             />
             <Form.Item label="说明" name="description"><TextArea rows={3} placeholder="测试范围、触发来源、注意事项" /></Form.Item>
             <Button type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新任务' : '保存任务'}</Button>

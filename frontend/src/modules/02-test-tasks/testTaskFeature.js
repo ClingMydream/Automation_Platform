@@ -36,6 +36,7 @@ export function buildTaskFormValues(item) {
     owner: item.owner || '',
     is_active: item.is_active,
     api_case_ids: config.api_case_ids || config.case_ids || [],
+    performance_scenario_ids: config.performance_scenario_ids || config.scenario_ids || [],
     configText: JSON.stringify(config, null, 2),
     description: item.description || '',
   };
@@ -46,6 +47,10 @@ export function buildTaskPayload(values) {
   const apiCaseIds = (values.api_case_ids || []).map((value) => Number(value)).filter(Boolean);
   if (apiCaseIds.length > 0) {
     config.api_case_ids = apiCaseIds;
+  }
+  const performanceScenarioIds = (values.performance_scenario_ids || []).map((value) => Number(value)).filter(Boolean);
+  if (performanceScenarioIds.length > 0) {
+    config.performance_scenario_ids = performanceScenarioIds;
   }
   return {
     code: values.code?.trim(),

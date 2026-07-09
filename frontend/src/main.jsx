@@ -87,6 +87,7 @@ function PlatformApp() {
     qualityTrend: [],
     datasets: [],
     integrations: [],
+    performanceScenarios: [],
     apiCases: [],
     uiCases: [],
     runs: [],
@@ -125,6 +126,7 @@ function PlatformApp() {
       qualityTrend: [],
       datasets: [],
       integrations: [],
+      performanceScenarios: [],
       apiCases: [],
       uiCases: [],
       runs: [],
@@ -150,7 +152,7 @@ function PlatformApp() {
       const me = await client.get('/auth/me');
       setCurrentUser(me);
       const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'capabilities', 'test_tasks', 'results', 'diagnosis', 'quality', 'datasets', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'integrations', 'users'] : me.menu_permissions || []);
-      const [projects, environments, testObjects, testTasks, batches, results, performanceSummary, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports] = await Promise.all([
+      const [projects, environments, testObjects, testTasks, batches, results, performanceSummary, problemFindings, qualitySummary, qualityTrend, datasets, integrations, performanceScenarios, apiCases, uiCases, runs, reports] = await Promise.all([
         allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
         (allowed.has('projects') || allowed.has('test_tasks')) ? client.get('/environments') : Promise.resolve([]),
         allowed.has('test_objects') ? client.get('/v1/test-objects') : Promise.resolve([]),
@@ -163,12 +165,13 @@ function PlatformApp() {
         allowed.has('quality') ? client.get('/v1/reports/quality-trend') : Promise.resolve([]),
         allowed.has('datasets') ? client.get('/v1/test-datasets') : Promise.resolve([]),
         allowed.has('integrations') ? client.get('/v1/integrations/webhooks') : Promise.resolve([]),
+        (allowed.has('capabilities') || allowed.has('test_tasks')) ? client.get('/v1/performance-scenarios') : Promise.resolve([]),
         (allowed.has('api') || allowed.has('test_tasks')) ? client.get('/api-cases') : Promise.resolve([]),
         allowed.has('ui') ? client.get('/ui-cases') : Promise.resolve([]),
         allowed.has('runs') ? client.get('/runs') : Promise.resolve([]),
         allowed.has('reports') ? client.get('/reports') : Promise.resolve([]),
       ]);
-      setData({ projects, environments, testObjects, testTasks, batches, results, performanceSummary, problemFindings, qualitySummary, qualityTrend, datasets, integrations, apiCases, uiCases, runs, reports });
+      setData({ projects, environments, testObjects, testTasks, batches, results, performanceSummary, problemFindings, qualitySummary, qualityTrend, datasets, integrations, performanceScenarios, apiCases, uiCases, runs, reports });
       const availableTabs = menuItemsForUser(me).flatMap((section) => section.children.map((item) => item.key));
       if (availableTabs.length > 0 && !availableTabs.includes(tab)) {
         setTab(availableTabs[0]);
@@ -341,7 +344,7 @@ function PlatformApp() {
             {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} environments={data.environments} reload={reload} />}
             {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
             {tab === 'capabilities' && <TestCapabilityPanel client={client} projects={data.projects} />}
-            {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} environments={data.environments} testObjects={data.testObjects} apiCases={data.apiCases} testTasks={data.testTasks} reload={reload} />}
+            {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} environments={data.environments} testObjects={data.testObjects} apiCases={data.apiCases} performanceScenarios={data.performanceScenarios} testTasks={data.testTasks} reload={reload} />}
             {tab === 'results' && <ResultCenterPanel client={client} batches={data.batches} results={data.results} performanceSummary={data.performanceSummary} reload={reload} />}
             {tab === 'diagnosis' && <ProblemDiagnosisPanel client={client} results={data.results} findings={data.problemFindings} reload={reload} />}
             {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}
