@@ -45,12 +45,14 @@ export function buildTaskFormValues(item) {
 export function buildTaskPayload(values) {
   const config = values.configText ? JSON.parse(values.configText) : {};
   const apiCaseIds = (values.api_case_ids || []).map((value) => Number(value)).filter(Boolean);
-  if (apiCaseIds.length > 0) {
+  if (['api', 'mixed'].includes(values.task_type)) {
     config.api_case_ids = apiCaseIds;
+    delete config.case_ids;
   }
   const performanceScenarioIds = (values.performance_scenario_ids || []).map((value) => Number(value)).filter(Boolean);
-  if (performanceScenarioIds.length > 0) {
+  if (['performance', 'mixed'].includes(values.task_type)) {
     config.performance_scenario_ids = performanceScenarioIds;
+    delete config.scenario_ids;
   }
   return {
     code: values.code?.trim(),
