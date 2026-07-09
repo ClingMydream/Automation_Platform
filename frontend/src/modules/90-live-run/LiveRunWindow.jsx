@@ -2,7 +2,7 @@
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert } from 'antd';
+import { Alert, Tag } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 import { apiClient } from '../../shared/apiClient';
 import { formatDuration } from '../../shared/formatters';
@@ -34,6 +34,7 @@ export function LiveRunWindow({ token, runId }) {
 
   const report = run?.report || {};
   const events = report.events || [];
+  const failedEvent = events.find((event) => event.status === 'failed');
   const current = report.current_step && report.total_steps ? `${report.current_step}/${report.total_steps}` : '-';
   const isRunning = run && ['queued', 'running'].includes(run.status);
 
@@ -52,6 +53,15 @@ export function LiveRunWindow({ token, runId }) {
         </div>
       </header>
       {error && <Alert type="error" showIcon message={error} />}
+      {(failedEvent || report.error) && (
+        <Alert
+          className="live-error"
+          type="error"
+          showIcon
+          message={failedEvent ? `第 ${failedEvent.step} 步执行失败：${failedEvent.action}` : 'UI 自动化执行失败'}
+          description={failedEvent?.error || report.error}
+        />
+      )}
       <section className="live-stage">
         <div className="browser-chrome">
           <span></span><span></span><span></span>
@@ -74,9 +84,10 @@ export function LiveRunWindow({ token, runId }) {
         <div className="step-strip">
           {events.length === 0 && <span className="hint">等待 worker 开始执行步骤...</span>}
           {events.map((event) => (
-            <div className="step-pill" key={`${event.step}-${event.action}`}>
-              <strong>{event.step}. {event.action}</strong>
-              <span>{formatDuration(event.elapsed_ms)} · {event.title || event.url || '-'}</span>
+            <div className={`step-pill step-pill-${event.status || 'running'}`} key={`${event.step}-${event.action}`}>
+              <strong>{event.step}. {event.action} <Tag color={event.status === 'failed' ? 'error' : 'success'}>{event.status === 'failed' ? '失败' : '通过'}</Tag></strong>
+              <span>{formatDuration(event.elapsed_ms)} · {event.target || event.title || event.url || '-'}</span>
+              {event.error && <em>{event.error}</em>}
             </div>
           ))}
         </div>

@@ -27,17 +27,19 @@ def _screenshot_data_url(page) -> str:
 def _live_report(
     *,
     passed: bool,
+    running: bool,
     total_steps: int,
     current_step: int,
     current_action: str,
     events: list[dict[str, Any]],
     screenshots: list[dict[str, Any]],
     latest_screenshot: str | None,
+    error: str | None = None,
 ) -> dict[str, Any]:
     """Write live UI execution status, events, and screenshots back to the run record."""
     return {
         "passed": passed,
-        "running": not passed,
+        "running": running,
         "framework": "pytest + playwright + allure",
         "current_step": current_step,
         "total_steps": total_steps,
@@ -45,6 +47,7 @@ def _live_report(
         "events": events,
         "screenshots": screenshots,
         "latest_screenshot": latest_screenshot,
+        "error": error,
     }
 
 
@@ -80,6 +83,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                         logs=f"Running UI step {index}/{total_steps}: {action}",
                         report=_live_report(
                             passed=False,
+                            running=True,
                             total_steps=total_steps,
                             current_step=index,
                             current_action=action,
@@ -89,40 +93,73 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                         ),
                     )
 
-                with allure.step(f"{index}. {action}"):
-                    if action == "goto":
-                        # Navigation targets are re-checked in the worker before Playwright opens them.
-                        if not value or is_blocked_url(value):
-                            raise ValueError("Private or local targets are not allowed")
-                        page.goto(value, wait_until="networkidle", timeout=timeout)
-                    elif action == "click":
-                        page.click(target, timeout=timeout)
-                    elif action == "fill":
-                        page.fill(target, value or "", timeout=timeout)
-                    elif action == "wait":
-                        page.wait_for_timeout(int(value or timeout))
-                    elif action == "assert_text":
-                        page.get_by_text(value or "", exact=False).wait_for(timeout=timeout)
-                    elif action == "screenshot":
+                try:
+                    with allure.step(f"{index}. {action}"):
+                        if action == "goto":
+                            # Navigation targets are re-checked in the worker before Playwright opens them.
+                            if not value or is_blocked_url(value):
+                                raise ValueError("Private or local targets are not allowed")
+                            page.goto(value, wait_until="networkidle", timeout=timeout)
+                        elif action == "click":
+                            page.click(target, timeout=timeout)
+                        elif action == "fill":
+                            page.fill(target, value or "", timeout=timeout)
+                        elif action == "wait":
+                            page.wait_for_timeout(int(value or timeout))
+                        elif action == "assert_text":
+                            page.get_by_text(value or "", exact=False).wait_for(timeout=timeout)
+                        elif action == "screenshot":
+                            latest_screenshot = _screenshot_data_url(page)
+                            screenshots.append({"step": index, "title": f"step-{index}", "image": latest_screenshot})
+                        else:
+                            raise ValueError(f"Unsupported UI action: {action}")
+
+                    if action != "screenshot":
+                        # Capture after every action so the live window has visual feedback.
                         latest_screenshot = _screenshot_data_url(page)
-                        screenshots.append({"step": index, "title": f"step-{index}", "image": latest_screenshot})
-                    else:
-                        raise ValueError(f"Unsupported UI action: {action}")
 
-                if action != "screenshot":
-                    # Capture after every action so the live window has visual feedback.
-                    latest_screenshot = _screenshot_data_url(page)
-
-                events.append({
-                    "step": index,
-                    "action": action,
-                    "target": target,
-                    "value": value,
-                    "status": "passed",
-                    "elapsed_ms": int((time.perf_counter() - step_start) * 1000),
-                    "url": page.url,
-                    "title": page.title(),
-                })
+                    events.append({
+                        "step": index,
+                        "action": action,
+                        "target": target,
+                        "value": value,
+                        "status": "passed",
+                        "elapsed_ms": int((time.perf_counter() - step_start) * 1000),
+                        "url": page.url,
+                        "title": page.title(),
+                    })
+                except Exception as exc:
+                    error_message = str(exc)
+                    try:
+                        latest_screenshot = _screenshot_data_url(page)
+                        screenshots.append({"step": index, "title": f"failed-step-{index}", "image": latest_screenshot})
+                    except Exception:
+                        pass
+                    events.append({
+                        "step": index,
+                        "action": action,
+                        "target": target,
+                        "value": value,
+                        "status": "failed",
+                        "elapsed_ms": int((time.perf_counter() - step_start) * 1000),
+                        "url": page.url,
+                        "title": page.title(),
+                        "error": error_message,
+                    })
+                    failed_report = _live_report(
+                        passed=False,
+                        running=False,
+                        total_steps=total_steps,
+                        current_step=index,
+                        current_action=action,
+                        events=events,
+                        screenshots=screenshots,
+                        latest_screenshot=latest_screenshot,
+                        error=error_message,
+                    )
+                    if run_id:
+                        update_run(run_id, logs=f"Failed UI step {index}/{total_steps}: {action}", error=error_message, report=failed_report)
+                    return failed_report
 
                 if run_id:
                     # Persist completed-step state for the execution record and live window.
@@ -131,6 +168,7 @@ def execute_ui_case(case: dict[str, Any], run_id: int | None = None) -> dict[str
                         logs=f"Completed UI step {index}/{total_steps}",
                         report=_live_report(
                             passed=False,
+                            running=True,
                             total_steps=total_steps,
                             current_step=index,
                             current_action=action,

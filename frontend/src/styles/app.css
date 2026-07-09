@@ -869,12 +869,37 @@ body {
   background: #213541;
 }
 
+.step-pill-passed {
+  border: 1px solid rgba(34, 197, 94, 0.28);
+}
+
+.step-pill-failed {
+  border: 1px solid rgba(239, 68, 68, 0.58);
+  background: #3a2027;
+}
+
+.step-pill strong {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .step-pill span {
   overflow: hidden;
   color: #a9bac3;
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.step-pill em {
+  max-height: 48px;
+  overflow: hidden;
+  color: #fecaca;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.45;
 }
 
 .live-error {

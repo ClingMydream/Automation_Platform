@@ -43,9 +43,11 @@ export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
                 columns={[
                   { title: '步骤', dataIndex: 'step', width: 70 },
                   { title: '动作', dataIndex: 'action', width: 110 },
+                  { title: '结果', dataIndex: 'status', width: 90, render: (value) => value === 'failed' ? <Tag color="error">失败</Tag> : <Tag color="success">通过</Tag> },
                   { title: '目标', dataIndex: 'target', ellipsis: true, render: (value) => value || '-' },
                   { title: '值', dataIndex: 'value', ellipsis: true, render: (value) => value || '-' },
                   { title: '耗时', dataIndex: 'elapsed_ms', width: 100, render: formatDuration },
+                  { title: '错误', dataIndex: 'error', ellipsis: true, render: (value) => value || '-' },
                 ]}
               />
             </Card>
@@ -83,4 +85,3 @@ export function RunDetail({ run, open, onClose, onRefresh, refreshing }) {
 }
 
 // 执行记录模块：展示历史执行任务，并打开详情抽屉。
-
