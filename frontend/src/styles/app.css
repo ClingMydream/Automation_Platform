@@ -548,6 +548,28 @@ body {
   margin-inline-start: 5px;
 }
 
+/* Mock URLs can be long, so the text area ellipsizes while the copy action stays reachable. */
+.mock-url-cell {
+  align-items: center;
+  max-width: 100%;
+}
+
+.mock-url-cell .ant-typography {
+  min-width: 0;
+  flex: 1;
+  padding: 0 10px;
+  line-height: 30px;
+  border: 1px solid var(--ms-border);
+  border-right: 0;
+  border-radius: 6px 0 0 6px;
+  background: #f8fafc;
+}
+
+.mock-url-cell .ant-btn {
+  flex: 0 0 auto;
+  border-radius: 0 6px 6px 0;
+}
+
 .permission-checks {
   display: flex;
   flex-wrap: wrap;

@@ -7,6 +7,13 @@ export const CAPABILITY_TABS = [
   { key: 'runners', label: 'Runner' },
 ];
 
+// Build the public mock response URL from the current browser origin and rule path.
+export function publicMockUrl(rule) {
+  const rawPath = rule?.path || '';
+  const normalizedPath = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  return `${window.location.origin}/api/mock${normalizedPath}`;
+}
+
 export async function loadCapabilities(client) {
   const [apiScenarios, mockRules, performanceScenarios, runners] = await Promise.all([
     client.get('/v1/api-scenarios'),

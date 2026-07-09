@@ -1,11 +1,12 @@
 // File purpose: Test capability page. Maintain API scenarios, mock rules, performance scenarios, and runners.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { App as AntApp, Button, Card, Col, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Tabs, Tag } from 'antd';
-import { DeleteOutlined, EditOutlined, HeartOutlined, PlusOutlined } from '@ant-design/icons';
-import { CAPABILITY_TABS, deleteCapability, formValuesFor, loadCapabilities, runnerHeartbeat, saveCapability } from './capabilityFeature.js';
+import { App as AntApp, Button, Card, Col, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd';
+import { CopyOutlined, DeleteOutlined, EditOutlined, HeartOutlined, PlusOutlined } from '@ant-design/icons';
+import { CAPABILITY_TABS, deleteCapability, formValuesFor, loadCapabilities, publicMockUrl, runnerHeartbeat, saveCapability } from './capabilityFeature.js';
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 export function TestCapabilityPanel({ client, projects }) {
   const [form] = Form.useForm();
@@ -82,6 +83,44 @@ export function TestCapabilityPanel({ client, projects }) {
     }
   }
 
+  async function copyMockUrl(record) {
+    const url = publicMockUrl(record);
+    try {
+      await navigator.clipboard.writeText(url);
+      message.success('Mock 地址已复制');
+    } catch (err) {
+      message.error(`复制失败，请手动复制：${url}`);
+    }
+  }
+
+  const tableColumns = [
+    { title: '编号/路径', dataIndex: activeTab === 'mockRules' ? 'path' : 'code', width: 170 },
+    ...(activeTab === 'mockRules' ? [{
+      title: '公开访问地址',
+      width: 300,
+      render: (_, record) => (
+        <Space.Compact className="mock-url-cell" block>
+          <Text ellipsis={{ tooltip: publicMockUrl(record) }}>{publicMockUrl(record)}</Text>
+          <Button icon={<CopyOutlined />} onClick={() => copyMockUrl(record)}>复制</Button>
+        </Space.Compact>
+      ),
+    }] : []),
+    { title: '名称', dataIndex: 'name', width: 180 },
+    { title: '类型', dataIndex: activeTab === 'runners' ? 'runner_type' : 'method', width: 100, render: (value) => value || '-' },
+    { title: '状态', dataIndex: activeTab === 'runners' ? 'status' : 'is_active', width: 100, render: (value) => typeof value === 'boolean' ? <Tag color={value ? 'green' : 'default'}>{value ? '启用' : '停用'}</Tag> : <Tag>{value}</Tag> },
+    {
+      title: '操作',
+      width: activeTab === 'runners' ? 240 : 170,
+      render: (_, record) => (
+        <Space className="table-actions" size={6} wrap>
+          {activeTab === 'runners' && <Button icon={<HeartOutlined />} onClick={() => heartbeat(record)}>心跳</Button>}
+          <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
+          <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} xl={9}>
@@ -101,23 +140,7 @@ export function TestCapabilityPanel({ client, projects }) {
             dataSource={items[activeTab]}
             pagination={{ pageSize: 8 }}
             scroll={{ x: 900 }}
-            columns={[
-              { title: '编号/路径', dataIndex: activeTab === 'mockRules' ? 'path' : 'code', width: 170 },
-              { title: '名称', dataIndex: 'name', width: 180 },
-              { title: '类型', dataIndex: activeTab === 'runners' ? 'runner_type' : 'method', width: 100, render: (value) => value || '-' },
-              { title: '状态', dataIndex: activeTab === 'runners' ? 'status' : 'is_active', width: 100, render: (value) => typeof value === 'boolean' ? <Tag color={value ? 'green' : 'default'}>{value ? '启用' : '停用'}</Tag> : <Tag>{value}</Tag> },
-              {
-                title: '操作',
-                width: activeTab === 'runners' ? 240 : 170,
-                render: (_, record) => (
-                  <Space className="table-actions" size={6} wrap>
-                    {activeTab === 'runners' && <Button icon={<HeartOutlined />} onClick={() => heartbeat(record)}>心跳</Button>}
-                    <Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button>
-                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button>
-                  </Space>
-                ),
-              },
-            ]}
+            columns={tableColumns}
           />
         </Card>
       </Col>
