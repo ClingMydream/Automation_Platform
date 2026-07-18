@@ -104,7 +104,7 @@ export function UserPanel({ client }) {
             <Form.Item label="可操作菜单" name="menu_permissions" rules={[{ required: !editingUser?.is_admin, message: '请选择至少一个菜单' }]}>
               <Checkbox.Group className="permission-checks" options={menuOptions} disabled={editingUser?.is_admin} />
             </Form.Item>
-            {editingUser?.is_admin && <Alert type="info" showIcon message="系统管理员默认拥有全部菜单权限，不能在这里禁用或删除。" />}
+            {editingUser?.is_admin && <Alert type="info" showIcon title="系统管理员默认拥有全部菜单权限，不能在这里禁用或删除。" />}
             <Button className="form-submit" type="primary" htmlType="submit" loading={saving} icon={<PlusOutlined />}>{editingId ? '更新用户' : '创建用户'}</Button>
           </Form>
         </Card>

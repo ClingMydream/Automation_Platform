@@ -89,8 +89,8 @@ export function FileTransferPanel({ client }) {
     <Row gutter={[16, 16]}>
       <Col xs={24} xl={9}>
         <Card title="上传临时文件">
-          <Space direction="vertical" size={16} className="full-width">
-            <Alert type="info" showIcon message="文件默认临时保存，过期后会自动清理。手机扫码页面免登录，请只分享给可信设备。" />
+          <Space orientation="vertical" size={16} className="full-width">
+            <Alert type="info" showIcon title="文件默认临时保存，过期后会自动清理。手机扫码页面免登录，请只分享给可信设备。" />
             <Select
               className="full-width"
               value={expiresHours}
@@ -112,7 +112,7 @@ export function FileTransferPanel({ client }) {
         </Card>
         {selected && (
           <Card className="share-card" title="扫码下载" extra={<Tag color={selected.source === 'public' ? 'purple' : 'green'}>{selected.source === 'public' ? '手机回传' : '电脑上传'}</Tag>}>
-            <Space direction="vertical" size={14} className="full-width">
+            <Space orientation="vertical" size={14} className="full-width">
               <div className="qr-wrap"><QRCode value={selected.share_url} size={196} /></div>
               <Descriptions size="small" column={1}>
                 <Descriptions.Item label="文件名">{selected.original_name}</Descriptions.Item>

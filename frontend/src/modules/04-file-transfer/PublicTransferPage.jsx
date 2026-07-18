@@ -59,7 +59,7 @@ export function PublicTransferPage({ token }) {
   return (
     <main className="public-transfer-screen">
       <Card className="public-transfer-card">
-        <Space direction="vertical" size={18} className="full-width">
+        <Space orientation="vertical" size={18} className="full-width">
           <div className="public-transfer-title">
             <CloudUploadOutlined />
             <div>
@@ -67,7 +67,7 @@ export function PublicTransferPage({ token }) {
               <Text type="secondary">免登录临时传文件</Text>
             </div>
           </div>
-          {error && <Alert type="error" showIcon message={error} />}
+          {error && <Alert type="error" showIcon title={error} />}
           {item && (
             <>
               <Descriptions bordered column={1} size="small">
@@ -79,7 +79,7 @@ export function PublicTransferPage({ token }) {
               </Descriptions>
               <TransferPreview item={item} />
               <Button type="primary" size="large" block icon={<DownloadOutlined />} onClick={() => window.open(item.download_url, '_self')}>下载到手机</Button>
-              <Alert type="info" showIcon message="也可以从手机上传文件回电脑，电脑端在文件快传列表刷新即可看到。" />
+              <Alert type="info" showIcon title="也可以从手机上传文件回电脑，电脑端在文件快传列表刷新即可看到。" />
               <Dragger multiple={false} showUploadList={false} customRequest={uploadBack} disabled={uploading}>
                 <p className="ant-upload-drag-icon"><InboxOutlined /></p>
                 <p className="ant-upload-text">从手机选择文件回传</p>

@@ -1,8 +1,22 @@
-# Automation Platform
+# Toolbox
 
-自动化测试平台第一版，支持接口测试和低代码 UI 测试。项目使用 React + Vite、FastAPI、MySQL、Redis、Playwright Worker 和 Nginx，通过 Docker Compose 部署。
+一个轻量的团队效率工具工作台，只保留效率工具与系统配置。
 
-## 快速开始
+## 功能
+
+- 数据生成：手机号格式、受控短信号码、合成身份证，支持复制和 JSON/CSV 导出。
+- 文件快传：临时上传、二维码分享、手机回传。
+- 图片工具：图片生成、裁剪、缩放、压缩、文字叠加和格式转换。
+- JSON 工具：格式化、对比和差异查看。
+- 转码工具：Base64、URL、Unicode 等常用转换。
+- 集成配置：Webhook、钉钉、企微和飞书连通测试。
+- 用户管理：账号、状态和菜单权限。
+
+## 技术栈
+
+React + Vite、FastAPI、MySQL、Nginx，通过 Docker Compose 部署。项目不再包含自动化测试 Worker、Redis、测试任务、执行记录或报告中心。
+
+## 启动
 
 ```bash
 cp .env.example .env
@@ -11,25 +25,4 @@ docker compose up -d --build
 
 打开 `http://localhost`，使用 `.env` 中配置的管理员账号登录。
 
-完整部署和使用说明见 `docs/小白部署与使用手册.md`。
-
-## 同步改造进度
-
-如果你需要在不同电脑之间同步开发进度，先看：
-
-- `docs/改造进度同步记录.md`
-- `CONTRIBUTING.md`
-- `项目总说明.md`
-
-## 参与代码改造
-
-如果你想自己参与编写和改造代码，先看：
-
-- `项目总说明.md`
-- `docs/代码改造指南.md`
-- `docs/模块化架构说明.md`
-- `frontend/src/modules/README.md`
-- `frontend/src/shared/README.md`
-- `backend/app/modules/README.md`
-- `worker/app/modules/README.md`
-- `backend/app/core/README.md`
+更多说明见 [docs/工具箱说明.md](docs/工具箱说明.md)。

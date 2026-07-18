@@ -1,364 +1,187 @@
-// File purpose: Application entry. It wires login state, permission menus, routing, and shared page data.
-// How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
-
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Login } from './modules/00-auth/Login.jsx';
-import { ProjectPanel } from './modules/01-projects/ProjectPanel.jsx';
-import { ApiCasePanel } from './modules/02-api-testing/ApiCasePanel.jsx';
-import { UiCasePanel } from './modules/03-ui-testing/UiCasePanel.jsx';
-import { FileTransferPanel } from './modules/04-file-transfer/FileTransferPanel.jsx';
-import { PublicTransferPage } from './modules/04-file-transfer/PublicTransferPage.jsx';
-import { ImageToolPanel } from './modules/05-image-tools/ImageToolPanel.jsx';
-import { JsonToolsPanel } from './modules/06-json-tools/JsonToolsPanel.jsx';
-import { CodecPanel } from './modules/07-codec-tools/CodecPanel.jsx';
-import { RunsPanel } from './modules/08-run-history/RunsPanel.jsx';
-import { ReportsPanel } from './modules/09-test-reports/ReportsPanel.jsx';
-import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
-import { TestObjectPanel } from './modules/01-test-objects/TestObjectPanel.jsx';
-import { TestCapabilityPanel } from './modules/02-test-capabilities/TestCapabilityPanel.jsx';
-import { TestTaskPanel } from './modules/02-test-tasks/TestTaskPanel.jsx';
-import { ResultCenterPanel } from './modules/03-result-center/ResultCenterPanel.jsx';
-import { ProblemDiagnosisPanel } from './modules/04-problem-diagnosis/ProblemDiagnosisPanel.jsx';
-import { QualityAnalysisPanel } from './modules/04-quality-analysis/QualityAnalysisPanel.jsx';
-import { TestDatasetPanel } from './modules/05-test-datasets/TestDatasetPanel.jsx';
-import { IntegrationPanel } from './modules/06-integrations/IntegrationPanel.jsx';
-import { LiveRunWindow } from './modules/90-live-run/LiveRunWindow.jsx';
-import { apiClient } from './shared/apiClient';
-import { PageGuide } from './shared/PageGuide.jsx';
-import { AUTH_EXPIRED_EVENT } from './shared/constants';
 import {
   App as AntApp,
+  Avatar,
   Button,
   ConfigProvider,
+  Dropdown,
   Layout,
   Menu,
+  Space,
   Typography,
   theme,
 } from 'antd';
 import {
   ApiOutlined,
-  AimOutlined,
-  BugOutlined,
-  CloudUploadOutlined,
-  ClockCircleOutlined,
+  BgColorsOutlined,
   CodeOutlined,
-  DatabaseOutlined,
-  DeploymentUnitOutlined,
-  FileDoneOutlined,
-  FolderOutlined,
-  LineChartOutlined,
+  FileTextOutlined,
+  LinkOutlined,
   LogoutOutlined,
-  NodeIndexOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
   PictureOutlined,
-  ProfileOutlined,
-  ReloadOutlined,
   SafetyCertificateOutlined,
   SwapOutlined,
-  WarningOutlined,
+  ThunderboltOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
+
+import { Login } from './modules/00-auth/Login.jsx';
+import { FileTransferPanel } from './modules/04-file-transfer/FileTransferPanel.jsx';
+import { PublicTransferPage } from './modules/04-file-transfer/PublicTransferPage.jsx';
+import { ImageToolPanel } from './modules/05-image-tools/ImageToolPanel.jsx';
+import { DataGeneratorPanel } from './modules/05-data-generator/DataGeneratorPanel.jsx';
+import { IntegrationPanel } from './modules/06-integrations/IntegrationPanel.jsx';
+import { JsonToolsPanel } from './modules/06-json-tools/JsonToolsPanel.jsx';
+import { CodecPanel } from './modules/07-codec-tools/CodecPanel.jsx';
+import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
+import { apiClient } from './shared/apiClient.js';
+import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import 'antd/dist/reset.css';
 import './styles/app.css';
+
 
 const { Header, Sider, Content } = Layout;
 const { Text, Title } = Typography;
 
+const MENU_SECTIONS = [
+  {
+    key: 'tools',
+    label: '效率工具',
+    children: [
+      { key: 'data_generator', label: '数据生成', icon: <ThunderboltOutlined /> },
+      { key: 'files', label: '文件快传', icon: <FileTextOutlined /> },
+      { key: 'images', label: '图片工具', icon: <PictureOutlined /> },
+      { key: 'json_tools', label: 'JSON 工具', icon: <CodeOutlined /> },
+      { key: 'codec', label: '转码工具', icon: <SwapOutlined /> },
+    ],
+  },
+  {
+    key: 'settings',
+    label: '系统配置',
+    children: [
+      { key: 'integrations', label: '集成配置', icon: <LinkOutlined /> },
+      { key: 'users', label: '用户管理', icon: <SafetyCertificateOutlined /> },
+    ],
+  },
+];
 
-// 常改位置：左侧菜单、reload 数据源、tab 到页面组件的映射。
-function PlatformApp() {
+const ALL_ITEMS = MENU_SECTIONS.flatMap((section) => section.children);
+
+function menuForUser(user) {
+  if (!user) return [];
+  const allowed = new Set(user.is_admin ? ALL_ITEMS.map((item) => item.key) : user.menu_permissions || []);
+  return MENU_SECTIONS
+    .map((section) => ({ ...section, type: 'group', children: section.children.filter((item) => allowed.has(item.key)) }))
+    .filter((section) => section.children.length > 0);
+}
+
+function ToolboxApp() {
   const params = new URLSearchParams(window.location.search);
-  const initialRunId = Number(params.get('runId')) || null;
-  const liveRunId = Number(params.get('liveRunId')) || null;
   const transferToken = params.get('transferToken');
-  // State block: values here control loading, selection, form state, and visible page data.
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [tab, setTab] = useState(initialRunId ? 'runs' : 'projects');
-  const [selectedRunId, setSelectedRunId] = useState(initialRunId);
-  const [data, setData] = useState({
-    projects: [],
-    environments: [],
-    testObjects: [],
-    testTasks: [],
-    batches: [],
-    results: [],
-    performanceSummary: {},
-    problemFindings: [],
-    qualitySummary: {},
-    qualityTrend: [],
-    datasets: [],
-    integrations: [],
-    performanceScenarios: [],
-    apiCases: [],
-    uiCases: [],
-    runs: [],
-    reports: [],
-  });
-  const [currentUser, setCurrentUser] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [user, setUser] = useState(null);
+  const [tab, setTab] = useState('data_generator');
+  const [collapsed, setCollapsed] = useState(false);
+  const [integrations, setIntegrations] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [loginNotice, setLoginNotice] = useState('');
-  const authExpiredShownRef = useRef(false);
   const { message } = AntApp.useApp();
   const client = useMemo(() => apiClient(token), [token]);
 
-  // Store the new token after login and load protected data.
-  function handleLogin(nextToken) {
-    authExpiredShownRef.current = false;
-    setLoginNotice('');
-    setToken(nextToken);
-  }
-
-  // Clear local login state when the API reports an expired token.
-  function logoutExpired() {
+  function logout(notice = '') {
     localStorage.removeItem('token');
     setToken('');
-    setTab('projects');
-    setSelectedRunId(null);
-    setData({
-      projects: [],
-      environments: [],
-      testObjects: [],
-      testTasks: [],
-      batches: [],
-      results: [],
-      performanceSummary: {},
-      problemFindings: [],
-      qualitySummary: {},
-      qualityTrend: [],
-      datasets: [],
-      integrations: [],
-      performanceScenarios: [],
-      apiCases: [],
-      uiCases: [],
-      runs: [],
-      reports: [],
-    });
-    setCurrentUser(null);
-    setLoginNotice('登录已过期，请重新登录');
-    const url = new URL(window.location.href);
-    url.searchParams.delete('runId');
-    url.searchParams.delete('liveRunId');
-    window.history.replaceState(null, '', url);
-    if (!authExpiredShownRef.current) {
-      authExpiredShownRef.current = true;
-      message.warning('登录已过期，请重新登录');
-    }
+    setUser(null);
+    setIntegrations([]);
+    setLoginNotice(notice);
   }
 
-  // Reload all dashboard data that is shared by multiple pages.
   async function reload() {
     if (!token) return;
-    setRefreshing(true);
+    setLoading(true);
     try {
-      const me = await client.get('/auth/me');
-      setCurrentUser(me);
-      const allowed = new Set(me.is_admin ? ['projects', 'test_objects', 'capabilities', 'test_tasks', 'results', 'diagnosis', 'quality', 'datasets', 'api', 'ui', 'files', 'images', 'json_tools', 'codec', 'runs', 'reports', 'integrations', 'users'] : me.menu_permissions || []);
-      const [projects, environments, testObjects, testTasks, batches, results, performanceSummary, problemFindings, qualitySummary, qualityTrend, datasets, integrations, performanceScenarios, apiCases, uiCases, runs, reports] = await Promise.all([
-        allowed.has('projects') ? client.get('/projects') : Promise.resolve([]),
-        (allowed.has('projects') || allowed.has('test_tasks')) ? client.get('/environments') : Promise.resolve([]),
-        allowed.has('test_objects') ? client.get('/v1/test-objects') : Promise.resolve([]),
-        allowed.has('test_tasks') ? client.get('/v1/test-tasks') : Promise.resolve([]),
-        allowed.has('results') ? client.get('/v1/execution-batches') : Promise.resolve([]),
-        allowed.has('results') ? client.get('/v1/test-results') : Promise.resolve([]),
-        allowed.has('results') ? client.get('/v1/performance-results/summary') : Promise.resolve({}),
-        allowed.has('diagnosis') ? client.get('/v1/problem-findings') : Promise.resolve([]),
-        allowed.has('quality') ? client.get('/v1/quality/summary') : Promise.resolve({}),
-        allowed.has('quality') ? client.get('/v1/reports/quality-trend') : Promise.resolve([]),
-        allowed.has('datasets') ? client.get('/v1/test-datasets') : Promise.resolve([]),
-        allowed.has('integrations') ? client.get('/v1/integrations/webhooks') : Promise.resolve([]),
-        (allowed.has('capabilities') || allowed.has('test_tasks')) ? client.get('/v1/performance-scenarios') : Promise.resolve([]),
-        (allowed.has('api') || allowed.has('test_tasks')) ? client.get('/api-cases') : Promise.resolve([]),
-        allowed.has('ui') ? client.get('/ui-cases') : Promise.resolve([]),
-        allowed.has('runs') ? client.get('/runs') : Promise.resolve([]),
-        allowed.has('reports') ? client.get('/reports') : Promise.resolve([]),
-      ]);
-      setData({ projects, environments, testObjects, testTasks, batches, results, performanceSummary, problemFindings, qualitySummary, qualityTrend, datasets, integrations, performanceScenarios, apiCases, uiCases, runs, reports });
-      const availableTabs = menuItemsForUser(me).flatMap((section) => section.children.map((item) => item.key));
-      if (availableTabs.length > 0 && !availableTabs.includes(tab)) {
-        setTab(availableTabs[0]);
-      }
-    } catch (err) {
-      if (err.authExpired) return;
-      message.error(err.message);
+      const currentUser = await client.get('/auth/me');
+      setUser(currentUser);
+      const allowed = new Set(currentUser.is_admin ? ALL_ITEMS.map((item) => item.key) : currentUser.menu_permissions || []);
+      const webhookRows = allowed.has('integrations') ? await client.get('/v1/integrations/webhooks') : [];
+      setIntegrations(webhookRows);
+      const available = menuForUser(currentUser).flatMap((section) => section.children.map((item) => item.key));
+      if (!available.includes(tab)) setTab(available[0] || 'data_generator');
+    } catch (error) {
+      if (!error.authExpired) message.error(error.message);
     } finally {
-      setRefreshing(false);
+      setLoading(false);
     }
   }
 
-  // Select a run and switch to the run-history page when needed.
-  function handleSelectRun(runId) {
-    setSelectedRunId(runId);
-    const url = new URL(window.location.href);
-    if (runId) url.searchParams.set('runId', runId);
-    else url.searchParams.delete('runId');
-    window.history.replaceState(null, '', url);
-  }
-
-  // Handle a newly created run and optionally open the history view.
-  function handleRunCreated(run, type, detailWindowOpened) {
-    setTab('runs');
-    handleSelectRun(run.id);
-    if (type === 'ui' && !detailWindowOpened) {
-      message.warning('浏览器拦截了新窗口，请在执行记录里点详情查看截图。');
-    }
-    setTimeout(reload, 1000);
-    setTimeout(reload, 3000);
-  }
-
-  // Effect block: code here reacts to token, route, or polling changes.
   useEffect(() => { reload(); }, [token]);
-
   useEffect(() => {
-    window.addEventListener(AUTH_EXPIRED_EVENT, logoutExpired);
-    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, logoutExpired);
+    const handleExpired = () => logout('登录已过期，请重新登录');
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
   }, []);
 
-  useEffect(() => {
-    if (!token || tab !== 'runs') return undefined;
-    const selected = data.runs.find((run) => run.id === selectedRunId);
-    if (!selected || !['queued', 'running'].includes(selected.status)) return undefined;
-    const timer = window.setInterval(reload, 2000);
-    return () => window.clearInterval(timer);
-  }, [token, tab, selectedRunId, data.runs]);
-
   if (transferToken) return <PublicTransferPage token={transferToken} />;
-  if (!token) return <Login onLogin={handleLogin} notice={loginNotice} />;
-  if (liveRunId) return <LiveRunWindow token={token} runId={liveRunId} />;
+  if (!token) return <Login notice={loginNotice} onLogin={(value) => { setLoginNotice(''); setToken(value); }} />;
 
-  const menuSections = [
-    {
-      key: 'workspace',
-      label: '测试工作台',
-      children: [
-        { key: 'projects', icon: <FolderOutlined />, label: '项目' },
-        { key: 'test_objects', icon: <AimOutlined />, label: '测试对象' },
-        { key: 'test_tasks', icon: <ProfileOutlined />, label: '测试任务' },
-      ],
-    },
-    {
-      key: 'automation',
-      label: '自动化测试',
-      children: [
-        { key: 'api', icon: <ApiOutlined />, label: '接口测试' },
-        { key: 'ui', icon: <BugOutlined />, label: 'UI 测试' },
-        { key: 'capabilities', icon: <DeploymentUnitOutlined />, label: '测试能力' },
-        { key: 'datasets', icon: <DatabaseOutlined />, label: '测试数据' },
-      ],
-    },
-    {
-      key: 'quality',
-      label: '质量分析',
-      children: [
-        { key: 'runs', icon: <ClockCircleOutlined />, label: '执行记录' },
-        { key: 'reports', icon: <FileDoneOutlined />, label: '测试报告' },
-        { key: 'results', icon: <NodeIndexOutlined />, label: '结果中心' },
-        { key: 'diagnosis', icon: <WarningOutlined />, label: '问题定位' },
-        { key: 'quality', icon: <LineChartOutlined />, label: '质量分析' },
-      ],
-    },
-    {
-      key: 'tools',
-      label: '效率工具',
-      children: [
-        { key: 'files', icon: <CloudUploadOutlined />, label: '文件快传' },
-        { key: 'images', icon: <PictureOutlined />, label: '图片工具' },
-        { key: 'json_tools', icon: <CodeOutlined />, label: 'JSON 工具' },
-        { key: 'codec', icon: <SwapOutlined />, label: '转码工具' },
-      ],
-    },
-    {
-      key: 'settings',
-      label: '系统配置',
-      children: [
-        { key: 'integrations', icon: <DeploymentUnitOutlined />, label: '集成配置' },
-        { key: 'users', icon: <SafetyCertificateOutlined />, label: '用户管理' },
-      ],
-    },
-  ];
-  const allMenuItems = menuSections.flatMap((section) => section.children);
-  // Build sidebar menu items from the current user permissions.
-  function menuItemsForUser(user) {
-    if (!user) return [];
-    const allowed = new Set(user.is_admin ? allMenuItems.map((item) => item.key) : user.menu_permissions || []);
-    return menuSections
-      .map((section) => ({
-        key: section.key,
-        type: 'group',
-        label: section.label,
-        children: section.children.filter((item) => allowed.has(item.key)),
-      }))
-      .filter((section) => section.children.length > 0);
-  }
-  const menuItems = menuItemsForUser(currentUser);
-  const currentTitle = allMenuItems.find((item) => item.key === tab)?.label || '加载中';
-  const currentSection = menuSections.find((section) => section.children.some((item) => item.key === tab))?.label || '测试工作台';
-  const headerStats = [
-    { label: '项目', value: data.projects.length },
-    { label: '用例', value: data.apiCases.length + data.uiCases.length },
-    { label: '运行', value: data.runs.length + data.batches.length },
-  ];
+  const menuItems = menuForUser(user);
+  const activeItem = ALL_ITEMS.find((item) => item.key === tab) || ALL_ITEMS[0];
+  const section = MENU_SECTIONS.find((item) => item.children.some((child) => child.key === tab));
+  const userMenu = {
+    items: [
+      { key: 'identity', label: user?.display_name || user?.username || '当前用户', disabled: true, icon: <UserOutlined /> },
+      { type: 'divider' },
+      { key: 'logout', label: '退出登录', icon: <LogoutOutlined />, danger: true },
+    ],
+    onClick: ({ key }) => { if (key === 'logout') logout(); },
+  };
 
-  // Render block: JSX below describes the shell layout, sidebar menu, header, and active page.
   return (
-    <Layout className="app-layout">
-      <Sider width={236} className="app-sider">
-        <div className="brand">
-          <span className="brand-mark">ATP</span>
-          <div>
-            <strong>Automation</strong>
-            <span>Test Platform</span>
-          </div>
+    <Layout className="toolbox-layout">
+      <Sider className="toolbox-sider" width={252} collapsedWidth={80} collapsed={collapsed} trigger={null}>
+        <div className="toolbox-brand">
+          <div className="brand-symbol"><ApiOutlined /></div>
+          {!collapsed && <div><strong>TOOLBOX</strong><span>效率工具工作台</span></div>}
         </div>
-        <div className="workspace-switcher">
-          <span>当前空间</span>
-          <strong>默认空间</strong>
-          <em>{currentUser?.display_name || currentUser?.username || 'admin'}</em>
+        {!collapsed && <div className="sider-caption">简单、快速、专注</div>}
+        <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
+        <div className="sider-footer">
+          <div className="sider-status"><i />{!collapsed && <span>服务运行正常</span>}</div>
         </div>
-        <Menu className="app-menu" mode="inline" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
-        <Button className="logout-button" icon={<LogoutOutlined />} onClick={() => { localStorage.removeItem('token'); setCurrentUser(null); setToken(''); }}>退出登录</Button>
       </Sider>
+
       <Layout>
-        <Header className="app-header">
-          <div className="header-title-block">
-            <Text className="module-eyebrow">{currentSection}</Text>
-            <Title level={3}>{currentTitle}</Title>
-          </div>
-          <div className="header-actions">
-            <div className="header-stat-strip">
-              {headerStats.map((item) => (
-                <div className="header-stat" key={item.label}>
-                  <span>{item.label}</span>
-                  <strong>{item.value}</strong>
-                </div>
-              ))}
+        <Header className="toolbox-header">
+          <div className="header-left">
+            <Button type="text" className="collapse-button" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setCollapsed((value) => !value)} />
+            <div className="page-title">
+              <Text>{section?.label || '效率工具'}</Text>
+              <Title level={3}>{activeItem.label}</Title>
             </div>
-            <div className="header-user">
-              <span>{currentUser?.is_admin ? '管理员' : '成员'}</span>
-              <strong>{currentUser?.username || 'admin'}</strong>
-            </div>
-            <Button className="refresh-button" icon={<ReloadOutlined />} loading={refreshing} onClick={reload}>刷新</Button>
           </div>
+          <Space size={12}>
+            <div className="header-chip"><i /> API 已连接</div>
+            <Dropdown menu={userMenu} placement="bottomRight">
+              <Button className="user-button">
+                <Avatar size={28} icon={<UserOutlined />} />
+                <span>{user?.display_name || user?.username || '用户'}</span>
+              </Button>
+            </Dropdown>
+          </Space>
         </Header>
-        <Content className="app-content">
-          <div className="content-shell">
-            <PageGuide tab={tab} />
-            {tab === 'projects' && <ProjectPanel client={client} projects={data.projects} environments={data.environments} reload={reload} />}
-            {tab === 'test_objects' && <TestObjectPanel client={client} projects={data.projects} testObjects={data.testObjects} reload={reload} />}
-            {tab === 'capabilities' && <TestCapabilityPanel client={client} projects={data.projects} />}
-            {tab === 'test_tasks' && <TestTaskPanel client={client} projects={data.projects} environments={data.environments} testObjects={data.testObjects} apiCases={data.apiCases} performanceScenarios={data.performanceScenarios} testTasks={data.testTasks} reload={reload} />}
-            {tab === 'results' && <ResultCenterPanel client={client} batches={data.batches} results={data.results} performanceSummary={data.performanceSummary} reload={reload} />}
-            {tab === 'diagnosis' && <ProblemDiagnosisPanel client={client} results={data.results} findings={data.problemFindings} reload={reload} />}
-            {tab === 'quality' && <QualityAnalysisPanel qualitySummary={data.qualitySummary} qualityTrend={data.qualityTrend} />}
-            {tab === 'datasets' && <TestDatasetPanel client={client} projects={data.projects} datasets={data.datasets} reload={reload} />}
-            {tab === 'api' && <ApiCasePanel client={client} projects={data.projects} environments={data.environments} apiCases={data.apiCases} reload={reload} onRunCreated={handleRunCreated} />}
-            {tab === 'ui' && <UiCasePanel client={client} projects={data.projects} uiCases={data.uiCases} reload={reload} onRunCreated={handleRunCreated} />}
+
+        <Content className="toolbox-content" aria-busy={loading}>
+          <div className="content-container">
+            {tab === 'data_generator' && <DataGeneratorPanel client={client} />}
             {tab === 'files' && <FileTransferPanel client={client} />}
             {tab === 'images' && <ImageToolPanel token={token} />}
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
-            {tab === 'runs' && <RunsPanel client={client} runs={data.runs} reload={reload} refreshing={refreshing} selectedRunId={selectedRunId} onSelectRun={handleSelectRun} />}
-            {tab === 'reports' && <ReportsPanel client={client} reports={data.reports} reload={reload} refreshing={refreshing} />}
-            {tab === 'integrations' && <IntegrationPanel client={client} integrations={data.integrations} reload={reload} />}
-            {tab === 'users' && currentUser?.is_admin && <UserPanel client={client} />}
+            {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
+            {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
           </div>
         </Content>
       </Layout>
@@ -371,40 +194,26 @@ createRoot(document.getElementById('root')).render(
     theme={{
       algorithm: theme.defaultAlgorithm,
       token: {
-        colorPrimary: '#1f6fff',
-        colorInfo: '#1f6fff',
-        colorSuccess: '#16a34a',
-        colorWarning: '#d97706',
-        colorError: '#dc2626',
-        colorBgLayout: '#f5f7fb',
-        colorText: '#1f2937',
-        colorTextSecondary: '#667085',
-        borderRadius: 6,
-        controlHeight: 34,
-        fontFamily: 'Inter, "Segoe UI", system-ui, sans-serif',
+        colorPrimary: '#5b5bd6',
+        colorInfo: '#5b5bd6',
+        colorSuccess: '#16a085',
+        colorWarning: '#e09637',
+        colorError: '#d64f5f',
+        colorBgLayout: '#f4f5f8',
+        colorText: '#1c2030',
+        colorTextSecondary: '#697083',
+        borderRadius: 10,
+        controlHeight: 38,
+        fontFamily: 'Inter, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif',
       },
       components: {
-        Layout: {
-          headerBg: '#ffffff',
-          siderBg: '#ffffff',
-        },
-        Card: {
-          headerBg: '#ffffff',
-        },
-        Table: {
-          headerBg: '#f8fafc',
-          rowHoverBg: '#f5f8ff',
-        },
-        Menu: {
-          itemBorderRadius: 6,
-          itemSelectedBg: '#eef5ff',
-          itemSelectedColor: '#1f6fff',
-        },
+        Card: { headerBg: 'transparent', paddingLG: 22 },
+        Table: { headerBg: '#f7f7fa', rowHoverBg: '#f5f5ff' },
+        Menu: { itemBorderRadius: 10, itemHeight: 44 },
+        Button: { fontWeight: 600 },
       },
     }}
   >
-    <AntApp>
-      <PlatformApp />
-    </AntApp>
+    <AntApp><ToolboxApp /></AntApp>
   </ConfigProvider>,
 );

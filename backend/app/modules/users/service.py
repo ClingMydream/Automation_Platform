@@ -11,9 +11,6 @@ def normalize_menu_permissions(values: list[str]) -> list[str]:
     for value in values or []:
         if value in ALL_MENU_KEYS and value != "users" and value not in seen:
             seen.append(value)
-    # API/UI testing depends on projects, so grant project visibility automatically.
-    if ("api" in seen or "ui" in seen) and "projects" not in seen:
-        seen.insert(0, "projects")
     return seen
 
 

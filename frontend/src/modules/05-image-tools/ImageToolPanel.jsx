@@ -125,8 +125,8 @@ export function ImageToolPanel({ token }) {
 
   // Render block: JSX below describes what the user sees on this page.
   return (
-    <Space direction="vertical" size={16} className="full-width">
-      <Alert type="info" showIcon message="支持 PNG、JPEG、WEBP、GIF、BMP、TIFF、SVG。JPEG/WEBP 可按目标 KB 尽量压缩，SVG 适合生成文案矢量图。" />
+    <Space orientation="vertical" size={16} className="full-width">
+      <Alert type="info" showIcon title="支持 PNG、JPEG、WEBP、GIF、BMP、TIFF、SVG。JPEG/WEBP 可按目标 KB 尽量压缩，SVG 适合生成文案矢量图。" />
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={12}>
           <Card title="生成图片">

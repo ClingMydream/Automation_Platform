@@ -8,7 +8,7 @@ def test_webhook_accepts_empty_event_list_as_all_events():
     """Empty event subscriptions should receive all supported notification events."""
     webhook = WebhookModel(name="all", webhook_url="https://example.com/hook", events=[], is_active=True)
 
-    assert service.webhook_accepts_event(webhook, "batch_finished") is True
+    assert service.webhook_accepts_event(webhook, "system_notice") is True
 
 
 def test_webhook_test_event_bypasses_subscription_filter(monkeypatch):
@@ -17,7 +17,7 @@ def test_webhook_test_event_bypasses_subscription_filter(monkeypatch):
         name="limited",
         integration_type="webhook",
         webhook_url="https://example.com/hook",
-        events=["batch_finished"],
+        events=["system_notice"],
         is_active=True,
     )
 
@@ -32,9 +32,9 @@ def test_webhook_test_event_bypasses_subscription_filter(monkeypatch):
 def test_dingtalk_payload_format_is_text_message():
     """DingTalk style integrations should receive the text-message shape."""
     webhook = WebhookModel(name="ding", integration_type="dingtalk", webhook_url="https://example.com/hook")
-    payload = {"event": "batch_finished", "data": {"batch_no": "BT-1", "status": "passed", "failed_count": 0, "total_count": 2}}
+    payload = {"event": "webhook_test", "data": {"message": "connection ready"}}
 
     formatted = service._format_payload_for_integration(webhook, payload)
 
     assert formatted["msgtype"] == "text"
-    assert "BT-1" in formatted["text"]["content"]
+    assert "connection ready" in formatted["text"]["content"]

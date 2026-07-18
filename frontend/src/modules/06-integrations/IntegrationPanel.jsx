@@ -66,7 +66,7 @@ export function IntegrationPanel({ client, integrations, reload }) {
       <Col xs={24} xl={9}>
         <Card title={editingId ? '修改集成配置' : '新建集成配置'} extra={editingId && <Button onClick={resetForm}>取消编辑</Button>}>
           <Form form={form} layout="vertical" initialValues={{ integration_type: 'webhook', events: [], is_active: true }} onFinish={submit}>
-            <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}><Input placeholder="测试失败通知" /></Form.Item>
+            <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}><Input placeholder="团队通知机器人" /></Form.Item>
             <Form.Item label="类型" name="integration_type"><Input placeholder="webhook / dingtalk / wechat / feishu" /></Form.Item>
             <Form.Item label="Webhook 地址" name="webhook_url" rules={[{ required: true, message: '请输入公网 Webhook 地址' }]}><Input placeholder="https://example.com/webhook" /></Form.Item>
             <Form.Item label="订阅事件" name="events">

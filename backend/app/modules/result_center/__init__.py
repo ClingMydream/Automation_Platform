@@ -1,1 +1,0 @@
-"""Result center module package."""

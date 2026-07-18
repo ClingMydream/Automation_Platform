@@ -1,63 +1,10 @@
-# frontend/src/modules
+# Frontend modules
 
-## 2026-07-06 补充：问题定位模块
-
-```text
-04-problem-diagnosis/ 问题定位
-  ProblemDiagnosisPanel.jsx     页面、表格、弹窗和按钮
-  problemDiagnosisFeature.js    状态、严重级别、payload 转换等功能逻辑
-  README.md                     模块说明
-```
-
-问题定位页面放在“结果中心”和“质量分析”之间，对应平台链路：
-
-```text
-结果采集 -> 问题定位 -> 质量分析
-```
-
-
-这里按左侧菜单顺序组织代码。目录名使用“编号 + 英文”，既能在文件管理器里按平台顺序排列，也能避免中文路径在 Git、Docker、脚本和远程服务器里出现编码问题。
-
-每个模块现在采用单层结构：
-
-```text
-02-api-testing/
-  ApiCasePanel.jsx     页面、表格、表单、按钮、弹窗等 UI 代码
-  apiCaseFeature.js    功能实现、数据转换、接口调用、校验逻辑
-  README.md            模块说明
-```
-
-改造原则：
-
-- 改页面长什么样：改模块里的 `*Panel.jsx`、`Login.jsx`、`LiveRunWindow.jsx` 等页面文件。
-- 改保存、删除、执行、统计、筛选等功能：改模块里的 `*Feature.js`。
-- 多个模块都会用到的工具仍放在 `frontend/src/shared/`，不要在每个模块里重复复制。
-
-平台菜单与代码目录一一对应：
-
-```text
-01-projects/          项目
-01-test-objects/      测试对象
-02-test-capabilities/ 测试能力
-02-test-tasks/        测试任务
-03-result-center/     结果中心
-04-quality-analysis/  质量分析
-05-test-datasets/     测试数据
-02-api-testing/       接口测试
-03-ui-testing/        UI 测试
-04-file-transfer/     文件快传
-05-image-tools/       图片工具
-06-json-tools/        JSON 工具
-07-codec-tools/       转码工具
-08-run-history/       执行记录
-09-test-reports/      测试报告
-06-integrations/      集成配置
-10-user-management/   用户管理
-```
-
-辅助页面不直接显示在左侧菜单里，但仍按编号放在首尾：
-
-```text
-00-auth/              登录
-90-live-run/          UI 自动化实时执行窗口
-```
+- `00-auth`：登录。
+- `04-file-transfer`：文件快传与公开分享页。
+- `05-data-generator`：手机号和身份证数据生成。
+- `05-image-tools`：图片处理。
+- `06-json-tools`：JSON 对比与格式化。
+- `07-codec-tools`：文本转码。
+- `06-integrations`：Webhook 集成。
+- `10-user-management`：用户与权限。

@@ -1,9 +1,8 @@
 // File purpose: Integration feature helpers. Keep webhook payload and API calls out of UI.
 
 export const WEBHOOK_EVENT_OPTIONS = [
-  { value: 'batch_finished', label: '批次完成' },
-  { value: 'task_failed', label: '任务失败' },
-  { value: 'quality_risk', label: '质量风险' },
+  { value: 'manual_trigger', label: '手动触发' },
+  { value: 'system_notice', label: '系统通知' },
 ];
 
 export function buildWebhookFormValues(item) {

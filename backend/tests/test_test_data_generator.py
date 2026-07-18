@@ -7,7 +7,7 @@ from datetime import date
 import pytest
 from fastapi import HTTPException
 
-from app.modules.test_datasets.service import generate_id_cards, generate_phone_numbers, id_checksum
+from app.modules.data_generator.service import generate_id_cards, generate_phone_numbers, id_checksum
 
 
 def test_id_cards_have_valid_checksum_birth_date_and_requested_gender():

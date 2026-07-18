@@ -55,10 +55,10 @@ export function CodecPanel() {
 
   // Render block: JSX below describes what the user sees on this page.
   return (
-    <Space direction="vertical" size={16} className="full-width">
-      <Alert type="info" showIcon message="转码内容只在当前浏览器处理，不会上传到服务器。适合处理接口参数、Token 片段、日志文本和配置片段。" />
+    <Space orientation="vertical" size={16} className="full-width">
+      <Alert type="info" showIcon title="转码内容只在当前浏览器处理，不会上传到服务器。适合处理接口参数、Token 片段、日志文本和配置片段。" />
       <Card title="通用转码">
-        <Space direction="vertical" size={14} className="full-width">
+        <Space orientation="vertical" size={14} className="full-width">
           <Row gutter={[12, 12]}>
             <Col xs={24} md={12}>
               <Select className="full-width" value={operation} onChange={setOperation} options={options} />

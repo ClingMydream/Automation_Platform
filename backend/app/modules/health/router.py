@@ -9,7 +9,7 @@ router = APIRouter(tags=["健康检查"])
 @router.get(
     "/health",
     summary="后端健康检查",
-    description="返回后端服务是否可用，适合部署巡检、容器健康检查和 JMeter 基础连通性采样。",
+    description="返回后端服务是否可用，适合部署巡检和容器健康检查。",
 )
 def health():
     """Return backend health status."""

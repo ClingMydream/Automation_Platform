@@ -21,10 +21,7 @@ router = APIRouter(tags=["认证"])
     "/auth/login",
     response_model=TokenResponse,
     summary="管理员或用户登录",
-    description=(
-        "提交用户名和密码，返回 access_token。JMeter 压测时建议放在 setUp Thread Group，"
-        "用 JSON Extractor 提取 $.access_token 并写入 Authorization: Bearer ${token}。"
-    ),
+    description="提交用户名和密码，返回用于访问工具箱的 access_token。",
 )
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     """Validate credentials and return an access token."""
@@ -43,7 +40,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 @router.post(
     "/auth/logout",
     summary="退出登录",
-    description="服务端保持无状态，退出接口用于前端统一清理 token；压测时通常不作为核心吞吐指标。",
+    description="服务端保持无状态，退出接口用于前端统一清理 token。",
 )
 def logout(_: AuthContext = Depends(get_current_user)):
     """Provide a logout endpoint; the frontend clears local token state."""

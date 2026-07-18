@@ -1,14 +1,7 @@
-# integrations 集成开放
+# integrations
 
-维护 Webhook、钉钉、企微、飞书等外部集成配置。
+维护通用 Webhook、钉钉、企微和飞书地址，支持连通性测试与可选环境变量密钥。
 
-- `router.py`：Webhook CRUD 和配置测试。
-- `schemas.py`：Webhook 请求/响应模型。
-- `service.py`：Webhook 发送、事件过滤、批次通知载荷、钉钉/企微/飞书文本消息格式。
-
-当前支持事件：
-
-- `webhook_test`：点击“测试”按钮时发送。
-- `batch_finished`：执行批次完成时发送。
-- `task_failed`：执行批次失败时发送。
-- `quality_risk`：执行批次存在失败结果时发送。
+- `router.py`：配置 CRUD 和测试发送接口。
+- `service.py`：安全请求头、平台格式适配和短超时发送。
+- `schemas.py`：请求与响应模型。

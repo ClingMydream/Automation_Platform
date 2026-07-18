@@ -1,6 +1,6 @@
 {
-  "name": "automation-platform-frontend",
-  "version": "0.1.0",
+  "name": "toolbox-frontend",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
-    "@vitejs/plugin-react": "latest",
     "antd": "^6.5.0",
     "lucide-react": "latest",
     "react": "latest",

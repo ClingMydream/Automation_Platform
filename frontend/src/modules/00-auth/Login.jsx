@@ -33,23 +33,23 @@ export function Login({ onLogin, notice }) {
   return (
     <main className="login-screen">
       <Card className="login-card">
-        <Space direction="vertical" size={24} className="full-width">
+        <Space orientation="vertical" size={24} className="full-width">
           <div className="login-brand">
             <SafetyCertificateOutlined />
             <div>
-              <Title level={3}>Automation Platform</Title>
-              <Text type="secondary">接口测试与低代码 UI 自动化控制台</Text>
+              <Title level={3}>Toolbox</Title>
+              <Text type="secondary">轻量、专注的效率工具工作台</Text>
             </div>
           </div>
-          {notice && <Alert type="warning" showIcon message={notice} />}
+          {notice && <Alert type="warning" showIcon title={notice} />}
           <Form layout="vertical" initialValues={{ username: 'admin', password: '' }} onFinish={submit}>
-            <Form.Item label="管理员账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
+            <Form.Item label="登录账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
               <Input size="large" />
             </Form.Item>
-            <Form.Item label="管理员密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
+            <Form.Item label="登录密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
               <Input.Password size="large" autoFocus />
             </Form.Item>
-            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<SafetyCertificateOutlined />}>登录平台</Button>
+            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<SafetyCertificateOutlined />}>进入工作台</Button>
           </Form>
         </Space>
       </Card>

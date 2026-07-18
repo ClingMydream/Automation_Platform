@@ -9,5 +9,5 @@ if [ ! -f .env ]; then
 fi
 
 docker compose pull || true
-docker compose up -d --build
+docker compose up -d --build --remove-orphans
 docker compose ps

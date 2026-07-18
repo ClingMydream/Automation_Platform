@@ -7,22 +7,11 @@
 """
 
 MENU_OPTIONS = [
-    {"key": "projects", "label": "项目"},
-    {"key": "test_objects", "label": "测试对象"},
-    {"key": "capabilities", "label": "测试能力"},
-    {"key": "test_tasks", "label": "测试任务"},
-    {"key": "results", "label": "结果中心"},
-    {"key": "diagnosis", "label": "问题定位"},
-    {"key": "quality", "label": "质量分析"},
-    {"key": "datasets", "label": "测试数据"},
-    {"key": "api", "label": "接口测试"},
-    {"key": "ui", "label": "UI 测试"},
     {"key": "files", "label": "文件快传"},
     {"key": "images", "label": "图片工具"},
+    {"key": "data_generator", "label": "数据生成"},
     {"key": "json_tools", "label": "JSON 工具"},
     {"key": "codec", "label": "转码工具"},
-    {"key": "runs", "label": "执行记录"},
-    {"key": "reports", "label": "测试报告"},
     {"key": "integrations", "label": "集成配置"},
 ]
 

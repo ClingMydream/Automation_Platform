@@ -38,7 +38,7 @@ def list_file_transfers(_: AuthContext = Depends(require_menu("files")), db: Ses
     summary="上传临时文件",
     description=(
         "从电脑端上传临时文件并生成公开 token，手机扫码后可下载。"
-        "JMeter 压测该接口时请使用受控小文件，避免压测把磁盘打满。"
+        "请控制文件大小和上传频率，避免占满服务器磁盘。"
     ),
 )
 def upload_file_transfer(

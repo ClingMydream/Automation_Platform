@@ -65,7 +65,7 @@ def test_webhook(webhook_id: int, _: AuthContext = Depends(require_menu("integra
     result = send_webhook_event(
         item,
         "webhook_test",
-        {"message": "Automation Platform webhook test", "webhook_id": item.id, "name": item.name},
+        {"message": "Toolbox webhook connectivity test", "webhook_id": item.id, "name": item.name},
     )
     if not result.get("sent"):
         raise HTTPException(status_code=400, detail=result.get("error") or result.get("reason") or "Webhook not sent")

@@ -64,8 +64,8 @@ export function JsonToolsPanel() {
 
   // Render block: JSX below describes what the user sees on this page.
   return (
-    <Space direction="vertical" size={16} className="full-width">
-      <Alert type="info" showIcon message="JSON 内容只在当前浏览器处理，不会上传到服务器。对比会按字段路径递归检查对象、数组和值。" />
+    <Space orientation="vertical" size={16} className="full-width">
+      <Alert type="info" showIcon title="JSON 内容只在当前浏览器处理，不会上传到服务器。对比会按字段路径递归检查对象、数组和值。" />
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={12}>
           <Card title="左侧 JSON" extra={<Space><Button onClick={() => formatSide('left')}>格式化</Button><Button onClick={() => minifySide('left')}>压缩</Button><Button icon={<CopyOutlined />} onClick={() => copy(leftJson)}>复制</Button></Space>}>
@@ -79,7 +79,7 @@ export function JsonToolsPanel() {
         </Col>
       </Row>
       <Card title="对比结果" extra={<Button type="primary" icon={<CodeOutlined />} onClick={compare}>开始对比</Button>}>
-        {summary && <Alert className="tool-summary" type={diffs.length === 0 ? 'success' : 'warning'} showIcon message={summary} />}
+        {summary && <Alert className="tool-summary" type={diffs.length === 0 ? 'success' : 'warning'} showIcon title={summary} />}
         <Table
           rowKey={(record) => `${record.path}-${record.type}`}
           dataSource={diffs}
