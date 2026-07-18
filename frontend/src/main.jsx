@@ -13,18 +13,9 @@ import {
   theme,
 } from 'antd';
 import {
-  ApiOutlined,
-  BgColorsOutlined,
-  CodeOutlined,
-  FileTextOutlined,
-  LinkOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  PictureOutlined,
-  SafetyCertificateOutlined,
-  SwapOutlined,
-  ThunderboltOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 
@@ -39,6 +30,7 @@ import { CodecPanel } from './modules/07-codec-tools/CodecPanel.jsx';
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
+import { CuteIcon } from './shared/CuteIcon.jsx';
 import 'antd/dist/reset.css';
 import './styles/app.css';
 
@@ -51,19 +43,19 @@ const MENU_SECTIONS = [
     key: 'tools',
     label: '效率工具',
     children: [
-      { key: 'data_generator', label: '数据生成', icon: <ThunderboltOutlined /> },
-      { key: 'files', label: '文件快传', icon: <FileTextOutlined /> },
-      { key: 'images', label: '图片工具', icon: <PictureOutlined /> },
-      { key: 'json_tools', label: 'JSON 工具', icon: <CodeOutlined /> },
-      { key: 'codec', label: '转码工具', icon: <SwapOutlined /> },
+      { key: 'data_generator', label: '数据生成', icon: <CuteIcon emoji="🧪" tone="blue" /> },
+      { key: 'files', label: '文件快传', icon: <CuteIcon emoji="📤" tone="mint" /> },
+      { key: 'images', label: '图片工具', icon: <CuteIcon emoji="🖼️" tone="peach" /> },
+      { key: 'json_tools', label: 'JSON 工具', icon: <CuteIcon emoji="🧩" tone="violet" /> },
+      { key: 'codec', label: '转码工具', icon: <CuteIcon emoji="🔄" tone="yellow" /> },
     ],
   },
   {
     key: 'settings',
     label: '系统配置',
     children: [
-      { key: 'integrations', label: '集成配置', icon: <LinkOutlined /> },
-      { key: 'users', label: '用户管理', icon: <SafetyCertificateOutlined /> },
+      { key: 'integrations', label: '集成配置', icon: <CuteIcon emoji="🔌" tone="rose" /> },
+      { key: 'users', label: '用户管理', icon: <CuteIcon emoji="👥" tone="cyan" /> },
     ],
   },
 ];
@@ -141,12 +133,11 @@ function ToolboxApp() {
 
   return (
     <Layout className="toolbox-layout">
-      <Sider className="toolbox-sider" width={252} collapsedWidth={80} collapsed={collapsed} trigger={null}>
+      <Sider className="toolbox-sider" width={224} collapsedWidth={68} collapsed={collapsed} trigger={null}>
         <div className="toolbox-brand">
-          <div className="brand-symbol"><ApiOutlined /></div>
-          {!collapsed && <div><strong>TOOLBOX</strong><span>效率工具工作台</span></div>}
+          <div className="brand-symbol cute-brand">✦</div>
+          {!collapsed && <div><strong>cling</strong><span>效率工具工作台</span></div>}
         </div>
-        {!collapsed && <div className="sider-caption">简单、快速、专注</div>}
         <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
         <div className="sider-footer">
           <div className="sider-status"><i />{!collapsed && <span>服务运行正常</span>}</div>
@@ -194,22 +185,22 @@ createRoot(document.getElementById('root')).render(
     theme={{
       algorithm: theme.defaultAlgorithm,
       token: {
-        colorPrimary: '#5b5bd6',
-        colorInfo: '#5b5bd6',
-        colorSuccess: '#16a085',
-        colorWarning: '#e09637',
-        colorError: '#d64f5f',
-        colorBgLayout: '#f4f5f8',
-        colorText: '#1c2030',
-        colorTextSecondary: '#697083',
-        borderRadius: 10,
-        controlHeight: 38,
+        colorPrimary: '#2563eb',
+        colorInfo: '#2563eb',
+        colorSuccess: '#15803d',
+        colorWarning: '#b45309',
+        colorError: '#dc2626',
+        colorBgLayout: '#f6f7f9',
+        colorText: '#182230',
+        colorTextSecondary: '#667085',
+        borderRadius: 8,
+        controlHeight: 40,
         fontFamily: 'Inter, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif',
       },
       components: {
-        Card: { headerBg: 'transparent', paddingLG: 22 },
-        Table: { headerBg: '#f7f7fa', rowHoverBg: '#f5f5ff' },
-        Menu: { itemBorderRadius: 10, itemHeight: 44 },
+        Card: { headerBg: 'transparent', paddingLG: 24 },
+        Table: { headerBg: '#f8fafc', rowHoverBg: '#f8fbff' },
+        Menu: { itemBorderRadius: 7, itemHeight: 42 },
         Button: { fontWeight: 600 },
       },
     }}

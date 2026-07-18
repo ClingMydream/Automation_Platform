@@ -22,13 +22,13 @@ def _secret_headers(secret_name: str | None) -> dict[str, str]:
     secret = os.getenv(secret_name)
     if not secret:
         return {}
-    return {"X-Toolbox-Secret": secret}
+    return {"X-Cling-Secret": secret}
 
 
 def _message_text(event: str, payload: dict[str, Any]) -> str:
     """Build a concise text message for chat-style webhooks."""
-    message = payload.get("data", {}).get("message", "Toolbox webhook connectivity test")
-    return f"Toolbox {event}: {message}"
+    message = payload.get("data", {}).get("message", "cling webhook connectivity test")
+    return f"cling {event}: {message}"
 
 
 def _format_payload_for_integration(webhook: IntegrationWebhook, payload: dict[str, Any]) -> dict[str, Any]:

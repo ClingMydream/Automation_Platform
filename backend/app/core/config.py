@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Define environment-based backend configuration."""
     # Basic application identity and environment label.
-    app_name: str = "Toolbox"
+    app_name: str = "cling"
     app_env: str = "development"
     # Secrets and default administrator credentials must be overridden by server .env in production.
     app_secret_key: str = "dev-secret-change-me"

@@ -3,8 +3,8 @@
 
 import React, { useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Form, Input, Space, Typography } from 'antd';
-import { SafetyCertificateOutlined } from '@ant-design/icons';
 import { apiClient } from '../../shared/apiClient';
+import { CuteIcon } from '../../shared/CuteIcon.jsx';
 
 const { Text, Title } = Typography;
 
@@ -35,9 +35,9 @@ export function Login({ onLogin, notice }) {
       <Card className="login-card">
         <Space orientation="vertical" size={24} className="full-width">
           <div className="login-brand">
-            <SafetyCertificateOutlined />
+            <CuteIcon emoji="✨" tone="blue" size={48} />
             <div>
-              <Title level={3}>Toolbox</Title>
+              <Title level={3}>cling</Title>
               <Text type="secondary">轻量、专注的效率工具工作台</Text>
             </div>
           </div>
@@ -49,7 +49,7 @@ export function Login({ onLogin, notice }) {
             <Form.Item label="登录密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
               <Input.Password size="large" autoFocus />
             </Form.Item>
-            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<SafetyCertificateOutlined />}>进入工作台</Button>
+            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<span className="inline-emoji">👋</span>}>进入工作台</Button>
           </Form>
         </Space>
       </Card>

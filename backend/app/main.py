@@ -42,7 +42,7 @@ OPENAPI_TAGS = [
 
 # FastAPI instance is the backend HTTP application mounted by Uvicorn.
 app = FastAPI(
-    title="Toolbox API",
+    title="cling API",
     summary="轻量效率工具箱后端接口",
     description="提供数据生成、文件快传、图片处理、Webhook 集成和用户管理能力。",
     version="2.0.0",

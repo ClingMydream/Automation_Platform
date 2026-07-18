@@ -11,19 +11,12 @@ import {
   Row,
   Select,
   Space,
-  Statistic,
   Table,
   Tag,
   Typography,
 } from 'antd';
-import {
-  CopyOutlined,
-  DownloadOutlined,
-  IdcardOutlined,
-  MobileOutlined,
-  SafetyCertificateOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
+import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
+import { CuteIcon } from '../../shared/CuteIcon.jsx';
 
 
 const { Text, Title } = Typography;
@@ -98,29 +91,31 @@ export function DataGeneratorPanel({ client }) {
   }
 
   function exportJson() {
-    downloadFile(JSON.stringify(result.rows, null, 2), `toolbox-${kind}.json`, 'application/json;charset=utf-8');
+    downloadFile(JSON.stringify(result.rows, null, 2), `cling-${kind}.json`, 'application/json;charset=utf-8');
   }
 
   function exportCsv() {
     const keys = kind === 'phone' ? ['phone', 'source', 'sms_capable', 'note'] : ['id_card', 'birth_date', 'gender', 'synthetic'];
     const content = [keys.map(csvCell).join(','), ...result.rows.map((row) => keys.map((key) => csvCell(row[key])).join(','))].join('\n');
-    downloadFile(`\uFEFF${content}`, `toolbox-${kind}.csv`, 'text/csv;charset=utf-8');
+    downloadFile(`\uFEFF${content}`, `cling-${kind}.csv`, 'text/csv;charset=utf-8');
   }
 
   return (
     <div className="generator-page">
-      <section className="tool-hero generator-hero">
+      <section className="generator-heading">
         <div>
-          <span className="tool-kicker">DATA LAB</span>
           <Title level={2}>数据生成器</Title>
           <Text>为表单、接口和演示环境快速准备规则正确、边界清晰的数据。</Text>
         </div>
-        <div className="hero-badge"><SafetyCertificateOutlined /> 安全测试模式</div>
+        <div className="generator-meta">
+          <span><i />安全测试模式</span>
+          <span>单次最多 100 条</span>
+        </div>
       </section>
 
-      <Row gutter={[20, 20]}>
-        <Col xs={24} xl={8}>
-          <Card className="control-card" title="生成设置">
+      <Row gutter={[24, 24]} align="stretch">
+        <Col xs={24} xl={9} xxl={8}>
+          <Card className="control-card" title="生成设置" extra={<Text type="secondary">填写后立即生成</Text>}>
             <Radio.Group
               className="generator-kind-switch"
               value={kind}
@@ -128,8 +123,8 @@ export function DataGeneratorPanel({ client }) {
               optionType="button"
               buttonStyle="solid"
               options={[
-                { value: 'phone', label: <><MobileOutlined /> 电话号码</> },
-                { value: 'id_card', label: <><IdcardOutlined /> 身份证</> },
+                { value: 'phone', label: <><span className="inline-emoji">📱</span> 电话号码</> },
+                { value: 'id_card', label: <><span className="inline-emoji">🪪</span> 身份证</> },
               ]}
             />
             <Form
@@ -152,7 +147,7 @@ export function DataGeneratorPanel({ client }) {
                   </Row>
                 </>
               )}
-              <Button block size="large" type="primary" htmlType="submit" loading={loading} icon={<ThunderboltOutlined />}>立即生成</Button>
+              <Button block type="primary" htmlType="submit" loading={loading} icon={<span className="inline-emoji">✨</span>}>立即生成</Button>
             </Form>
             {kind === 'phone' && (
               <div className="mode-notes">
@@ -162,7 +157,7 @@ export function DataGeneratorPanel({ client }) {
           </Card>
         </Col>
 
-        <Col xs={24} xl={16}>
+        <Col xs={24} xl={15} xxl={16}>
           <Card
             className="result-card"
             title={<Space><span>生成结果</span>{result.rows.length > 0 && <Tag color="blue">{result.rows.length} 条</Tag>}</Space>}
@@ -173,7 +168,7 @@ export function DataGeneratorPanel({ client }) {
               <Table rowKey={(row) => row.phone || row.id_card} columns={columns} dataSource={result.rows} pagination={{ pageSize: 10 }} scroll={{ x: 720 }} />
             ) : (
               <div className="empty-result">
-                <ThunderboltOutlined />
+                <CuteIcon emoji="🧪" tone="blue" size={48} className="empty-result-icon" />
                 <strong>等待生成</strong>
                 <span>配置左侧选项后，结果会在这里出现。</span>
               </div>
@@ -182,11 +177,11 @@ export function DataGeneratorPanel({ client }) {
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} className="generator-stats">
-        <Col xs={24} md={8}><Card><Statistic title="单次最大数量" value={100} suffix="条" /></Card></Col>
-        <Col xs={24} md={8}><Card><Statistic title="身份证校验" value="MOD 11-2" /></Card></Col>
-        <Col xs={24} md={8}><Card><Statistic title="导出格式" value={2} suffix="种" /></Card></Col>
-      </Row>
+      <div className="generator-footnote">
+        <span>身份证号码通过 MOD 11-2 校验</span>
+        <span>支持 CSV、JSON 导出</span>
+        <span>生成内容仅用于测试</span>
+      </div>
     </div>
   );
 }
