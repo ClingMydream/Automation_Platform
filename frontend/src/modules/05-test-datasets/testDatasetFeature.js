@@ -43,3 +43,14 @@ export async function saveDataset(client, editingId, values) {
 export async function deleteDataset(client, datasetId) {
   await client.delete(`/v1/test-datasets/${datasetId}`);
 }
+
+export async function generateTestData(client, values) {
+  return client.post('/v1/test-data/generate', {
+    kind: values.kind,
+    count: values.count || 1,
+    phone_mode: values.phone_mode || 'cn_format',
+    gender: values.gender || 'any',
+    min_birth_year: values.min_birth_year || 1970,
+    max_birth_year: values.max_birth_year || 2005,
+  });
+}
