@@ -144,7 +144,7 @@ function ToolboxApp() {
       <Sider className="toolbox-sider" width={224} collapsedWidth={68} collapsed={collapsed} trigger={null}>
         <div className="toolbox-brand">
           <div className="brand-symbol cute-brand">✦</div>
-          {!collapsed && <div><strong>cling</strong><span>效率工具工作台</span></div>}
+          {!collapsed && <div><strong>cling</strong><span>cling 的私人空间</span></div>}
         </div>
         <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
         <div className="sider-footer">

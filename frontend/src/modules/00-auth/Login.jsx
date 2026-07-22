@@ -38,7 +38,7 @@ export function Login({ onLogin, notice }) {
             <CuteIcon emoji="✨" tone="blue" size={48} />
             <div>
               <Title level={3}>cling</Title>
-              <Text type="secondary">轻量、专注的效率工具工作台</Text>
+              <Text type="secondary">只属于 cling 的私人空间</Text>
             </div>
           </div>
           {notice && <Alert type="warning" showIcon title={notice} />}
@@ -49,7 +49,7 @@ export function Login({ onLogin, notice }) {
             <Form.Item label="登录密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
               <Input.Password size="large" autoFocus />
             </Form.Item>
-            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<span className="inline-emoji">👋</span>}>进入工作台</Button>
+            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<span className="inline-emoji">👋</span>}>进入私人空间</Button>
           </Form>
         </Space>
       </Card>
