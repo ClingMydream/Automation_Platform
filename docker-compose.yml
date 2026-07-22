@@ -28,6 +28,7 @@ services:
     env_file: .env
     volumes:
       - transfer-data:/tmp/automation-platform-transfers
+      - learning-data:/var/lib/cling-learning
     depends_on:
       mysql:
         condition: service_healthy
@@ -64,3 +65,4 @@ services:
 volumes:
   mysql-data:
   transfer-data:
+  learning-data:

@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
+    "@toast-ui/editor": "^3.2.2",
     "antd": "^6.5.0",
+    "dayjs": "^1.11.13",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",

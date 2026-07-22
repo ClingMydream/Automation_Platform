@@ -27,6 +27,7 @@ import { DataGeneratorPanel } from './modules/05-data-generator/DataGeneratorPan
 import { IntegrationPanel } from './modules/06-integrations/IntegrationPanel.jsx';
 import { JsonToolsPanel } from './modules/06-json-tools/JsonToolsPanel.jsx';
 import { CodecPanel } from './modules/07-codec-tools/CodecPanel.jsx';
+import { LearningPanel } from './modules/08-learning/LearningPanel.jsx';
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
@@ -39,6 +40,13 @@ const { Header, Sider, Content } = Layout;
 const { Text, Title } = Typography;
 
 const MENU_SECTIONS = [
+  {
+    key: 'growth',
+    label: '个人成长',
+    children: [
+      { key: 'learning', label: '学习空间', icon: <CuteIcon emoji="📚" tone="violet" />, adminOnly: true },
+    ],
+  },
   {
     key: 'tools',
     label: '效率工具',
@@ -66,7 +74,7 @@ function menuForUser(user) {
   if (!user) return [];
   const allowed = new Set(user.is_admin ? ALL_ITEMS.map((item) => item.key) : user.menu_permissions || []);
   return MENU_SECTIONS
-    .map((section) => ({ ...section, type: 'group', children: section.children.filter((item) => allowed.has(item.key)) }))
+    .map((section) => ({ ...section, type: 'group', children: section.children.filter((item) => allowed.has(item.key) && (!item.adminOnly || user.is_admin)) }))
     .filter((section) => section.children.length > 0);
 }
 
@@ -171,6 +179,7 @@ function ToolboxApp() {
             {tab === 'images' && <ImageToolPanel token={token} />}
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
+            {tab === 'learning' && user?.is_admin && <LearningPanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
           </div>
