@@ -7,6 +7,8 @@
 .guide-content { background: #fafafa; border-radius: 12px; padding: 18px; }
 .endpoint-box, .guide-code { margin: 12px 0; background: #172033; color: #e2e8f0; border-radius: 9px; padding: 13px 15px; overflow: auto; }
 .endpoint-box code, .guide-code code { color: inherit; font-family: "Cascadia Code", Consolas, monospace; }
+.postman-steps { margin: 12px 0; padding-left: 24px; line-height: 2; }
+.postman-glossary { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #d8dee9; }
 
 .notes-layout { grid-template-columns: 210px 280px minmax(520px, 1fr); height: calc(100vh - 235px); min-height: 680px; border: 1px solid #e8eaf0; border-radius: 16px; box-shadow: 0 8px 28px rgba(30, 41, 59, .06); }
 .notes-layout aside, .notes-layout .note-list { padding: 16px; overflow-y: auto; background: #fbfbfd; border-right-color: #e8eaf0; }
