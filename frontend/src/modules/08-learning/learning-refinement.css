@@ -1,0 +1,32 @@
+.guide-card { margin-top: 16px; border-color: #ddd6fe; }
+.guide-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+.guide-steps button { border: 0; background: #f8fafc; border-radius: 10px; padding: 10px 8px; color: #64748b; cursor: pointer; }
+.guide-steps button span { display: inline-grid; place-items: center; width: 23px; height: 23px; margin-right: 6px; border-radius: 50%; background: #e2e8f0; }
+.guide-steps button.active { background: #f3e8ff; color: #6d28d9; font-weight: 700; }
+.guide-steps button.active span { background: #7c3aed; color: #fff; }
+.guide-content { background: #fafafa; border-radius: 12px; padding: 18px; }
+.endpoint-box, .guide-code { margin: 12px 0; background: #172033; color: #e2e8f0; border-radius: 9px; padding: 13px 15px; overflow: auto; }
+.endpoint-box code, .guide-code code { color: inherit; font-family: "Cascadia Code", Consolas, monospace; }
+
+.notes-layout { grid-template-columns: 210px 280px minmax(520px, 1fr); height: calc(100vh - 235px); min-height: 680px; border: 1px solid #e8eaf0; border-radius: 16px; box-shadow: 0 8px 28px rgba(30, 41, 59, .06); }
+.notes-layout aside, .notes-layout .note-list { padding: 16px; overflow-y: auto; background: #fbfbfd; border-right-color: #e8eaf0; }
+.notes-layout .note-list { background: #fff; }
+.folder { padding: 9px 10px; cursor: pointer; }
+.folder:hover { background: #f3e8ff; }
+.note-list .ant-list-item { padding: 13px; margin-bottom: 4px; border: 0; }
+.note-list .ant-list-item:hover { background: #f8fafc; }
+.note-list .selected { background: #f3e8ff !important; }
+.note-editor { padding: 18px; overflow-y: auto; background: #fff; }
+.editor-head { position: sticky; top: -18px; z-index: 3; padding: 10px 0; background: #fff; border-bottom: 1px solid #f0f0f0; }
+.editor-head .ant-input { min-width: 180px; }
+.note-editor .toastui-editor-defaultUI { overflow: hidden; border-color: #e5e7eb; border-radius: 10px; }
+.import-btn { left: 16px; bottom: 16px; background: #fff; }
+
+@media (max-width: 1100px) { .notes-layout { grid-template-columns: 180px 230px minmax(430px, 1fr); } }
+@media (max-width: 900px) {
+  .guide-steps { grid-template-columns: repeat(2, 1fr); }
+  .notes-layout { grid-template-columns: 1fr; height: auto; min-height: 0; }
+  .notes-layout aside, .notes-layout .note-list { border-right: 0; }
+  .import-btn { position: static; margin: 12px; }
+}
+@media (max-width: 560px) { .guide-steps { grid-template-columns: 1fr; } .guide-content { padding: 13px; } }
