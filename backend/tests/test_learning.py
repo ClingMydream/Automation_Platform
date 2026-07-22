@@ -35,6 +35,16 @@ def test_stats_updates_checkin_and_completion(db):
     result=stats(db,"2026-07")
     assert result["total_minutes"]==300
     assert result["days"]["2026-07-22"]["completed"]==1
+    assert result["days"]["2026-07-22"]["checked_in"] is True
+
+
+def test_zero_minute_checkin_still_appears_on_calendar(db):
+    ensure_seed(db)
+    db.add(LearningCheckin(checkin_date=date(2026,7,23),actual_minutes=0,gains="",blockers="临时有事")); db.commit()
+    result=stats(db,"2026-07")
+    assert result["checkin_days"]==1
+    assert result["days"]["2026-07-23"]["checked_in"] is True
+    assert result["days"]["2026-07-23"]["minutes"]==0
 
 
 def test_import_rejects_path_traversal(db,tmp_path):

@@ -103,11 +103,14 @@ def stats(db: Session, month: str):
     checks = db.scalars(select(LearningCheckin).where(LearningCheckin.checkin_date.between(start, end))).all()
     by_day = {}
     for task in tasks:
-        row = by_day.setdefault(str(task.planned_date), {"total": 0, "completed": 0, "minutes": 0})
+        row = by_day.setdefault(str(task.planned_date), {"total": 0, "completed": 0, "minutes": 0, "checked_in": False})
         row["total"] += 1; row["completed"] += task.status == "completed"
-    for check in checks: by_day.setdefault(str(check.checkin_date), {"total": 0, "completed": 0, "minutes": 0})["minutes"] = check.actual_minutes
+    for check in checks:
+        row = by_day.setdefault(str(check.checkin_date), {"total": 0, "completed": 0, "minutes": 0, "checked_in": False})
+        row.update({"checked_in": True, "minutes": check.actual_minutes, "gains": check.gains,
+            "blockers": check.blockers, "tomorrow_focus": check.tomorrow_focus})
     completed = sum(t.status == "completed" for t in tasks)
-    dates = sorted(c.checkin_date for c in checks if c.actual_minutes or c.gains)
+    dates = sorted(c.checkin_date for c in checks)
     streak = 0; cursor = local_today()
     while cursor in dates: streak += 1; cursor -= timedelta(days=1)
     return {"month": month, "checkin_days": len(dates), "current_streak": streak, "total_minutes": sum(c.actual_minutes for c in checks),
