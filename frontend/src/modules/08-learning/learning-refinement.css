@@ -9,6 +9,14 @@
 .endpoint-box code, .guide-code code { color: inherit; font-family: "Cascadia Code", Consolas, monospace; }
 .postman-steps { margin: 12px 0; padding-left: 24px; line-height: 2; }
 .postman-glossary { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #d8dee9; }
+.daily-goal { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.daily-actions { display: grid; gap: 10px; margin: 14px 0 20px; padding: 0; list-style: none; }
+.daily-actions li { display: flex; gap: 12px; align-items: flex-start; padding: 12px; background: #fff; border: 1px solid #eceff4; border-radius: 10px; }
+.daily-actions li > span { display: grid; flex: 0 0 28px; place-items: center; width: 28px; height: 28px; color: #fff; background: #7c3aed; border-radius: 50%; font-weight: 700; }
+.daily-actions li div { display: grid; gap: 3px; }
+.daily-actions small { color: #7b8494; }
+.acceptance-box { margin: 12px 0 18px; padding: 16px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; color: #166534; }
+.acceptance-box .ant-typography { margin: 6px 0 0; color: inherit; }
 
 .notes-layout { grid-template-columns: 210px 280px minmax(520px, 1fr); height: calc(100vh - 235px); min-height: 680px; border: 1px solid #e8eaf0; border-radius: 16px; box-shadow: 0 8px 28px rgba(30, 41, 59, .06); }
 .notes-layout aside, .notes-layout .note-list { padding: 16px; overflow-y: auto; background: #fbfbfd; border-right-color: #e8eaf0; }
