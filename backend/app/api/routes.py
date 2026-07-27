@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.modules.auth.router import router as auth_router
+from app.modules.api_workspace.router import router as api_workspace_router
 from app.modules.data_generator.router import router as data_generator_router
 from app.modules.file_transfer.router import router as file_transfer_router
 from app.modules.health.router import router as health_router
@@ -17,6 +18,7 @@ router = APIRouter()
 # Keep the API surface intentionally limited to efficiency tools and settings.
 for module_router in [
     health_router,
+    api_workspace_router,
     auth_router,
     users_router,
     data_generator_router,

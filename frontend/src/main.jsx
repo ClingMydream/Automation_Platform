@@ -28,6 +28,7 @@ import { IntegrationPanel } from './modules/06-integrations/IntegrationPanel.jsx
 import { JsonToolsPanel } from './modules/06-json-tools/JsonToolsPanel.jsx';
 import { CodecPanel } from './modules/07-codec-tools/CodecPanel.jsx';
 import { LearningPanel } from './modules/08-learning/LearningPanel.jsx';
+import { ApiWorkspacePanel } from './modules/09-api-workspace/ApiWorkspacePanel.jsx';
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
@@ -45,6 +46,7 @@ const MENU_SECTIONS = [
     label: '个人成长',
     children: [
       { key: 'learning', label: '学习空间', icon: <CuteIcon emoji="📚" tone="violet" />, adminOnly: true },
+      { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" />, adminOnly: true },
     ],
   },
   {
@@ -180,6 +182,7 @@ function ToolboxApp() {
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
             {tab === 'learning' && user?.is_admin && <LearningPanel client={client} />}
+            {tab === 'api_workspace' && user?.is_admin && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
           </div>

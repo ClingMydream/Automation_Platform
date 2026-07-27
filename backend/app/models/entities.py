@@ -194,3 +194,17 @@ class LearningImport(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     report: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ApiRecord(Base, TimestampMixin):
+    """Store personal API references with flexible user-defined fields."""
+
+    __tablename__ = "api_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(240), nullable=False, index=True)
+    method: Mapped[str] = mapped_column(String(20), default="GET", nullable=False, index=True)
+    url: Mapped[str] = mapped_column(String(2000), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    custom_fields: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
