@@ -23,13 +23,40 @@ function MarkdownEditor({value,onChange,onImage}) {
   return <div ref={host}/>;
 }
 
+function explainCodeLine(line) {
+  const text=line.trim();
+  if(!text)return '空行：把不同代码段分开，便于阅读。';
+  if(text.startsWith('#'))return '注释：只用于解释代码，Python 不会执行这一行。';
+  if(text.startsWith('import ')||text.startsWith('from '))return '导入：使用其他模块已经提供的功能。';
+  if(text.startsWith('class '))return '定义类：把相关的数据和方法放进一个可复用的客户端模板。';
+  if(text.startsWith('def '))return '定义方法：以后调用这个名字，就会执行下面缩进的代码。';
+  if(text.startsWith('@pytest.fixture'))return '装饰器：告诉 pytest，下面的方法用于准备测试资源。';
+  if(text.startsWith('self.'))return '保存到当前客户端对象中，其他方法可以继续使用这个值。';
+  if(text.startsWith('if '))return '条件判断：只有条件成立时才执行下面缩进的代码。';
+  if(text.startsWith('yield '))return '先把资源交给测试使用；测试结束后继续执行 yield 后面的清理代码。';
+  if(text.startsWith('return '))return '返回结果：把这一行得到的数据交给调用它的位置。';
+  if(text.startsWith('assert '))return '断言：检查实际结果是否符合预期，不符合时用例失败。';
+  if(text.includes('requests.Session'))return '创建 Session：复用连接，并统一保存公共请求头。';
+  if(text.includes('kwargs.setdefault'))return '如果调用时没有单独传 timeout，就使用客户端的默认超时。';
+  if(text.includes('session.request'))return '真正发送 HTTP 请求；method 决定 GET、POST、PUT 或 DELETE。';
+  if(text.includes('headers.update'))return '把公共请求头保存到 Session，后续请求自动携带。';
+  if(text.includes('response.json'))return '把服务器返回的 JSON 文本转换成 Python 数据。';
+  if(text.startsWith('pytest '))return '在终端执行 pytest，并显示测试结果。';
+  if(text.startsWith('python '))return '在终端执行 Python 命令；不要写进 .py 文件。';
+  return '执行这一行，并观察它使用了哪些变量、产生了什么结果。';
+}
+
+function BeginnerCode({code}) {
+  return <div className="annotated-code">{String(code).split('\n').map((line,index)=><div className="annotated-line" key={`${index}-${line}`}><span className="line-number">{index+1}</span><code>{line||' '}</code><span className="line-note">{explainCodeLine(line)}</span></div>)}</div>;
+}
+
 function DayOneGuide() {
   const [step, setStep] = useState(0);
   const steps = [
     { title: '确认练习接口', body: <><Paragraph>Restful Booker 是专门练习接口测试的公开服务，不需要注册。</Paragraph><a href="https://restful-booker.herokuapp.com/apidoc/index.html" target="_blank" rel="noreferrer">打开 API 文档 ↗</a><div className="endpoint-box"><code>GET https://restful-booker.herokuapp.com/booking</code></div><Paragraph type="secondary">先访问这个地址；看到 bookingid 列表就说明接口可用。</Paragraph></> },
-    { title: '配置 Python', body: <><Paragraph>安装 Python 3.11 或 3.12，并勾选 Add Python to PATH。打开 PowerShell 执行：</Paragraph><pre className="guide-code"><code>{`python --version\nmkdir restful-booker-tests\ncd restful-booker-tests\npython -m venv .venv\n.\\.venv\\Scripts\\Activate.ps1\npython -m pip install pytest requests`}</code></pre><Paragraph type="secondary">若 PowerShell 阻止激活，先执行：<code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code></Paragraph></> },
+    { title: '配置 Python', body: <><Paragraph>安装 Python 3.11 或 3.12，并勾选 Add Python to PATH。打开 PowerShell，逐行执行并对照右侧说明：</Paragraph><BeginnerCode code={`python --version\nmkdir restful-booker-tests\ncd restful-booker-tests\npython -m venv .venv\n.\\.venv\\Scripts\\Activate.ps1\npython -m pip install pytest requests`}/><Paragraph type="secondary">若 PowerShell 阻止激活，先执行：<code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code></Paragraph></> },
     { title: '配置 Postman', body: <><Paragraph><Tag color="orange">使用英文界面</Tag>Postman 官方目前没有简体中文，不需要安装第三方汉化包。按照下面的英文按钮操作即可：</Paragraph><ol className="postman-steps"><li>点击 <b>New（新建）</b></li><li>选择 <b>HTTP Request（HTTP 请求）</b></li><li>请求方法选择 <b>GET（查询）</b></li><li>在地址栏粘贴下面的 URL</li><li>点击 <b>Send（发送）</b></li></ol><div className="endpoint-box"><code>https://restful-booker.herokuapp.com/booking/1</code></div><Paragraph><b>验收：</b>在下方 <b>Response（响应）</b>区域看到 <b>Status: 200 OK（状态码成功）</b>，Body 中包含 firstname、lastname 和 bookingdates。若 ID 1 不存在，先请求 <code>/booking</code> 列表并换一个 ID。</Paragraph><div className="postman-glossary"><Tag>Params 参数</Tag><Tag>Authorization 认证</Tag><Tag>Headers 请求头</Tag><Tag>Body 请求体</Tag><Tag>Tests 测试脚本</Tag><Tag>Save 保存</Tag></div></> },
-    { title: '首个 pytest 用例', body: <><Paragraph>在项目目录创建 <code>test_booking.py</code>：</Paragraph><pre className="guide-code"><code>{`import requests\n\nBASE_URL = "https://restful-booker.herokuapp.com"\n\ndef test_get_booking_list():\n    response = requests.get(f"{BASE_URL}/booking", timeout=10)\n    assert response.status_code == 200\n    bookings = response.json()\n    assert isinstance(bookings, list)\n    assert len(bookings) > 0\n    assert "bookingid" in bookings[0]`}</code></pre><Paragraph>执行 <code>pytest -v</code>。看到 <Tag color="green">1 passed</Tag> 即完成，并把结果与三个断言的含义写进学习笔记。</Paragraph></> },
+    { title: '首个 pytest 用例', body: <><Paragraph>在项目目录创建 <code>test_booking.py</code>，逐行输入并理解右侧说明：</Paragraph><BeginnerCode code={`import requests\n\nBASE_URL = "https://restful-booker.herokuapp.com"\n\ndef test_get_booking_list():\n    response = requests.get(f"{BASE_URL}/booking", timeout=10)\n    assert response.status_code == 200\n    bookings = response.json()\n    assert isinstance(bookings, list)\n    assert len(bookings) > 0\n    assert "bookingid" in bookings[0]`}/><Paragraph>执行 <code>pytest -v</code>。看到 <Tag color="green">1 passed</Tag> 即完成，并把结果与三个断言的含义写进学习笔记。</Paragraph></> },
   ];
   const item = steps[step];
   return <Card className="guide-card" title="🧭 第 1 天执行引导" extra={<Text type="secondary">60–90 分钟</Text>}><div className="guide-steps">{steps.map((x,i)=><button key={x.title} className={i===step?'active':''} onClick={()=>setStep(i)}><span>{i+1}</span>{x.title}</button>)}</div><div className="guide-content"><Title level={4}>{step+1}. {item.title}</Title>{item.body}<Space><Button disabled={!step} onClick={()=>setStep(step-1)}>上一步</Button><Button type="primary" disabled={step===steps.length-1} onClick={()=>setStep(step+1)}>下一步</Button></Space></div></Card>;
@@ -135,6 +162,47 @@ def test_get_booking_list():
     assert response.status_code == 200
     assert isinstance(response.json(), list)
     client.close()`}</code></pre><div className="explain-box"><b>具体删掉和替换了什么？</b><ol><li>删除测试文件里的 <code>import requests</code>。</li><li>删除重复的 <code>base_url</code>、<code>headers</code> 和 <code>timeout</code>。</li><li>把 <code>requests.get(...)</code> 换成 <code>client.get_bookings()</code>。</li><li>断言保留在测试用例中，因为“预期结果”属于测试，不属于客户端。</li></ol></div><Paragraph type="secondary"><code>**kwargs</code> 可以先理解为“把额外参数原样继续传下去”。例如 <code>params</code>、<code>json</code>、<code>headers</code> 都能经过它传给 requests。</Paragraph></>},
+    {title:'完整代码逐行看',body:<><Paragraph>把下面完整内容放进 <code>api/booker_client.py</code>。右侧是每一行的中文解释，先照着写，再逐行对照。</Paragraph><BeginnerCode code={`import requests
+
+class BookerClient:
+    def __init__(self, base_url="https://restful-booker.herokuapp.com", timeout=10, headers=None):
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self.session = requests.Session()
+        default_headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if headers:
+            default_headers.update(headers)
+        self.session.headers.update(default_headers)
+
+    def request(self, method, path, **kwargs):
+        url = f"{self.base_url}/{path.lstrip('/')}"
+        kwargs.setdefault("timeout", self.timeout)
+        return self.session.request(method, url, **kwargs)
+
+    def get(self, path, **kwargs):
+        return self.request("GET", path, **kwargs)
+
+    def post(self, path, **kwargs):
+        return self.request("POST", path, **kwargs)
+
+    def put(self, path, **kwargs):
+        return self.request("PUT", path, **kwargs)
+
+    def delete(self, path, **kwargs):
+        return self.request("DELETE", path, **kwargs)
+
+    def get_bookings(self, **params):
+        return self.get("/booking", params=params)
+
+    def get_booking(self, booking_id):
+        return self.get(f"/booking/{booking_id}")
+
+    def create_booking(self, payload):
+        return self.post("/booking", json=payload)
+
+    def close(self):
+        self.session.close()`}/><Paragraph type="secondary">注意：Python 使用缩进表示代码属于哪个方法。类里面的方法缩进 4 个空格，方法里的内容再缩进 4 个空格。</Paragraph></>},
+    {title:'模仿、思考和小题',body:<><div className="practice-level"><Tag color="green">第 1 轮：照着模仿</Tag><Paragraph>不要改代码，逐行输入完整客户端，然后运行原有查询用例。目标是熟悉文件位置、缩进和调用方式。</Paragraph></div><div className="practice-level"><Tag color="blue">第 2 轮：带着思考改</Tag><Paragraph>把默认 <code>timeout=10</code> 改成 <code>timeout=15</code>。思考：为什么测试用例不需要跟着修改？再添加公共请求头 <code>X-Student: cling</code>，观察它应该写在哪一处。</Paragraph></div><div className="practice-level"><Tag color="orange">第 3 轮：自己完成小题</Tag><Paragraph>不看上面的答案，自己添加一个 <code>patch</code> 方法，并添加业务方法 <code>partial_update_booking</code>。要求测试文件里不能出现 <code>requests.patch</code> 和完整 Base URL。</Paragraph><div className="acceptance-box"><b>参考验收</b><Paragraph><code>patch</code> 方法调用 <code>self.request("PATCH", path, **kwargs)</code>；业务方法调用 <code>self.patch(...)</code>，测试仍然只负责准备数据和断言。</Paragraph></div></div></>},
     {title:'Fixture 与运行验收',body:<><Paragraph>手动创建和关闭客户端仍会重复，因此在 <code>tests/conftest.py</code> 中使用 Fixture：</Paragraph><pre className="guide-code"><code>{`import pytest
 from api.booker_client import BookerClient
 
@@ -169,7 +237,8 @@ function DailyExecutionGuide({task}) {
   const pages=[
     {title:'零基础先理解',body:<><Tag color="green">不要求提前会代码</Tag><Paragraph className="beginner-lead">今天要学会：{guide.outcome}</Paragraph><div className="daily-goal"><Tag color="purple">第 {task.day_number} 天</Tag><Tag color="blue">{task.phase}</Tag><Tag>{task.expected_minutes} 分钟</Tag></div><Paragraph type="secondary">先理解今天要解决什么问题，再照着步骤操作。看不懂的英文或代码先记录下来，不需要一次全部记住。</Paragraph></>},
     {title:'一步一步跟做',body:<ol className="daily-actions">{guide.actions.map((action,index)=><li key={action}><span>{index+1}</span><div><b>{action}</b><small>只完成当前这一项，再进入下一项；报错时保留完整命令和错误文字。</small></div></li>)}</ol>},
-    {title:'复制命令与示例',body:<><Paragraph>下面内容可以复制执行。每执行一行，都观察它产生了什么结果：</Paragraph><pre className="guide-code"><code>{guide.commands.join('\n')}</code></pre><Paragraph type="secondary">如果代码中有路径、账号或项目名称，需要替换成你自己的值。执行失败时，把命令、完整报错和你的判断写进学习笔记。</Paragraph></>},
+    {title:'逐行解释示例',body:<><Paragraph>下面每一行都附有中文说明。先照着输入，再观察每一行产生的结果：</Paragraph><BeginnerCode code={guide.commands.join('\n')}/><Paragraph type="secondary">如果代码中有路径、账号或项目名称，需要替换成你自己的值。执行失败时，把命令、完整报错和你的判断写进学习笔记。</Paragraph></>},
+    {title:'模仿、思考和小题',body:<><div className="practice-level"><Tag color="green">先模仿</Tag><Paragraph>完整照着示例做一遍，确认得到预期结果。第一遍允许复制，但要逐行输入关键代码。</Paragraph></div><div className="practice-level"><Tag color="blue">再思考</Tag><Paragraph>用自己的话说明今天每个步骤解决了什么问题，以及删掉其中一步可能发生什么。</Paragraph></div><div className="practice-level"><Tag color="orange">最后做小题</Tag><Paragraph>不看示例重新完成核心步骤，并主动修改一个输入、条件或参数，预测结果后再运行验证。</Paragraph></div></>},
     {title:'检查是否学会',body:<><div className="acceptance-box"><b>完成标准</b><Paragraph>{guide.acceptance}</Paragraph></div><Paragraph><b>今日必须留下：</b>可运行文件或练习结果、关键截图、一篇复盘笔记。完成后勾选今日任务，并填写实际学习分钟、收获和问题。</Paragraph></>},
   ];
   const page=pages[step];
@@ -181,7 +250,7 @@ export function LearningPanel({client}) {
   const [month,setMonth]=useState(dayjs()),[checkin,setCheckin]=useState({actual_minutes:0,gains:'',blockers:'',tomorrow_focus:''});
   const [folders,setFolders]=useState([]),[notes,setNotes]=useState([]),[note,setNote]=useState(null),[query,setQuery]=useState(''),[trash,setTrash]=useState(false);
   const [saveState,setSaveState]=useState('已保存'), timer=useRef(), currentNote=useRef(null), editVersion=useRef(0);
-  const [taskModal,setTaskModal]=useState(null),[form]=Form.useForm();
+  const [taskModal,setTaskModal]=useState(null),[reviewTask,setReviewTask]=useState(null),[form]=Form.useForm();
   async function load(){await client.post(`${API}/schedule/reconcile`,{}); const [o,t,f]=await Promise.all([client.get(`${API}/overview`),client.get(`${API}/tasks`),client.get(`${API}/note-folders`)]); setOverview(o);setTasks(t);setFolders(f); if(o.latest_checkin?.checkin_date===String(o.today)) setCheckin(o.latest_checkin);}
   async function loadStats(value=month){setStats(await client.get(`${API}/stats?month=${value.format('YYYY-MM')}`))}
   async function loadNotes(){setNotes(await client.get(`${API}/notes?q=${encodeURIComponent(query)}&trash=${trash}`))}
@@ -198,7 +267,7 @@ export function LearningPanel({client}) {
   if(!overview)return <Card loading/>;
   const tabs=[
     {key:'today',label:'🌱 今日学习',children:<div className="learning-today"><Row gutter={[16,16]}><Col xs={24} lg={16}><Card className="hero-card"><Text>现在最重要的一步</Text><Title level={2}>{overview.next_task?.title||'40 天计划已完成 🎉'}</Title><Paragraph>{overview.next_task?.details}</Paragraph><Progress percent={overview.progress}/></Card>{overview.next_task&&<DailyExecutionGuide key={overview.next_task.id} task={overview.next_task}/>}<Card title={`今日任务 · ${overview.today}`} className="section-card"><List dataSource={overview.today_tasks} locale={{emptyText:'今天没有任务'}} renderItem={t=><List.Item><Checkbox checked={t.status==='completed'} onChange={e=>toggle(t,e.target.checked)}><b>{t.title}</b><div><Text type="secondary">{t.details} · {t.expected_minutes} 分钟</Text></div><div><Tag>{t.category}</Tag>验收：{t.acceptance_criteria}</div></Checkbox></List.Item>}/></Card></Col><Col xs={24} lg={8}><Card title="📝 每日复盘"><Form layout="vertical"><Form.Item label="实际学习分钟"><InputNumber min={0} max={1440} value={checkin.actual_minutes} onChange={v=>setCheckin({...checkin,actual_minutes:v||0})}/></Form.Item>{[['gains','今日收获'],['blockers','遇到的问题'],['tomorrow_focus','明日重点']].map(([k,l])=><Form.Item label={l} key={k}><Input.TextArea rows={3} value={checkin[k]} onChange={e=>setCheckin({...checkin,[k]:e.target.value})}/></Form.Item>)}<Button type="primary" block onClick={saveCheckin}>完成今日打卡</Button></Form></Card></Col></Row></div>},
-    {key:'plan',label:'🗺️ 学习计划',children:<><Space className="plan-toolbar"><Tag color="blue">原计划 {overview.plan.original_start_date} — {overview.plan.original_end_date}</Tag><Tag color={overview.deadline_risk?'red':'green'}>预计结束 {overview.plan.projected_end_date}</Tag><Button icon={<PlusOutlined/>} onClick={()=>{setTaskModal({});form.resetFields()}}>新增任务</Button></Space><div className="plan-list">{phases.map(([label,rows])=><Card size="small" title={label} key={label}>{rows.map(t=><div className="plan-task" key={t.id} onClick={()=>{setTaskModal(t);form.setFieldsValue({...t,planned_date:dayjs(t.planned_date)})}}><Checkbox checked={t.status==='completed'} onClick={e=>e.stopPropagation()} onChange={e=>toggle(t,e.target.checked)}/><span>{t.category==='复盘'?'✍️':'🧪'} {t.title}</span><Text type="secondary">{t.expected_minutes}m</Text></div>)}</Card>)}</div></>},
+    {key:'plan',label:'🗺️ 学习计划',children:<><Space className="plan-toolbar"><Tag color="blue">原计划 {overview.plan.original_start_date} — {overview.plan.original_end_date}</Tag><Tag color={overview.deadline_risk?'red':'green'}>预计结束 {overview.plan.projected_end_date}</Tag><Button icon={<PlusOutlined/>} onClick={()=>{setTaskModal({});form.resetFields()}}>新增任务</Button></Space><div className="plan-list">{phases.map(([label,rows])=><Card size="small" title={label} key={label}>{rows.map(t=><div className="plan-task" key={t.id}><Checkbox checked={t.status==='completed'} onClick={e=>e.stopPropagation()} onChange={e=>toggle(t,e.target.checked)}/><span>{t.category==='复盘'?'✍️':'🧪'} {t.title}</span><Text type="secondary">{t.expected_minutes}m</Text><Button size="small" type="primary" ghost onClick={()=>setReviewTask(t)}>学习 / 复习</Button><Button size="small" onClick={()=>{setTaskModal(t);form.setFieldsValue({...t,planned_date:dayjs(t.planned_date)})}}>编辑</Button></div>)}</Card>)}</div><Modal open={!!reviewTask} title={reviewTask?`第 ${reviewTask.day_number} 天 · ${reviewTask.title}`:''} footer={null} width={1100} onCancel={()=>setReviewTask(null)} destroyOnHidden><DailyExecutionGuide key={reviewTask?.id} task={reviewTask||{day_number:1}}/></Modal></>},
     {key:'calendar',label:'📅 打卡日历',children:<><Space className="stats-row"><DatePicker picker="month" value={month} onChange={setMonth}/><Statistic title="打卡天数" value={stats?.checkin_days||0} suffix="天"/><Statistic title="连续打卡" value={stats?.current_streak||0} suffix="天"/><Statistic title="总时长" value={Math.round((stats?.total_minutes||0)/60*10)/10} suffix="小时"/><Statistic title="任务完成率" value={stats?.task_completion_rate||0} suffix="%"/></Space><CalendarGrid month={month} stats={stats}/></>},
     {key:'notes',label:'📒 学习笔记',children:<div className="notes-layout"><aside><Space><Button icon={<FolderAddOutlined/>} onClick={async()=>{const name=prompt('文件夹名称');if(name){await client.post(`${API}/note-folders`,{name});setFolders(await client.get(`${API}/note-folders`))}}}>文件夹</Button><Button type="primary" icon={<PlusOutlined/>} onClick={newNote}>笔记</Button></Space><Input.Search placeholder="搜索标题和正文" allowClear onSearch={setQuery}/><Button type="text" onClick={()=>setTrash(!trash)}>{trash?'返回笔记':'🗑️ 回收站'}</Button>{folders.map(f=><div className="folder" key={f.id}>📁 {f.name}</div>)}</aside><section className="note-list"><List dataSource={notes} locale={{emptyText:<Empty description="还没有笔记"/>}} renderItem={n=><List.Item className={note?.id===n.id?'selected':''} onClick={()=>selectNote(n)}><List.Item.Meta title={<>{n.is_pinned&&<PushpinFilled/>} {n.title}</>} description={(n.content_markdown||'空白笔记').slice(0,70)}/></List.Item>}/></section><main className="note-editor">{note?<><Space className="editor-head"><Input variant="borderless" value={note.title} onChange={e=>updateNote(note.id,{title:e.target.value})}/><Text type={saveState==='保存失败'?'danger':'secondary'}>{saveState}</Text><Button icon={<SaveOutlined/>} onClick={()=>saveNote()}>保存</Button><Upload showUploadList={false} customRequest={async({file,onSuccess,onError})=>{try{await uploadImage(note.id,file);onSuccess()}catch(e){onError(e)}}}><Button icon={<UploadOutlined/>}>附件</Button></Upload><Button danger icon={<DeleteOutlined/>} onClick={async()=>{clearTimeout(timer.current);await client.delete(`${API}/notes/${note.id}`);currentNote.current=null;setNote(null);loadNotes()}}/></Space><MarkdownEditor key={note.id} value={note.content_markdown} onChange={v=>updateNote(note.id,{content_markdown:v})} onImage={blob=>uploadImage(note.id,blob)}/></>:<Empty description="选择或新建一篇笔记"/>}</main><Upload accept=".zip" showUploadList={false} customRequest={async({file,onSuccess,onError})=>{const fd=new FormData();fd.append('file',file);try{const r=await client.post(`${API}/imports/youdao`,fd);message.success(`导入 ${r.success.length}，重复 ${r.duplicates.length}`);loadNotes();onSuccess()}catch(e){message.error(e.message);onError(e)}}}><Button className="import-btn">导入有道 ZIP</Button></Upload></div>}
   ];

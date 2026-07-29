@@ -21,6 +21,15 @@
 .explain-box ul { margin: 8px 0 0; padding-left: 20px; line-height: 1.8; }
 .explain-box ol { margin: 8px 0 0; padding-left: 20px; line-height: 1.8; }
 .beginner-lead { margin-top: 12px; font-size: 16px; }
+.annotated-code { margin: 12px 0 18px; overflow: auto; color: #e2e8f0; background: #111827; border-radius: 10px; }
+.annotated-line { display: grid; grid-template-columns: 42px minmax(360px, 1.25fr) minmax(260px, 1fr); min-height: 36px; border-bottom: 1px solid rgba(148,163,184,.14); }
+.annotated-line:last-child { border-bottom: 0; }
+.annotated-line .line-number { display: grid; place-items: center; color: #64748b; background: #0f172a; user-select: none; }
+.annotated-line code { padding: 9px 12px; color: #e2e8f0; font-family: "Cascadia Code", Consolas, monospace; white-space: pre; }
+.annotated-line .line-note { padding: 9px 12px; color: #bfdbfe; background: rgba(30,64,175,.14); border-left: 1px solid rgba(147,197,253,.18); }
+.practice-level { margin: 12px 0; padding: 14px 16px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; }
+.practice-level .ant-typography { margin: 9px 0 0; }
+.ant-modal .guide-card { margin-top: 0; }
 
 .notes-layout { grid-template-columns: 210px 280px minmax(520px, 1fr); height: calc(100vh - 235px); min-height: 680px; border: 1px solid #e8eaf0; border-radius: 16px; box-shadow: 0 8px 28px rgba(30, 41, 59, .06); }
 .notes-layout aside, .notes-layout .note-list { padding: 16px; overflow-y: auto; background: #fbfbfd; border-right-color: #e8eaf0; }
@@ -44,3 +53,4 @@
   .import-btn { position: static; margin: 12px; }
 }
 @media (max-width: 560px) { .guide-steps { grid-template-columns: 1fr; } .guide-content { padding: 13px; } }
+@media (max-width: 760px) { .annotated-line { grid-template-columns: 34px minmax(320px,1fr); }.annotated-line .line-note { grid-column: 2; border-left: 0; border-top: 1px dashed rgba(147,197,253,.18); }.plan-task{flex-wrap:wrap}.plan-task span{min-width:60%} }
