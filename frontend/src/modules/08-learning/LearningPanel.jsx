@@ -46,8 +46,20 @@ function explainCodeLine(line) {
   return '执行这一行，并观察它使用了哪些变量、产生了什么结果。';
 }
 
+function commentPrefix(line) {
+  const text=line.trim().toUpperCase();
+  if(/^(SELECT|INSERT|UPDATE|DELETE FROM|CREATE TABLE|ALTER TABLE|EXPLAIN)/.test(text))return '--';
+  if(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\//.test(text))return '#';
+  return '#';
+}
+
 function BeginnerCode({code}) {
-  return <div className="annotated-code">{String(code).split('\n').map((line,index)=><div className="annotated-line" key={`${index}-${line}`}><span className="line-number">{index+1}</span><code>{line||' '}</code><span className="line-note">{explainCodeLine(line)}</span></div>)}</div>;
+  const commented=String(code).split('\n').flatMap(line=>{
+    if(!line.trim())return [''];
+    if(line.trim().startsWith('#')||line.trim().startsWith('--'))return [line];
+    return [`${commentPrefix(line)} ${explainCodeLine(line)}`,line];
+  }).join('\n');
+  return <pre className="guide-code inline-comment-code"><code>{commented}</code></pre>;
 }
 
 function DayOneGuide() {
@@ -235,11 +247,14 @@ function DailyExecutionGuide({task}) {
   if(task.day_number===3)return <ClientWrapperGuide task={task}/>;
   const guide=getLearningGuide(task.day_number);
   const pages=[
-    {title:'零基础先理解',body:<><Tag color="green">不要求提前会代码</Tag><Paragraph className="beginner-lead">今天要学会：{guide.outcome}</Paragraph><div className="daily-goal"><Tag color="purple">第 {task.day_number} 天</Tag><Tag color="blue">{task.phase}</Tag><Tag>{task.expected_minutes} 分钟</Tag></div><Paragraph type="secondary">先理解今天要解决什么问题，再照着步骤操作。看不懂的英文或代码先记录下来，不需要一次全部记住。</Paragraph></>},
-    {title:'一步一步跟做',body:<ol className="daily-actions">{guide.actions.map((action,index)=><li key={action}><span>{index+1}</span><div><b>{action}</b><small>只完成当前这一项，再进入下一项；报错时保留完整命令和错误文字。</small></div></li>)}</ol>},
-    {title:'逐行解释示例',body:<><Paragraph>下面每一行都附有中文说明。先照着输入，再观察每一行产生的结果：</Paragraph><BeginnerCode code={guide.commands.join('\n')}/><Paragraph type="secondary">如果代码中有路径、账号或项目名称，需要替换成你自己的值。执行失败时，把命令、完整报错和你的判断写进学习笔记。</Paragraph></>},
-    {title:'模仿、思考和小题',body:<><div className="practice-level"><Tag color="green">先模仿</Tag><Paragraph>完整照着示例做一遍，确认得到预期结果。第一遍允许复制，但要逐行输入关键代码。</Paragraph></div><div className="practice-level"><Tag color="blue">再思考</Tag><Paragraph>用自己的话说明今天每个步骤解决了什么问题，以及删掉其中一步可能发生什么。</Paragraph></div><div className="practice-level"><Tag color="orange">最后做小题</Tag><Paragraph>不看示例重新完成核心步骤，并主动修改一个输入、条件或参数，预测结果后再运行验证。</Paragraph></div></>},
-    {title:'检查是否学会',body:<><div className="acceptance-box"><b>完成标准</b><Paragraph>{guide.acceptance}</Paragraph></div><Paragraph><b>今日必须留下：</b>可运行文件或练习结果、关键截图、一篇复盘笔记。完成后勾选今日任务，并填写实际学习分钟、收获和问题。</Paragraph></>},
+    {title:'1. 先理解概念',body:<><Tag color="green">不要求提前会代码</Tag><Paragraph className="beginner-lead">本节主题：{guide.topic}</Paragraph><Paragraph>学完要做到：{guide.outcome}</Paragraph><div className="daily-goal"><Tag color="purple">第 {task.day_number} 天</Tag><Tag color="blue">{task.phase}</Tag><Tag>{task.expected_minutes} 分钟</Tag></div><div className="explain-box"><b>学习方法</b><Paragraph>第一遍只要求看懂输入和输出；第二遍照着做；第三遍再尝试修改。遇到陌生词先记到笔记，不需要强行背诵。</Paragraph></div></>},
+    {title:'2. 准备环境和文件',body:<><Paragraph>开始前先准备工作目录、练习文件和当天需要的工具。按顺序检查：</Paragraph><ol className="daily-actions">{guide.actions.slice(0,2).map((action,index)=><li key={action}><span>{index+1}</span><div><b>{action}</b><small>完成后保留文件或截图，确认准备工作真实完成。</small></div></li>)}</ol><Paragraph type="secondary">如果今天不是编码课程，就新建一篇同名学习笔记，用来保存操作步骤、结果和问题。</Paragraph></>},
+    {title:'3. 一步一步操作',body:<ol className="daily-actions">{guide.actions.map((action,index)=><li key={action}><span>{index+1}</span><div><b>{action}</b><small>只做当前一步；执行前预测结果，执行后对比实际结果，报错时保留完整错误文字。</small></div></li>)}</ol>},
+    {title:'4. 带注释完整示例',body:<><Paragraph>注释已经直接写进代码块，可以连同代码一起复制。Python 和命令使用 <code>#</code>，SQL 使用 <code>--</code>：</Paragraph><BeginnerCode code={guide.commands.join('\n')}/><Paragraph type="secondary">注释不会改变程序运行结果。第一次保留注释练习，熟练后再尝试删掉注释独立完成。</Paragraph></>},
+    {title:'5. 拆开理解和改写',body:<><div className="explain-box"><b>逐步拆解</b><ol>{guide.actions.map((action,index)=><li key={action}><b>第 {index+1} 步：</b>{action}。思考它接收什么输入、产生什么输出，以及下一步为什么需要它。</li>)}</ol></div><Paragraph><b>改写要求：</b>用自己的变量名、文件名或业务例子重新写一遍，但保持执行顺序和核心逻辑不变。改完后与原示例对比，不要只看是否报错。</Paragraph></>},
+    {title:'6. 第一轮照着模仿',body:<><div className="practice-level"><Tag color="green">允许看答案</Tag><Paragraph>完整照着示例输入并运行。不要整段无脑粘贴：每输入一行，先读它的注释，再说出这一行大概做什么。</Paragraph></div><div className="acceptance-box"><b>本轮目标</b><Paragraph>得到与示例一致的结果，并在笔记中保存完整操作过程。失败也要记录，因为排错过程也是学习成果。</Paragraph></div></>},
+    {title:'7. 思考和独立小题',body:<><div className="practice-level"><Tag color="blue">思考题</Tag><Paragraph>如果删除第一个准备步骤，后续可能在哪里失败？如果改变一个输入或参数，结果可能怎样变化？先写预测，再运行验证。</Paragraph></div><div className="practice-level"><Tag color="orange">独立小题</Tag><Paragraph>关闭当前示例，不看答案重新完成核心流程；然后主动修改一个变量、筛选条件、请求参数或命令选项，形成第二个不同结果。</Paragraph></div></>},
+    {title:'8. 验收和复盘',body:<><div className="acceptance-box"><b>完成标准</b><Paragraph>{guide.acceptance}</Paragraph></div><Paragraph><b>必须留下：</b>可运行文件或操作结果、关键截图、错误与解决办法、一篇用自己的话写的复盘。完成后勾选任务并填写学习分钟、收获和问题。</Paragraph></>},
   ];
   const page=pages[step];
   return <Card className="guide-card" title={`🧭 第 ${task.day_number} 天执行引导 · ${guide.topic}`} extra={<Text type="secondary">按步骤完成</Text>}><div className="guide-steps">{pages.map((item,index)=><button key={item.title} className={index===step?'active':''} onClick={()=>setStep(index)}><span>{index+1}</span>{item.title}</button>)}</div><div className="guide-content"><Title level={4}>{step+1}. {page.title}</Title>{page.body}<Space><Button disabled={!step} onClick={()=>setStep(step-1)}>上一步</Button><Button type="primary" disabled={step===pages.length-1} onClick={()=>setStep(step+1)}>下一步</Button></Space></div></Card>;
