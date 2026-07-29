@@ -1,5 +1,5 @@
 .guide-card { margin-top: 16px; border-color: #ddd6fe; }
-.guide-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+.guide-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 8px; margin-bottom: 18px; }
 .guide-steps button { border: 0; background: #f8fafc; border-radius: 10px; padding: 10px 8px; color: #64748b; cursor: pointer; }
 .guide-steps button span { display: inline-grid; place-items: center; width: 23px; height: 23px; margin-right: 6px; border-radius: 50%; background: #e2e8f0; }
 .guide-steps button.active { background: #f3e8ff; color: #6d28d9; font-weight: 700; }
@@ -17,6 +17,10 @@
 .daily-actions small { color: #7b8494; }
 .acceptance-box { margin: 12px 0 18px; padding: 16px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; color: #166534; }
 .acceptance-box .ant-typography { margin: 6px 0 0; color: inherit; }
+.explain-box { margin: 14px 0; padding: 14px 16px; color: #334155; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; }
+.explain-box ul { margin: 8px 0 0; padding-left: 20px; line-height: 1.8; }
+.explain-box ol { margin: 8px 0 0; padding-left: 20px; line-height: 1.8; }
+.beginner-lead { margin-top: 12px; font-size: 16px; }
 
 .notes-layout { grid-template-columns: 210px 280px minmax(520px, 1fr); height: calc(100vh - 235px); min-height: 680px; border: 1px solid #e8eaf0; border-radius: 16px; box-shadow: 0 8px 28px rgba(30, 41, 59, .06); }
 .notes-layout aside, .notes-layout .note-list { padding: 16px; overflow-y: auto; background: #fbfbfd; border-right-color: #e8eaf0; }

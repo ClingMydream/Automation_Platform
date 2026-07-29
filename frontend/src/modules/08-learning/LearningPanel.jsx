@@ -35,15 +35,142 @@ function DayOneGuide() {
   return <Card className="guide-card" title="🧭 第 1 天执行引导" extra={<Text type="secondary">60–90 分钟</Text>}><div className="guide-steps">{steps.map((x,i)=><button key={x.title} className={i===step?'active':''} onClick={()=>setStep(i)}><span>{i+1}</span>{x.title}</button>)}</div><div className="guide-content"><Title level={4}>{step+1}. {item.title}</Title>{item.body}<Space><Button disabled={!step} onClick={()=>setStep(step-1)}>上一步</Button><Button type="primary" disabled={step===steps.length-1} onClick={()=>setStep(step+1)}>下一步</Button></Space></div></Card>;
 }
 
+function ClientWrapperGuide({task}) {
+  const [step,setStep]=useState(0);
+  const pages=[
+    {title:'搭建项目结构',body:<><Paragraph>目标不是简单写一个函数，而是把“HTTP 通用能力”和“Restful Booker 业务接口”集中到客户端中，让测试用例只表达测试意图。</Paragraph><pre className="guide-code"><code>{`restful-booker-tests/
+├─ api/
+│  ├─ __init__.py
+│  └─ booker_client.py
+├─ tests/
+│  ├─ __init__.py
+│  ├─ conftest.py
+│  └─ test_booking.py
+└─ requirements.txt`}</code></pre><Paragraph>PowerShell 创建目录：</Paragraph><pre className="guide-code"><code>{`mkdir api, tests
+New-Item api/__init__.py, tests/__init__.py -ItemType File
+New-Item api/booker_client.py, tests/conftest.py, tests/test_booking.py -ItemType File`}</code></pre></>},
+    {title:'封装通用请求层',body:<><Paragraph>在 <code>api/booker_client.py</code> 中先统一处理 Base URL、Session、超时和请求入口：</Paragraph><pre className="guide-code"><code>{`import requests
+
+
+class BookerClient:
+    def __init__(self, base_url="https://restful-booker.herokuapp.com", timeout=10, headers=None):
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self.session = requests.Session()
+        default_headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        if headers:
+            default_headers.update(headers)
+        self.session.headers.update(default_headers)
+
+    def request(self, method, path, **kwargs):
+        """所有接口统一从这里发送，后续可集中添加日志和重试。"""
+        url = f"{self.base_url}/{path.lstrip('/')}"
+        kwargs.setdefault("timeout", self.timeout)
+        return self.session.request(method, url, **kwargs)
+
+    def get(self, path, **kwargs):
+        return self.request("GET", path, **kwargs)
+
+    def post(self, path, **kwargs):
+        return self.request("POST", path, **kwargs)
+
+    def put(self, path, **kwargs):
+        return self.request("PUT", path, **kwargs)
+
+    def delete(self, path, **kwargs):
+        return self.request("DELETE", path, **kwargs)
+
+    def close(self):
+        self.session.close()`}</code></pre><div className="explain-box"><b>为什么这样封装？</b><ul><li><code>Session</code> 复用连接和公共请求头。</li><li><code>rstrip/lstrip</code> 防止地址出现双斜杠。</li><li>统一 <code>timeout</code>，避免请求无限等待。</li><li>这里不调用 <code>raise_for_status()</code>，因为异常状态码也是接口测试需要断言的结果。</li></ul></div></>},
+    {title:'封装业务接口',body:<><Paragraph>继续在 <code>BookerClient</code> 类中添加业务方法。测试用例以后不再手工拼 URL：</Paragraph><pre className="guide-code"><code>{`    def get_bookings(self, **params):
+        return self.get("/booking", params=params)
+
+    def get_booking(self, booking_id):
+        return self.get(f"/booking/{booking_id}")
+
+    def create_booking(self, payload):
+        return self.post("/booking", json=payload)
+
+    def create_token(self, username, password):
+        response = self.post(
+            "/auth",
+            json={"username": username, "password": password},
+        )
+        assert response.status_code == 200
+        return response.json()["token"]
+
+    def update_booking(self, booking_id, payload, token):
+        return self.put(
+            f"/booking/{booking_id}", json=payload,
+            headers={"Cookie": f"token={token}"},
+        )
+
+    def delete_booking(self, booking_id, token):
+        return self.delete(
+            f"/booking/{booking_id}",
+            headers={"Cookie": f"token={token}"},
+        )`}</code></pre><Paragraph type="secondary">这里的方法名表达业务动作；请求方式、路径、鉴权细节由客户端管理。</Paragraph></>},
+    {title:'重写已有用例',body:<><Paragraph>下面是同一个查询用例封装前后的对比。先看旧写法：</Paragraph><pre className="guide-code"><code>{`# 旧写法：每个用例都要重复导入 requests、拼地址、写 timeout
+import requests
+
+
+def test_get_booking_list():
+    base_url = "https://restful-booker.herokuapp.com"
+    response = requests.get(
+        f"{base_url}/booking",
+        headers={"Accept": "application/json"},
+        timeout=10,
+    )
+    assert response.status_code == 200`}</code></pre><Paragraph>再改成客户端写法：</Paragraph><pre className="guide-code"><code>{`# 新写法：用例只关心“查询预订列表”和结果
+from api.booker_client import BookerClient
+
+
+def test_get_booking_list():
+    client = BookerClient()
+    response = client.get_bookings()
+
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+    client.close()`}</code></pre><div className="explain-box"><b>具体删掉和替换了什么？</b><ol><li>删除测试文件里的 <code>import requests</code>。</li><li>删除重复的 <code>base_url</code>、<code>headers</code> 和 <code>timeout</code>。</li><li>把 <code>requests.get(...)</code> 换成 <code>client.get_bookings()</code>。</li><li>断言保留在测试用例中，因为“预期结果”属于测试，不属于客户端。</li></ol></div><Paragraph type="secondary"><code>**kwargs</code> 可以先理解为“把额外参数原样继续传下去”。例如 <code>params</code>、<code>json</code>、<code>headers</code> 都能经过它传给 requests。</Paragraph></>},
+    {title:'Fixture 与运行验收',body:<><Paragraph>手动创建和关闭客户端仍会重复，因此在 <code>tests/conftest.py</code> 中使用 Fixture：</Paragraph><pre className="guide-code"><code>{`import pytest
+from api.booker_client import BookerClient
+
+
+@pytest.fixture
+def booker_client():
+    client = BookerClient()
+    yield client
+    client.close()`}</code></pre><Paragraph>在 <code>tests/test_booking.py</code> 中使用客户端：</Paragraph><pre className="guide-code"><code>{`def test_get_booking_list(booker_client):
+    response = booker_client.get_bookings()
+
+    assert response.status_code == 200
+    bookings = response.json()
+    assert isinstance(bookings, list)
+    assert len(bookings) > 0
+    assert "bookingid" in bookings[0]
+
+
+def test_unknown_booking(booker_client):
+    response = booker_client.get_booking(999999999)
+    assert response.status_code == 404`}</code></pre><pre className="guide-code"><code>pytest -v --tb=short</code></pre><div className="acceptance-box"><b>验收标准</b><Paragraph>两个用例通过；测试文件里没有 Base URL、Session 和重复的 requests.get；你能解释 request 通用层与 get_booking 业务方法各自负责什么。</Paragraph></div></>},
+  ];
+  const page=pages[step];
+  return <Card className="guide-card" title={`🧭 第 ${task.day_number} 天执行引导 · Python 请求封装`} extra={<Text type="secondary">建议 3–4 小时</Text>}><div className="guide-steps">{pages.map((item,index)=><button key={item.title} className={index===step?'active':''} onClick={()=>setStep(index)}><span>{index+1}</span>{item.title}</button>)}</div><div className="guide-content"><Title level={4}>{step+1}. {page.title}</Title>{page.body}<Space><Button disabled={!step} onClick={()=>setStep(step-1)}>上一步</Button><Button type="primary" disabled={step===pages.length-1} onClick={()=>setStep(step+1)}>下一步</Button></Space></div></Card>;
+}
+
 function DailyExecutionGuide({task}) {
   const [step,setStep]=useState(0);
   if(task.day_number===1)return <DayOneGuide/>;
+  if(task.day_number===3)return <ClientWrapperGuide task={task}/>;
   const guide=getLearningGuide(task.day_number);
   const pages=[
-    {title:'今日目标',body:<><Paragraph>{guide.outcome}</Paragraph><div className="daily-goal"><Tag color="purple">第 {task.day_number} 天</Tag><Tag color="blue">{task.phase}</Tag><Tag>{task.expected_minutes} 分钟</Tag></div><Paragraph type="secondary">先理解目标再开始操作。今天不追求看很多内容，而是留下一个可以检查的成果。</Paragraph></>},
-    {title:'分步实操',body:<ol className="daily-actions">{guide.actions.map((action,index)=><li key={action}><span>{index+1}</span><div><b>{action}</b><small>完成后再进入下一步，遇到问题先记录现象和报错。</small></div></li>)}</ol>},
-    {title:'命令与示例',body:<><Paragraph>下面是今天最常用的命令或代码骨架，可以复制后根据实际项目修改：</Paragraph><pre className="guide-code"><code>{guide.commands.join('\n')}</code></pre><Paragraph type="secondary">命令执行失败时，把完整命令、报错信息和你的判断写进学习笔记，不要只保存截图。</Paragraph></>},
-    {title:'验收与产出',body:<><div className="acceptance-box"><b>完成标准</b><Paragraph>{guide.acceptance}</Paragraph></div><Paragraph><b>今日必须留下：</b>可运行文件或练习结果、关键截图、一篇复盘笔记。完成后勾选今日任务，并填写实际学习分钟、收获和问题。</Paragraph></>},
+    {title:'零基础先理解',body:<><Tag color="green">不要求提前会代码</Tag><Paragraph className="beginner-lead">今天要学会：{guide.outcome}</Paragraph><div className="daily-goal"><Tag color="purple">第 {task.day_number} 天</Tag><Tag color="blue">{task.phase}</Tag><Tag>{task.expected_minutes} 分钟</Tag></div><Paragraph type="secondary">先理解今天要解决什么问题，再照着步骤操作。看不懂的英文或代码先记录下来，不需要一次全部记住。</Paragraph></>},
+    {title:'一步一步跟做',body:<ol className="daily-actions">{guide.actions.map((action,index)=><li key={action}><span>{index+1}</span><div><b>{action}</b><small>只完成当前这一项，再进入下一项；报错时保留完整命令和错误文字。</small></div></li>)}</ol>},
+    {title:'复制命令与示例',body:<><Paragraph>下面内容可以复制执行。每执行一行，都观察它产生了什么结果：</Paragraph><pre className="guide-code"><code>{guide.commands.join('\n')}</code></pre><Paragraph type="secondary">如果代码中有路径、账号或项目名称，需要替换成你自己的值。执行失败时，把命令、完整报错和你的判断写进学习笔记。</Paragraph></>},
+    {title:'检查是否学会',body:<><div className="acceptance-box"><b>完成标准</b><Paragraph>{guide.acceptance}</Paragraph></div><Paragraph><b>今日必须留下：</b>可运行文件或练习结果、关键截图、一篇复盘笔记。完成后勾选今日任务，并填写实际学习分钟、收获和问题。</Paragraph></>},
   ];
   const page=pages[step];
   return <Card className="guide-card" title={`🧭 第 ${task.day_number} 天执行引导 · ${guide.topic}`} extra={<Text type="secondary">按步骤完成</Text>}><div className="guide-steps">{pages.map((item,index)=><button key={item.title} className={index===step?'active':''} onClick={()=>setStep(index)}><span>{index+1}</span>{item.title}</button>)}</div><div className="guide-content"><Title level={4}>{step+1}. {page.title}</Title>{page.body}<Space><Button disabled={!step} onClick={()=>setStep(step-1)}>上一步</Button><Button type="primary" disabled={step===pages.length-1} onClick={()=>setStep(step+1)}>下一步</Button></Space></div></Card>;
