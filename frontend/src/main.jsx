@@ -29,6 +29,7 @@ import { JsonToolsPanel } from './modules/06-json-tools/JsonToolsPanel.jsx';
 import { CodecPanel } from './modules/07-codec-tools/CodecPanel.jsx';
 import { LearningPanel } from './modules/08-learning/LearningPanel.jsx';
 import { ApiWorkspacePanel } from './modules/09-api-workspace/ApiWorkspacePanel.jsx';
+import { RestfulBookerPanel } from './modules/09-api-workspace/RestfulBookerPanel.jsx';
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
@@ -46,6 +47,7 @@ const MENU_SECTIONS = [
     label: '个人成长',
     children: [
       { key: 'learning', label: '学习空间', icon: <CuteIcon emoji="📚" tone="violet" />, adminOnly: true },
+      { key: 'restful_booker', label: 'Restful Booker', icon: <CuteIcon emoji="🏨" tone="peach" />, adminOnly: true },
       { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" />, adminOnly: true },
     ],
   },
@@ -65,7 +67,7 @@ const MENU_SECTIONS = [
     label: '系统配置',
     children: [
       { key: 'integrations', label: '集成配置', icon: <CuteIcon emoji="🔌" tone="rose" /> },
-      { key: 'users', label: '用户管理', icon: <CuteIcon emoji="👥" tone="cyan" /> },
+      { key: 'users', label: '用户管理', icon: <CuteIcon emoji="👥" tone="cyan" />, adminOnly: true },
     ],
   },
 ];
@@ -135,10 +137,14 @@ function ToolboxApp() {
   const userMenu = {
     items: [
       { key: 'identity', label: user?.display_name || user?.username || '当前用户', disabled: true, icon: <UserOutlined /> },
+      ...(user?.is_admin ? [{ key: 'users', label: '用户管理 / 新增用户', icon: <UserOutlined /> }] : []),
       { type: 'divider' },
       { key: 'logout', label: '退出登录', icon: <LogoutOutlined />, danger: true },
     ],
-    onClick: ({ key }) => { if (key === 'logout') logout(); },
+    onClick: ({ key }) => {
+      if (key === 'users') setTab('users');
+      if (key === 'logout') logout();
+    },
   };
 
   return (
@@ -182,6 +188,7 @@ function ToolboxApp() {
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
             {tab === 'learning' && user?.is_admin && <LearningPanel client={client} />}
+            {tab === 'restful_booker' && user?.is_admin && <RestfulBookerPanel />}
             {tab === 'api_workspace' && user?.is_admin && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
