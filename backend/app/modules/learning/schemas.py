@@ -40,6 +40,12 @@ class CheckinInput(BaseModel):
     tomorrow_focus: str = ""
 
 
+class RestartLearningInput(BaseModel):
+    start_date: date | None = None
+    title: str = "第二期 · 零基础文档训练营"
+    confirm: bool = False
+
+
 class FolderInput(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     parent_id: int | None = None

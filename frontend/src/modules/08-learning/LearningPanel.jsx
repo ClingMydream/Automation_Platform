@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Card, Checkbox, Col, DatePicker, Empty, Form, Input, InputNumber, List, Modal, Progress, Row, Select, Space, Statistic, Tabs, Tag, Typography, Upload, message } from 'antd';
+import { Alert, Button, Card, Checkbox, Col, DatePicker, Empty, Form, Input, InputNumber, List, Modal, Progress, Row, Select, Space, Statistic, Tabs, Tag, Typography, Upload, message } from 'antd';
 import { DeleteOutlined, FolderAddOutlined, PlusOutlined, PushpinFilled, SaveOutlined, UploadOutlined } from '@ant-design/icons';
 import Editor from '@toast-ui/editor';
 import '@toast-ui/editor/dist/toastui-editor.css';
@@ -60,6 +60,71 @@ function BeginnerCode({code}) {
     return [`${commentPrefix(line)} ${explainCodeLine(line)}`,line];
   }).join('\n');
   return <pre className="guide-code inline-comment-code"><code>{commented}</code></pre>;
+}
+
+const PRACTICE_PROJECTS = [
+  ['酒店预约前台', 'https://automationintesting.online/', '像普通用户一样浏览房间、填写资料并完成预约'],
+  ['酒店管理后台', 'https://automationintesting.online/#/admin', '观察房间、预约、消息等后台业务；练习站默认账号可在页面底部查看'],
+  ['Restful Booker API 文档', 'https://restful-booker.herokuapp.com/apidoc/index.html', '查看纯 API 的地址、方法、参数和响应示例'],
+];
+
+const DOCUMENT_LESSONS = {
+  1: {
+    idea: '先把自己当成订房用户。今天不写代码，只认识业务页面和一条完整预约流程。',
+    steps: ['打开“酒店预约前台”', '从房间列表选择一个可预订房间', '选择入住和离店日期', '填写姓名、邮箱和电话', '提交预约并保存成功或失败截图'],
+    expected: '能说清楚自己输入了哪些数据、点击了什么按钮、页面最后返回了什么。',
+    fill: '我选择的房间是____；入住日期是____；提交后页面显示____。',
+    exercise: '故意漏填一个必填项再提交，记录页面如何提示，并判断这个校验发生在前端还是后端。',
+  },
+  2: {
+    idea: '前端是你看到和操作的页面，后端处理业务，数据库保存房间和预约数据。',
+    steps: ['再次完成一笔预约', '写下页面收集的字段', '画出“页面→接口→后端→数据库”的箭头', '刷新页面观察数据是否仍存在'],
+    expected: '能够不用术语堆砌，用订房例子解释前端、后端和数据库。',
+    fill: '用户在____输入资料，____接收请求并处理，最后把数据保存到____。',
+    exercise: '假设页面显示成功但数据库没有预约，分别列出前端、接口和数据库可能出现的问题。',
+  },
+  3: {
+    idea: 'API 可以理解为前端和后端约定好的“办事窗口”：前端按格式提交，后端按格式回答。',
+    steps: ['打开纯 API 的 Booking 列表地址', '观察浏览器显示的 JSON', '找到 bookingid 字段', '对比酒店页面和纯接口页面的区别'],
+    expected: '能解释请求、响应、接口地址和 JSON 分别是什么。',
+    fill: '浏览器向____发送请求，服务器返回____，其中 bookingid 表示____。',
+    exercise: '把接口地址最后加上一个真实 bookingid，预测结果后再打开验证。',
+  },
+  4: {
+    idea: '请求方法表示想对数据做什么：GET 查询、POST 新增、PUT 修改、DELETE 删除。',
+    steps: ['打开 API 文档', '分别找到 GetBookingIds 和 CreateBooking', '记录它们的方法和路径', '用自己的话描述四种方法'],
+    expected: '看到业务动作时，能选择大致正确的 HTTP 请求方法。',
+    fill: '查询使用____；新增使用____；整体修改使用____；删除使用____。',
+    exercise: '为“查询房间、创建预约、修改姓名、取消预约”分别选择请求方法。',
+  },
+  5: {
+    idea: 'Network 是浏览器的请求记录本，可以看到点击按钮后页面实际调用了什么接口。',
+    steps: ['在酒店前台按 F12', '选择 Network / 网络', '刷新页面', '筛选 Fetch/XHR', '点击一条请求查看 Headers、Payload 和 Response'],
+    expected: '能在 Network 中找到请求地址、方法、状态码和响应内容。',
+    fill: '我观察的请求方法是____，地址是____，状态码是____。',
+    exercise: '提交 Contact 表单，找到对应请求并截图标出 Request URL 和 Status Code。',
+  },
+};
+
+function DocumentLesson({task}) {
+  const [step,setStep]=useState(0);
+  const lesson=DOCUMENT_LESSONS[task.day_number]||{
+    idea:task.details,
+    steps:['阅读今天的概念说明并写一句自己的理解','按示例完整跟做一次','对照预期结果检查','修改一个输入再次运行','把错误和解决过程保存到学习笔记'],
+    expected:task.acceptance_criteria,
+    fill:'今天要解决的问题是____；我的输入是____；得到的结果是____。',
+    exercise:`不看示例重新完成“${task.title}”，再主动改变一个条件并解释结果。`,
+  };
+  const pages=[
+    ['先理解',<><Tag color="green">今天不要求背诵</Tag><Title level={4}>{task.title}</Title><Paragraph>{lesson.idea}</Paragraph><Alert type="info" showIcon title="先理解业务，再学习工具，最后才写自动化代码。"/></>],
+    ['打开练习项目',<Row gutter={[12,12]}>{PRACTICE_PROJECTS.map(([name,url,note])=><Col xs={24} md={8} key={name}><Card size="small" title={name}><Paragraph>{note}</Paragraph><Button type="primary" href={url} target="_blank">打开项目 ↗</Button></Card></Col>)}</Row>],
+    ['跟着操作',<ol className="daily-actions">{lesson.steps.map((item,index)=><li key={item}><span>{index+1}</span><div><b>{item}</b><small>只完成当前一步，完成后再继续；结果与说明不同也要截图保存。</small></div></li>)}</ol>],
+    ['对照结果',<><div className="acceptance-box"><b>预期结果</b><Paragraph>{lesson.expected}</Paragraph></div><Paragraph>不要只看“成功还是失败”，还要写下输入、操作、实际结果三部分。</Paragraph></>],
+    ['填空练习',<><Paragraph>先不看前面的文字，补全下面的学习记录：</Paragraph><pre className="guide-code"><code>{lesson.fill}</code></pre><Paragraph type="secondary">不会时允许返回上一页查找，找到答案后再用自己的话重写。</Paragraph></>],
+    ['独立小题',<><div className="practice-level"><Tag color="orange">现在关闭答案</Tag><Paragraph>{lesson.exercise}</Paragraph></div><Alert type="warning" showIcon title="卡住 15 分钟后再看提示；报错内容本身也是学习材料。"/></>],
+    ['验收与复盘',<><div className="acceptance-box"><b>完成标准</b><Paragraph>{task.acceptance_criteria}</Paragraph></div><Paragraph>保存一个操作结果、一张关键截图和一段自己的解释，然后勾选今日任务并完成打卡。</Paragraph></>],
+  ];
+  return <Card className="guide-card" title={`📖 第 ${task.day_number} 天文档课 · ${task.title}`}><div className="guide-steps">{pages.map((item,index)=><button key={item[0]} className={step===index?'active':''} onClick={()=>setStep(index)}><span>{index+1}</span>{item[0]}</button>)}</div><div className="guide-content">{pages[step][1]}<Space><Button disabled={!step} onClick={()=>setStep(step-1)}>上一步</Button><Button type="primary" disabled={step===pages.length-1} onClick={()=>setStep(step+1)}>下一步</Button></Space></div></Card>;
 }
 
 function DayOneGuide() {
@@ -243,6 +308,7 @@ def test_unknown_booking(booker_client):
 
 function DailyExecutionGuide({task}) {
   const [step,setStep]=useState(0);
+  if(task.category==='文档实操')return <DocumentLesson task={task}/>;
   if(task.day_number===1)return <DayOneGuide/>;
   if(task.day_number===3)return <ClientWrapperGuide task={task}/>;
   const guide=getLearningGuide(task.day_number);
@@ -261,12 +327,12 @@ function DailyExecutionGuide({task}) {
 }
 
 export function LearningPanel({client}) {
-  const [overview,setOverview]=useState(null),[tasks,setTasks]=useState([]),[stats,setStats]=useState(null);
+  const [overview,setOverview]=useState(null),[tasks,setTasks]=useState([]),[plans,setPlans]=useState([]),[stats,setStats]=useState(null);
   const [month,setMonth]=useState(dayjs()),[checkin,setCheckin]=useState({actual_minutes:0,gains:'',blockers:'',tomorrow_focus:''});
   const [folders,setFolders]=useState([]),[notes,setNotes]=useState([]),[note,setNote]=useState(null),[query,setQuery]=useState(''),[trash,setTrash]=useState(false);
   const [saveState,setSaveState]=useState('已保存'), timer=useRef(), currentNote=useRef(null), editVersion=useRef(0);
   const [taskModal,setTaskModal]=useState(null),[reviewTask,setReviewTask]=useState(null),[form]=Form.useForm();
-  async function load(){await client.post(`${API}/schedule/reconcile`,{}); const [o,t,f]=await Promise.all([client.get(`${API}/overview`),client.get(`${API}/tasks`),client.get(`${API}/note-folders`)]); setOverview(o);setTasks(t);setFolders(f); if(o.latest_checkin?.checkin_date===String(o.today)) setCheckin(o.latest_checkin);}
+  async function load(){await client.post(`${API}/schedule/reconcile`,{}); const [o,t,f,p]=await Promise.all([client.get(`${API}/overview`),client.get(`${API}/tasks`),client.get(`${API}/note-folders`),client.get(`${API}/plans`)]); setOverview(o);setTasks(t);setFolders(f);setPlans(p); if(o.latest_checkin?.checkin_date===String(o.today)) setCheckin(o.latest_checkin);}
   async function loadStats(value=month){setStats(await client.get(`${API}/stats?month=${value.format('YYYY-MM')}`))}
   async function loadNotes(){setNotes(await client.get(`${API}/notes?q=${encodeURIComponent(query)}&trash=${trash}`))}
   useEffect(()=>{load().catch(e=>message.error(e.message))},[]); useEffect(()=>{loadStats().catch(()=>{})},[month]); useEffect(()=>{loadNotes().catch(()=>{})},[query,trash]);
@@ -278,9 +344,11 @@ export function LearningPanel({client}) {
   async function newNote(){const created=await client.post(`${API}/notes`,{title:'未命名笔记',content_markdown:'',tags:[],is_pinned:false});setNotes(rows=>[created,...rows]);await selectNote(created)}
   async function uploadImage(noteId,blob){const fd=new FormData();fd.append('file',blob);const result=await client.post(`${API}/notes/${noteId}/attachments`,fd);return result.url}
   async function submitTask(){const values=await form.validateFields(); const body={...values,planned_date:values.planned_date.format('YYYY-MM-DD'),original_planned_date:taskModal?.original_planned_date||values.planned_date.format('YYYY-MM-DD')}; taskModal?.id?await client.put(`${API}/tasks/${taskModal.id}`,body):await client.post(`${API}/tasks`,body);setTaskModal(null);await load()}
+  function confirmRestart(){Modal.confirm({title:'从第 1 天重新开始学习？',width:560,okText:'确认重新开始',cancelText:'暂不重置',content:<div><Paragraph>系统会创建一份从今天开始的 40 天零基础文档课程。</Paragraph><Alert type="success" showIcon title="旧计划只会归档；以前的任务、打卡和学习笔记都不会删除。"/><Paragraph style={{marginTop:12}}>新课程先认识酒店业务和接口，再学习 Postman、Python、Requests、pytest 和请求封装。</Paragraph></div>,onOk:async()=>{const result=await client.post(`${API}/restart`,{start_date:dayjs().format('YYYY-MM-DD'),title:`第 ${plans.length+1} 期 · 零基础文档训练营`,confirm:true});message.success(result.message);setCheckin({actual_minutes:0,gains:'',blockers:'',tomorrow_focus:''});await Promise.all([load(),loadStats()]);}})}
   const phases=useMemo(()=>Object.entries(tasks.reduce((a,t)=>{(a[`${t.planned_date} · 第 ${t.day_number} 天 · ${t.phase}`]??=[]).push(t);return a},{})),[tasks]);
   if(!overview)return <Card loading/>;
   const tabs=[
+    {key:'restart',label:'🔄 重新开始',children:<><Card className="section-card" title="从第 1 天重新开始"><Paragraph>创建一份从今天开始的 40 天零基础文档课程。旧计划会进入历史记录，原来的任务、打卡和学习笔记都不会删除。</Paragraph><Space wrap><Tag color="purple">当前：{overview.plan.title}</Tag><Tag>已保存计划 {plans.length} 期</Tag><Button danger type="primary" onClick={confirmRestart}>重新开始学习</Button></Space></Card><Card className="section-card" title="历史学习计划"><List dataSource={plans} renderItem={plan=><List.Item><List.Item.Meta title={<Space><b>{plan.title}</b><Tag color={plan.status==='active'?'green':'default'}>{plan.status==='active'?'学习中':'已归档'}</Tag></Space>} description={`${plan.original_start_date} — ${plan.projected_end_date}`}/></List.Item>}/></Card></>},
     {key:'today',label:'🌱 今日学习',children:<div className="learning-today"><Row gutter={[16,16]}><Col xs={24} lg={16}><Card className="hero-card"><Text>现在最重要的一步</Text><Title level={2}>{overview.next_task?.title||'40 天计划已完成 🎉'}</Title><Paragraph>{overview.next_task?.details}</Paragraph><Progress percent={overview.progress}/></Card>{overview.next_task&&<DailyExecutionGuide key={overview.next_task.id} task={overview.next_task}/>}<Card title={`今日任务 · ${overview.today}`} className="section-card"><List dataSource={overview.today_tasks} locale={{emptyText:'今天没有任务'}} renderItem={t=><List.Item><Checkbox checked={t.status==='completed'} onChange={e=>toggle(t,e.target.checked)}><b>{t.title}</b><div><Text type="secondary">{t.details} · {t.expected_minutes} 分钟</Text></div><div><Tag>{t.category}</Tag>验收：{t.acceptance_criteria}</div></Checkbox></List.Item>}/></Card></Col><Col xs={24} lg={8}><Card title="📝 每日复盘"><Form layout="vertical"><Form.Item label="实际学习分钟"><InputNumber min={0} max={1440} value={checkin.actual_minutes} onChange={v=>setCheckin({...checkin,actual_minutes:v||0})}/></Form.Item>{[['gains','今日收获'],['blockers','遇到的问题'],['tomorrow_focus','明日重点']].map(([k,l])=><Form.Item label={l} key={k}><Input.TextArea rows={3} value={checkin[k]} onChange={e=>setCheckin({...checkin,[k]:e.target.value})}/></Form.Item>)}<Button type="primary" block onClick={saveCheckin}>完成今日打卡</Button></Form></Card></Col></Row></div>},
     {key:'plan',label:'🗺️ 学习计划',children:<><Space className="plan-toolbar"><Tag color="blue">原计划 {overview.plan.original_start_date} — {overview.plan.original_end_date}</Tag><Tag color={overview.deadline_risk?'red':'green'}>预计结束 {overview.plan.projected_end_date}</Tag><Button icon={<PlusOutlined/>} onClick={()=>{setTaskModal({});form.resetFields()}}>新增任务</Button></Space><div className="plan-list">{phases.map(([label,rows])=><Card size="small" title={label} key={label}>{rows.map(t=><div className="plan-task" key={t.id}><Checkbox checked={t.status==='completed'} onClick={e=>e.stopPropagation()} onChange={e=>toggle(t,e.target.checked)}/><span>{t.category==='复盘'?'✍️':'🧪'} {t.title}</span><Text type="secondary">{t.expected_minutes}m</Text><Button size="small" type="primary" ghost onClick={()=>setReviewTask(t)}>学习 / 复习</Button><Button size="small" onClick={()=>{setTaskModal(t);form.setFieldsValue({...t,planned_date:dayjs(t.planned_date)})}}>编辑</Button></div>)}</Card>)}</div><Modal open={!!reviewTask} title={reviewTask?`第 ${reviewTask.day_number} 天 · ${reviewTask.title}`:''} footer={null} width={1100} onCancel={()=>setReviewTask(null)} destroyOnHidden><DailyExecutionGuide key={reviewTask?.id} task={reviewTask||{day_number:1}}/></Modal></>},
     {key:'calendar',label:'📅 打卡日历',children:<><Space className="stats-row"><DatePicker picker="month" value={month} onChange={setMonth}/><Statistic title="打卡天数" value={stats?.checkin_days||0} suffix="天"/><Statistic title="连续打卡" value={stats?.current_streak||0} suffix="天"/><Statistic title="总时长" value={Math.round((stats?.total_minutes||0)/60*10)/10} suffix="小时"/><Statistic title="任务完成率" value={stats?.task_completion_rate||0} suffix="%"/></Space><CalendarGrid month={month} stats={stats}/></>},

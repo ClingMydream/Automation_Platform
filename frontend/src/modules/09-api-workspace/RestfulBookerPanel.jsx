@@ -5,6 +5,8 @@ import './api-workspace.css';
 
 const { Paragraph, Text, Title } = Typography;
 const ENDPOINTS = [
+  { name: '酒店预约前端项目', method: 'WEB', url: 'https://automationintesting.online/', note: '从用户视角浏览房间、填写资料并完成一次真实预约。' },
+  { name: '酒店管理后台', method: 'ADMIN', url: 'https://automationintesting.online/#/admin', note: '练习房间、预约、消息等后台业务和后续 UI 自动化。' },
   { name: '官方 API 文档', method: 'DOCS', url: 'https://restful-booker.herokuapp.com/apidoc/index.html', note: '查看接口参数、请求体和响应示例。' },
   { name: 'Booking 列表', method: 'GET', url: 'https://restful-booker.herokuapp.com/booking', note: '浏览器可直接打开，用于确认服务是否可用。' },
   { name: '获取登录 Token', method: 'POST', url: 'https://restful-booker.herokuapp.com/auth', note: '在 Postman 或 pytest 中练习登录鉴权。' },

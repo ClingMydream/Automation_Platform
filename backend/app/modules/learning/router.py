@@ -12,8 +12,8 @@ from app.core.config import get_settings
 from app.db import get_db
 from app.models.entities import (LearningAttachment, LearningCheckin, LearningNote, LearningNoteFolder,
     LearningPlan, LearningProfile, LearningScheduleShift, LearningTask)
-from app.modules.learning.schemas import CheckinInput, FolderInput, NoteInput, ProfileUpdate, TaskInput
-from app.modules.learning.service import ensure_seed, local_today, reconcile, stats
+from app.modules.learning.schemas import CheckinInput, FolderInput, NoteInput, ProfileUpdate, RestartLearningInput, TaskInput
+from app.modules.learning.service import ensure_seed, local_today, reconcile, restart_learning, stats
 from app.modules.learning.importer import import_zip
 
 router = APIRouter(prefix="/v1/learning", tags=["learning"], dependencies=[Depends(verify_admin)])
@@ -39,6 +39,20 @@ def put_profile(payload: ProfileUpdate, db: Session = Depends(get_db)):
 def reconcile_schedule(db: Session = Depends(get_db)): return reconcile(db)
 
 
+@router.get("/plans")
+def list_plans(db: Session = Depends(get_db)):
+    ensure_seed(db)
+    return [data(item) for item in db.scalars(select(LearningPlan).order_by(LearningPlan.id.desc())).all()]
+
+
+@router.post("/restart")
+def restart(payload: RestartLearningInput, db: Session = Depends(get_db)):
+    if not payload.confirm:
+        raise HTTPException(400, "请确认重新开始学习")
+    plan = restart_learning(db, payload.start_date or local_today(), payload.title)
+    return {"ok": True, "plan": data(plan), "message": "旧计划已归档，笔记和打卡记录均已保留"}
+
+
 @router.get("/overview")
 def overview(db: Session = Depends(get_db)):
     ensure_seed(db); today = local_today(); plan = db.scalar(select(LearningPlan).where(LearningPlan.status == "active"))
@@ -57,7 +71,7 @@ def overview(db: Session = Depends(get_db)):
 
 @router.get("/tasks")
 def list_tasks(day: date | None = None, phase: str | None = None, db: Session = Depends(get_db)):
-    ensure_seed(db); q = select(LearningTask)
+    ensure_seed(db); plan = db.scalar(select(LearningPlan).where(LearningPlan.status == "active")); q = select(LearningTask).where(LearningTask.plan_id == plan.id)
     if day: q = q.where(LearningTask.planned_date == day)
     if phase: q = q.where(LearningTask.phase == phase)
     return [data(x) for x in db.scalars(q.order_by(LearningTask.planned_date, LearningTask.sort_order)).all()]
