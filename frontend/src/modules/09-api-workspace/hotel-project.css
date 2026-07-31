@@ -1,0 +1,11 @@
+.hotel-demo, .hotel-admin { display: grid; gap: 16px; }
+.hotel-hero { display: flex; min-height: 170px; align-items: center; justify-content: space-between; padding: 28px 32px; border: 1px solid #dbeafe; border-radius: 14px; background: linear-gradient(135deg, #eff6ff, #fff7ed); }
+.hotel-hero h2 { margin: 4px 0 8px; }
+.hotel-hero > span { font-size: 72px; }
+.hotel-room-card { height: 100%; border-color: #e4e7ec; border-radius: 12px; }
+.hotel-room-card .ant-card-body { display: grid; min-height: 210px; grid-template-rows: auto auto auto 1fr; gap: 10px; }
+.hotel-room-card h3 { margin: 0; }
+.hotel-room-card h3 small { color: #98a2b3; font-size: 13px; font-weight: 400; }
+.hotel-room-card .ant-btn { align-self: end; }
+.hotel-admin .record-card { margin: 0; }
+@media (max-width: 700px) { .hotel-hero { min-height: 140px; padding: 20px; } .hotel-hero > span { font-size: 48px; } }
