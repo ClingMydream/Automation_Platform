@@ -47,7 +47,7 @@ const MENU_SECTIONS = [
     label: '个人成长',
     children: [
       { key: 'learning', label: '学习空间', icon: <CuteIcon emoji="📚" tone="violet" />, adminOnly: true },
-      { key: 'restful_booker', label: 'Restful Booker', icon: <CuteIcon emoji="🏨" tone="peach" />, adminOnly: true },
+      { key: 'restful_booker', label: '酒店练习项目', icon: <CuteIcon emoji="🏨" tone="peach" />, adminOnly: true },
       { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" />, adminOnly: true },
     ],
   },
