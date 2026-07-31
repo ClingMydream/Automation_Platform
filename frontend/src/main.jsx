@@ -123,6 +123,11 @@ function ToolboxApp() {
 
   useEffect(() => { reload(); }, [token]);
   useEffect(() => {
+    const navigate = (event) => setTab(event.detail);
+    window.addEventListener('cling:navigate', navigate);
+    return () => window.removeEventListener('cling:navigate', navigate);
+  }, []);
+  useEffect(() => {
     const handleExpired = () => logout('登录已过期，请重新登录');
     window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);

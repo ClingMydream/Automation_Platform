@@ -63,8 +63,8 @@ function BeginnerCode({code}) {
 }
 
 const PRACTICE_PROJECTS = [
-  ['酒店预约前台', 'https://automationintesting.online/', '像普通用户一样浏览房间、填写资料并完成预约'],
-  ['酒店管理后台', 'https://automationintesting.online/#/admin', '观察房间、预约、消息等后台业务；练习站默认账号可在页面底部查看'],
+  ['酒店预约前台', 'cling:hotel', '像普通用户一样浏览房间、填写资料并完成预约'],
+  ['酒店管理后台', 'cling:hotel', '查看前台创建的预约，并练习房间和订单管理'],
   ['Restful Booker API 文档', 'https://restful-booker.herokuapp.com/apidoc/index.html', '查看纯 API 的地址、方法、参数和响应示例'],
 ];
 
@@ -117,7 +117,7 @@ function DocumentLesson({task}) {
   };
   const pages=[
     ['先理解',<><Tag color="green">今天不要求背诵</Tag><Title level={4}>{task.title}</Title><Paragraph>{lesson.idea}</Paragraph><Alert type="info" showIcon title="先理解业务，再学习工具，最后才写自动化代码。"/></>],
-    ['打开练习项目',<Row gutter={[12,12]}>{PRACTICE_PROJECTS.map(([name,url,note])=><Col xs={24} md={8} key={name}><Card size="small" title={name}><Paragraph>{note}</Paragraph><Button type="primary" href={url} target="_blank">打开项目 ↗</Button></Card></Col>)}</Row>],
+    ['打开练习项目',<Row gutter={[12,12]}>{PRACTICE_PROJECTS.map(([name,url,note])=><Col xs={24} md={8} key={name}><Card size="small" title={name}><Paragraph>{note}</Paragraph>{url==='cling:hotel'?<Button type="primary" onClick={()=>window.dispatchEvent(new CustomEvent('cling:navigate',{detail:'restful_booker'}))}>打开中文项目</Button>:<Button type="primary" href={url} target="_blank">打开文档 ↗</Button>}</Card></Col>)}</Row>],
     ['跟着操作',<ol className="daily-actions">{lesson.steps.map((item,index)=><li key={item}><span>{index+1}</span><div><b>{item}</b><small>只完成当前一步，完成后再继续；结果与说明不同也要截图保存。</small></div></li>)}</ol>],
     ['对照结果',<><div className="acceptance-box"><b>预期结果</b><Paragraph>{lesson.expected}</Paragraph></div><Paragraph>不要只看“成功还是失败”，还要写下输入、操作、实际结果三部分。</Paragraph></>],
     ['填空练习',<><Paragraph>先不看前面的文字，补全下面的学习记录：</Paragraph><pre className="guide-code"><code>{lesson.fill}</code></pre><Paragraph type="secondary">不会时允许返回上一页查找，找到答案后再用自己的话重写。</Paragraph></>],
