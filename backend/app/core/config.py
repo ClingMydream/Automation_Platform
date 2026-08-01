@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     file_transfer_dir: str = "/tmp/automation-platform-transfers"
     file_transfer_max_mb: int = 1024
     file_transfer_default_hours: int = 24
+    test_package_dir: str = "/var/lib/cling-test-packages"
+    test_package_max_mb: int = 1024
     app_timezone: str = "Asia/Shanghai"
     learning_data_dir: str = "/var/lib/cling-learning"
     learning_attachment_max_mb: int = 20

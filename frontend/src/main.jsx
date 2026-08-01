@@ -31,6 +31,8 @@ import { LearningPanel } from './modules/08-learning/LearningPanel.jsx';
 import { ApiWorkspacePanel } from './modules/09-api-workspace/ApiWorkspacePanel.jsx';
 import { RestfulBookerPanel } from './modules/09-api-workspace/RestfulBookerPanel.jsx';
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
+import { TestPackagePanel } from './modules/11-test-packages/TestPackagePanel.jsx';
+import { PublicPackageDownload } from './modules/11-test-packages/PublicPackageDownload.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -57,6 +59,7 @@ const MENU_SECTIONS = [
     children: [
       { key: 'data_generator', label: '数据生成', icon: <CuteIcon emoji="🧪" tone="blue" /> },
       { key: 'files', label: '文件快传', icon: <CuteIcon emoji="📤" tone="mint" /> },
+      { key: 'test_packages', label: '测试包安装', icon: <CuteIcon emoji="📦" tone="blue" /> },
       { key: 'images', label: '图片工具', icon: <CuteIcon emoji="🖼️" tone="peach" /> },
       { key: 'json_tools', label: 'JSON 工具', icon: <CuteIcon emoji="🧩" tone="violet" /> },
       { key: 'codec', label: '转码工具', icon: <CuteIcon emoji="🔄" tone="yellow" /> },
@@ -85,6 +88,7 @@ function menuForUser(user) {
 function ToolboxApp() {
   const params = new URLSearchParams(window.location.search);
   const transferToken = params.get('transferToken');
+  const testPackage = params.get('testPackage');
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState('data_generator');
@@ -134,6 +138,7 @@ function ToolboxApp() {
   }, []);
 
   if (transferToken) return <PublicTransferPage token={transferToken} />;
+  if (testPackage === 'latest') return <PublicPackageDownload />;
   if (!token) return <Login notice={loginNotice} onLogin={(value) => { setLoginNotice(''); setToken(value); }} />;
 
   const menuItems = menuForUser(user);
@@ -189,6 +194,7 @@ function ToolboxApp() {
           <div className="content-container">
             {tab === 'data_generator' && <DataGeneratorPanel client={client} />}
             {tab === 'files' && <FileTransferPanel client={client} />}
+            {tab === 'test_packages' && <TestPackagePanel client={client} />}
             {tab === 'images' && <ImageToolPanel token={token} />}
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}

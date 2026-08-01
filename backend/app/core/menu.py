@@ -8,6 +8,7 @@
 
 MENU_OPTIONS = [
     {"key": "files", "label": "文件快传"},
+    {"key": "test_packages", "label": "测试包安装"},
     {"key": "images", "label": "图片工具"},
     {"key": "data_generator", "label": "数据生成"},
     {"key": "json_tools", "label": "JSON 工具"},

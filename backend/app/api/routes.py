@@ -11,6 +11,7 @@ from app.modules.image_tools.router import router as image_tools_router
 from app.modules.integrations.router import router as integrations_router
 from app.modules.learning.router import router as learning_router
 from app.modules.users.router import router as users_router
+from app.modules.test_packages.router import router as test_packages_router
 
 
 router = APIRouter()
@@ -23,6 +24,7 @@ for module_router in [
     users_router,
     data_generator_router,
     file_transfer_router,
+    test_packages_router,
     image_tools_router,
     integrations_router,
     learning_router,

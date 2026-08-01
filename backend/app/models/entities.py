@@ -60,6 +60,22 @@ class FileTransfer(Base, TimestampMixin):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+class TestPackage(Base, TimestampMixin):
+    """Store the single latest test package behind a stable download address."""
+
+    __tablename__ = "test_packages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    channel: Mapped[str] = mapped_column(String(40), unique=True, nullable=False, default="latest")
+    original_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    stored_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(160))
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    version: Mapped[str | None] = mapped_column(String(80))
+    notes: Mapped[str | None] = mapped_column(Text)
+    upload_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+
+
 class LearningProfile(Base, TimestampMixin):
     """Store the singleton personal learning profile and seed version."""
 

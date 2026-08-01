@@ -29,6 +29,7 @@ services:
     volumes:
       - transfer-data:/tmp/automation-platform-transfers
       - learning-data:/var/lib/cling-learning
+      - test-package-data:/var/lib/cling-test-packages
     depends_on:
       mysql:
         condition: service_healthy
@@ -66,3 +67,4 @@ volumes:
   mysql-data:
   transfer-data:
   learning-data:
+  test-package-data:
