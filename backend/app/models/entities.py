@@ -76,6 +76,23 @@ class TestPackage(Base, TimestampMixin):
     upload_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
+class CommandSnippet(Base, TimestampMixin):
+    """Store built-in and personal command-line reference entries."""
+
+    __tablename__ = "command_snippets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    category: Mapped[str] = mapped_column(String(40), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    command: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    usage_example: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    interview_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    is_builtin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
 class LearningProfile(Base, TimestampMixin):
     """Store the singleton personal learning profile and seed version."""
 

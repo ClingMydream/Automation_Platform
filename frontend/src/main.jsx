@@ -33,6 +33,7 @@ import { RestfulBookerPanel } from './modules/09-api-workspace/RestfulBookerPane
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
 import { TestPackagePanel } from './modules/11-test-packages/TestPackagePanel.jsx';
 import { PublicPackageDownload } from './modules/11-test-packages/PublicPackageDownload.jsx';
+import { CommandLibraryPanel } from './modules/12-command-library/CommandLibraryPanel.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -49,6 +50,7 @@ const MENU_SECTIONS = [
     label: '个人成长',
     children: [
       { key: 'learning', label: '学习空间', icon: <CuteIcon emoji="📚" tone="violet" />, adminOnly: true },
+      { key: 'command_library', label: '命令手册', icon: <CuteIcon emoji="⌨️" tone="blue" />, adminOnly: true },
       { key: 'restful_booker', label: '酒店练习项目', icon: <CuteIcon emoji="🏨" tone="peach" />, adminOnly: true },
       { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" />, adminOnly: true },
     ],
@@ -199,6 +201,7 @@ function ToolboxApp() {
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
             {tab === 'learning' && user?.is_admin && <LearningPanel client={client} />}
+            {tab === 'command_library' && user?.is_admin && <CommandLibraryPanel client={client} />}
             {tab === 'restful_booker' && user?.is_admin && <RestfulBookerPanel />}
             {tab === 'api_workspace' && user?.is_admin && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}

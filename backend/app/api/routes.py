@@ -12,6 +12,7 @@ from app.modules.integrations.router import router as integrations_router
 from app.modules.learning.router import router as learning_router
 from app.modules.users.router import router as users_router
 from app.modules.test_packages.router import router as test_packages_router
+from app.modules.command_library.router import router as command_library_router
 
 
 router = APIRouter()
@@ -28,5 +29,6 @@ for module_router in [
     image_tools_router,
     integrations_router,
     learning_router,
+    command_library_router,
 ]:
     router.include_router(module_router)
