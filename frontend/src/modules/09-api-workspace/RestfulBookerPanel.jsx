@@ -151,20 +151,24 @@ export function RestfulBookerPanel({ client }) {
   </div>;
 
   const docs = <div className="hotel-api-guide">
-    <Alert type="info" showIcon title="中文接口引导 + 真实响应" description="下面的按钮会直接请求 Restful Booker 公共接口。按 F12 → Network 可同时观察请求和响应。" />
-    <Card title="1. 先认识 Booking 接口" className="record-card">
+    <section className="docs-hero">
+      <div><span className="docs-kicker">RESTFUL BOOKER · 调试手册</span><Title level={2}>📬 接口文档与真实响应</Title><Paragraph>从“发起请求”开始，看见真实数据，再把 Booking ID 用到查询里。</Paragraph><Space wrap><Tag color="blue">GET 查询</Tag><Tag color="green">真实服务</Tag><Tag color="purple">中文引导</Tag></Space></div>
+      <div className="docs-hero-icon">🧪</div>
+    </section>
+    <div className="docs-tip"><span>💡</span><div><b>建议这样练习</b><br />先点击“发送请求”，再按 F12 打开 Network，观察地址、请求方法、状态码和响应内容。</div></div>
+    <Card title={<Space><span className="docs-step">1</span><span>先认识 Booking 接口</span></Space>} className="record-card docs-card">
       <Table pagination={false} rowKey="url" columns={[{ title: '你要做什么', dataIndex: 'purpose' }, { title: '方法', dataIndex: 'method', render: value => <Tag color="blue">{value}</Tag> }, { title: '地址', dataIndex: 'url', render: value => <code>{value}</code> }, { title: '响应怎么看', dataIndex: 'response' }, { title: '练习', render: (_, row) => <Button onClick={() => runBookingExample(row.url, row.purpose)}>发送请求</Button> }]} dataSource={[
         { purpose: '查询所有预约编号', method: 'GET', url: `${BOOKER_BASE_URL}/booking`, response: '200 表示成功；数组中每一项的 bookingid 是预约编号。' },
         { purpose: '查询一条预约详情', method: 'GET', url: `${BOOKER_BASE_URL}/booking/1`, response: '200 表示找到数据；404 表示该编号不存在，可先从上一条响应中复制编号。' },
       ]} />
     </Card>
-    <Card title="2. 看懂一次响应" className="record-card">
+    <Card title={<Space><span className="docs-step">2</span><span>看懂一次响应</span></Space>} className="record-card docs-card">
       {!apiResponse && <Paragraph type="secondary">点击上面的“发送请求”，这里会显示真实响应。重点先看状态码，再看 JSON 中的字段。</Paragraph>}
       {apiResponse?.loading && <Paragraph>正在发送 {apiResponse.label}…</Paragraph>}
       {apiResponse?.error && <Alert type="error" showIcon title={apiResponse.error} />}
       {apiResponse?.status && <><Space><b>{apiResponse.label}</b><Tag color={apiResponse.status >= 200 && apiResponse.status < 300 ? 'green' : 'red'}>HTTP {apiResponse.status}</Tag></Space><pre className="guide-code"><code>{JSON.stringify(apiResponse.body, null, 2)}</code></pre><Paragraph><b>小白解读：</b>状态码 200 表示服务器成功返回；方括号 <code>[]</code> 是列表，花括号 <code>{'{}'}</code> 是一条对象数据。先找 <code>bookingid</code>，它就是后续查询、修改、删除时会用到的编号。</Paragraph></>}
     </Card>
-    <Card title="3. 后续怎么练习" className="record-card">
+    <Card title={<Space><span className="docs-step">3</span><span>下一步怎么练习</span></Space>} className="record-card docs-card docs-next-card">
       <Paragraph>先用 GET 取得一个 bookingid；再到 Postman 用这个编号查询详情。创建、修改、删除会改变公开练习站的数据，建议先在 cling 中文酒店项目中练习完整 CRUD，再阅读官方原始文档对照参数。</Paragraph>
       <div className="quick-url">{API_DOCS}</div>
       <Space><Button icon={<CopyOutlined />} onClick={copyDocs}>复制官方文档地址</Button><Button type="primary" href={API_DOCS} target="_blank">打开官方英文文档</Button></Space>
