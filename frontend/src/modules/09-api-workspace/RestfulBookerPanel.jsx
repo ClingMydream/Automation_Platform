@@ -22,7 +22,7 @@ async function bookerRequest(path, options = {}) {
 function toBookingRow(bookingid, booking) {
   return {
     id: bookingid,
-    room: booking.additionalneeds?.match(/房间[：:](\S+)/)?.[1] || '练习预约',
+    room_number: booking.additionalneeds?.match(/房间[：:](\S+)/)?.[1] || '练习预约',
     guest: `${booking.firstname || ''} ${booking.lastname || ''}`.trim(),
     phone: booking.additionalneeds?.match(/电话[：:]([^;；]+)/)?.[1] || '未填写',
     checkin: booking.bookingdates?.checkin,
@@ -132,6 +132,7 @@ export function RestfulBookerPanel({ client }) {
       <Alert type="info" showIcon message="这里的数据与 /booker/booking 完全相同" description="创建预约后会立即同步。若要取消预约，请先在 Postman 调用 POST /booker/auth，并把返回的 token 临时粘贴到下方；token 不会保存。" style={{ marginBottom: 16 }} />
       <Input.Password value={bookingToken} onChange={event => setBookingToken(event.target.value)} placeholder="取消预约用的 token（仅当前页面临时使用）" style={{ maxWidth: 440, marginBottom: 16 }} />
       <Table loading={loading} rowKey="id" dataSource={bookings} locale={{ emptyText: '还没有预约，请先到“预约前台”创建一条记录' }} pagination={false} columns={[
+        { title: 'Booking ID', dataIndex: 'id', width: 150, render: (value) => <Space size={2}><code>{value}</code><Button type="text" size="small" icon={<CopyOutlined />} title="复制查询地址" onClick={async () => { await navigator.clipboard.writeText(`${BOOKER_BASE_URL}/booking/${value}`); message.success('查询地址已复制'); }} /></Space> },
         { title: '房间', dataIndex: 'room_number', render: (value) => `${value} 房间` },
         { title: '住客姓名', dataIndex: 'guest' }, { title: '联系电话', dataIndex: 'phone' },
         { title: '入住日期', dataIndex: 'checkin' }, { title: '离店日期', dataIndex: 'checkout' },
