@@ -8,9 +8,9 @@ const BASE='/v1/api-workspace';
 const METHODS=['GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS'];
 const COLORS={GET:'green',POST:'blue',PUT:'orange',PATCH:'gold',DELETE:'red',HEAD:'purple',OPTIONS:'cyan'};
 const QUICK=[
-  {name:'API 文档',method:'DOCS',url:'https://restful-booker.herokuapp.com/apidoc/index.html',note:'查看全部接口、参数和示例'},
-  {name:'Booking 列表',method:'GET',url:'https://restful-booker.herokuapp.com/booking',note:'快速确认服务是否可用'},
-  {name:'获取 Token',method:'POST',url:'https://restful-booker.herokuapp.com/auth',note:'更新和删除接口需要鉴权'},
+  {name:'API 文档',method:'DOCS',url:`${window.location.origin}/booker/apidoc/index.html`,note:'查看自建接口的全部参数和示例'},
+  {name:'Booking 列表',method:'GET',url:`${window.location.origin}/booker/booking`,note:'快速确认自建服务是否可用'},
+  {name:'获取 Token',method:'POST',url:`${window.location.origin}/booker/auth`,note:'更新和删除接口需要鉴权'},
 ];
 
 export function ApiWorkspacePanel({client}){

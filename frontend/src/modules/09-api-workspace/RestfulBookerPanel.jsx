@@ -6,7 +6,8 @@ import './hotel-project.css';
 
 const { Paragraph, Text, Title } = Typography;
 const API = '/v1/hotel-practice';
-const API_DOCS = 'https://restful-booker.herokuapp.com/apidoc/index.html';
+const BOOKER_BASE_URL = `${window.location.origin}/booker`;
+const API_DOCS = `${BOOKER_BASE_URL}/apidoc/index.html`;
 
 export function RestfulBookerPanel({ client }) {
   const [rooms, setRooms] = useState([]);
@@ -120,8 +121,8 @@ export function RestfulBookerPanel({ client }) {
     <Alert type="info" showIcon title="中文接口引导 + 真实响应" description="下面的按钮会直接请求 Restful Booker 公共接口。按 F12 → Network 可同时观察请求和响应。" />
     <Card title="1. 先认识 Booking 接口" className="record-card">
       <Table pagination={false} rowKey="url" columns={[{ title: '你要做什么', dataIndex: 'purpose' }, { title: '方法', dataIndex: 'method', render: value => <Tag color="blue">{value}</Tag> }, { title: '地址', dataIndex: 'url', render: value => <code>{value}</code> }, { title: '响应怎么看', dataIndex: 'response' }, { title: '练习', render: (_, row) => <Button onClick={() => runBookingExample(row.url, row.purpose)}>发送请求</Button> }]} dataSource={[
-        { purpose: '查询所有预约编号', method: 'GET', url: 'https://restful-booker.herokuapp.com/booking', response: '200 表示成功；数组中每一项的 bookingid 是预约编号。' },
-        { purpose: '查询一条预约详情', method: 'GET', url: 'https://restful-booker.herokuapp.com/booking/1', response: '200 表示找到数据；404 表示该编号不存在，可先从上一条响应中复制编号。' },
+        { purpose: '查询所有预约编号', method: 'GET', url: `${BOOKER_BASE_URL}/booking`, response: '200 表示成功；数组中每一项的 bookingid 是预约编号。' },
+        { purpose: '查询一条预约详情', method: 'GET', url: `${BOOKER_BASE_URL}/booking/1`, response: '200 表示找到数据；404 表示该编号不存在，可先从上一条响应中复制编号。' },
       ]} />
     </Card>
     <Card title="2. 看懂一次响应" className="record-card">

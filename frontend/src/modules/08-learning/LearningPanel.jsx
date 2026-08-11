@@ -10,6 +10,7 @@ import { getLearningGuide } from './learningGuides.js';
 
 const { Text, Title, Paragraph } = Typography;
 const API='/v1/learning';
+const SELF_HOSTED_BOOKER_BASE = 'http://111.229.178.141/booker';
 
 function MarkdownEditor({value,onChange,onImage}) {
   const host=useRef(null), editor=useRef(null), onChangeRef=useRef(onChange);
@@ -65,7 +66,7 @@ function BeginnerCode({code}) {
 const PRACTICE_PROJECTS = [
   ['酒店预约前台', 'cling:hotel', '像普通用户一样浏览房间、填写资料并完成预约'],
   ['酒店管理后台', 'cling:hotel', '查看前台创建的预约，并练习房间和订单管理'],
-  ['Restful Booker API 文档', 'https://restful-booker.herokuapp.com/apidoc/index.html', '查看纯 API 的地址、方法、参数和响应示例'],
+  ['自建 Restful Booker API 文档', `${SELF_HOSTED_BOOKER_BASE}/apidoc/index.html`, '查看自己服务器上接口的地址、方法、参数和响应示例'],
 ];
 
 const DOCUMENT_LESSONS = {
@@ -130,10 +131,10 @@ function DocumentLesson({task}) {
 function DayOneGuide() {
   const [step, setStep] = useState(0);
   const steps = [
-    { title: '确认练习接口', body: <><Paragraph>Restful Booker 是专门练习接口测试的公开服务，不需要注册。</Paragraph><a href="https://restful-booker.herokuapp.com/apidoc/index.html" target="_blank" rel="noreferrer">打开 API 文档 ↗</a><div className="endpoint-box"><code>GET https://restful-booker.herokuapp.com/booking</code></div><Paragraph type="secondary">先访问这个地址；看到 bookingid 列表就说明接口可用。</Paragraph></> },
+    { title: '确认练习接口', body: <><Paragraph>这里练习的是部署在你自己服务器上的 Restful Booker，数据由你自己控制。</Paragraph><a href={`${SELF_HOSTED_BOOKER_BASE}/apidoc/index.html`} target="_blank" rel="noreferrer">打开自建 API 文档 ↗</a><div className="endpoint-box"><code>GET {SELF_HOSTED_BOOKER_BASE}/booking</code></div><Paragraph type="secondary">先访问这个地址；看到 bookingid 列表就说明自建接口可用。</Paragraph></> },
     { title: '配置 Python', body: <><Paragraph>安装 Python 3.11 或 3.12，并勾选 Add Python to PATH。打开 PowerShell，逐行执行并对照右侧说明：</Paragraph><BeginnerCode code={`python --version\nmkdir restful-booker-tests\ncd restful-booker-tests\npython -m venv .venv\n.\\.venv\\Scripts\\Activate.ps1\npython -m pip install pytest requests`}/><Paragraph type="secondary">若 PowerShell 阻止激活，先执行：<code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code></Paragraph></> },
-    { title: '配置 Postman', body: <><Paragraph><Tag color="orange">使用英文界面</Tag>Postman 官方目前没有简体中文，不需要安装第三方汉化包。按照下面的英文按钮操作即可：</Paragraph><ol className="postman-steps"><li>点击 <b>New（新建）</b></li><li>选择 <b>HTTP Request（HTTP 请求）</b></li><li>请求方法选择 <b>GET（查询）</b></li><li>在地址栏粘贴下面的 URL</li><li>点击 <b>Send（发送）</b></li></ol><div className="endpoint-box"><code>https://restful-booker.herokuapp.com/booking/1</code></div><Paragraph><b>验收：</b>在下方 <b>Response（响应）</b>区域看到 <b>Status: 200 OK（状态码成功）</b>，Body 中包含 firstname、lastname 和 bookingdates。若 ID 1 不存在，先请求 <code>/booking</code> 列表并换一个 ID。</Paragraph><div className="postman-glossary"><Tag>Params 参数</Tag><Tag>Authorization 认证</Tag><Tag>Headers 请求头</Tag><Tag>Body 请求体</Tag><Tag>Tests 测试脚本</Tag><Tag>Save 保存</Tag></div></> },
-    { title: '首个 pytest 用例', body: <><Paragraph>在项目目录创建 <code>test_booking.py</code>，逐行输入并理解右侧说明：</Paragraph><BeginnerCode code={`import requests\n\nBASE_URL = "https://restful-booker.herokuapp.com"\n\ndef test_get_booking_list():\n    response = requests.get(f"{BASE_URL}/booking", timeout=10)\n    assert response.status_code == 200\n    bookings = response.json()\n    assert isinstance(bookings, list)\n    assert len(bookings) > 0\n    assert "bookingid" in bookings[0]`}/><Paragraph>执行 <code>pytest -v</code>。看到 <Tag color="green">1 passed</Tag> 即完成，并把结果与三个断言的含义写进学习笔记。</Paragraph></> },
+    { title: '配置 Postman', body: <><Paragraph><Tag color="orange">使用英文界面</Tag>Postman 官方目前没有简体中文，不需要安装第三方汉化包。按照下面的英文按钮操作即可：</Paragraph><ol className="postman-steps"><li>点击 <b>New（新建）</b></li><li>选择 <b>HTTP Request（HTTP 请求）</b></li><li>请求方法选择 <b>GET（查询）</b></li><li>在地址栏粘贴下面的自建接口 URL</li><li>点击 <b>Send（发送）</b></li></ol><div className="endpoint-box"><code>{SELF_HOSTED_BOOKER_BASE}/booking/1</code></div><Paragraph><b>验收：</b>在下方 <b>Response（响应）</b>区域看到 <b>Status: 200 OK（状态码成功）</b>，Body 中包含 firstname、lastname 和 bookingdates。若 ID 1 不存在，先请求 <code>/booking</code> 列表并换一个 ID。</Paragraph><div className="postman-glossary"><Tag>Params 参数</Tag><Tag>Authorization 认证</Tag><Tag>Headers 请求头</Tag><Tag>Body 请求体</Tag><Tag>Tests 测试脚本</Tag><Tag>Save 保存</Tag></div></> },
+    { title: '首个 pytest 用例', body: <><Paragraph>在项目目录创建 <code>test_booking.py</code>，逐行输入并理解右侧说明：</Paragraph><BeginnerCode code={`import requests\n\nBASE_URL = "${SELF_HOSTED_BOOKER_BASE}"\n\ndef test_get_booking_list():\n    response = requests.get(f"{BASE_URL}/booking", timeout=10)\n    assert response.status_code == 200\n    bookings = response.json()\n    assert isinstance(bookings, list)\n    assert len(bookings) > 0\n    assert "bookingid" in bookings[0]`}/><Paragraph>执行 <code>pytest -v</code>。看到 <Tag color="green">1 passed</Tag> 即完成，并把结果与三个断言的含义写进学习笔记。</Paragraph></> },
   ];
   const item = steps[step];
   return <Card className="guide-card" title="🧭 第 1 天执行引导" extra={<Text type="secondary">60–90 分钟</Text>}><div className="guide-steps">{steps.map((x,i)=><button key={x.title} className={i===step?'active':''} onClick={()=>setStep(i)}><span>{i+1}</span>{x.title}</button>)}</div><div className="guide-content"><Title level={4}>{step+1}. {item.title}</Title>{item.body}<Space><Button disabled={!step} onClick={()=>setStep(step-1)}>上一步</Button><Button type="primary" disabled={step===steps.length-1} onClick={()=>setStep(step+1)}>下一步</Button></Space></div></Card>;
@@ -157,7 +158,7 @@ New-Item api/booker_client.py, tests/conftest.py, tests/test_booking.py -ItemTyp
 
 
 class BookerClient:
-    def __init__(self, base_url="https://restful-booker.herokuapp.com", timeout=10, headers=None):
+    def __init__(self, base_url="http://111.229.178.141/booker", timeout=10, headers=None):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.session = requests.Session()
@@ -222,7 +223,7 @@ import requests
 
 
 def test_get_booking_list():
-    base_url = "https://restful-booker.herokuapp.com"
+    base_url = "http://111.229.178.141/booker"
     response = requests.get(
         f"{base_url}/booking",
         headers={"Accept": "application/json"},
@@ -242,7 +243,7 @@ def test_get_booking_list():
     {title:'完整代码逐行看',body:<><Paragraph>把下面完整内容放进 <code>api/booker_client.py</code>。右侧是每一行的中文解释，先照着写，再逐行对照。</Paragraph><BeginnerCode code={`import requests
 
 class BookerClient:
-    def __init__(self, base_url="https://restful-booker.herokuapp.com", timeout=10, headers=None):
+    def __init__(self, base_url="http://111.229.178.141/booker", timeout=10, headers=None):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.session = requests.Session()
