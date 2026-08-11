@@ -241,3 +241,30 @@ class ApiRecord(Base, TimestampMixin):
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
     tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     custom_fields: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class HotelRoom(Base, TimestampMixin):
+    """Persist rooms used by the Chinese hotel practice project."""
+
+    __tablename__ = "hotel_practice_rooms"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    room_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    price: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="可预订", nullable=False)
+
+
+class HotelBooking(Base, TimestampMixin):
+    """Persist bookings so the front desk and admin API can be tested end-to-end."""
+
+    __tablename__ = "hotel_practice_bookings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("hotel_practice_rooms.id"), nullable=False, index=True)
+    room_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    guest: Mapped[str] = mapped_column(String(120), nullable=False)
+    phone: Mapped[str] = mapped_column(String(40), nullable=False)
+    checkin: Mapped[date] = mapped_column(Date, nullable=False)
+    checkout: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="已确认", nullable=False)

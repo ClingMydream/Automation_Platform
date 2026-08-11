@@ -150,7 +150,7 @@ function ToolboxApp() {
         <div><Text>cling · 独立练习窗口</Text><Title level={3}>🏨 酒店练习项目</Title></div>
         <Button onClick={() => window.close()}>关闭此窗口</Button>
       </header>
-      <RestfulBookerPanel />
+      <RestfulBookerPanel client={client} />
     </main>;
   }
 

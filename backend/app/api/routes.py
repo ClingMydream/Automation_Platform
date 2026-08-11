@@ -13,6 +13,7 @@ from app.modules.learning.router import router as learning_router
 from app.modules.users.router import router as users_router
 from app.modules.test_packages.router import router as test_packages_router
 from app.modules.command_library.router import router as command_library_router
+from app.modules.hotel_practice.router import router as hotel_practice_router
 
 
 router = APIRouter()
@@ -30,5 +31,6 @@ for module_router in [
     integrations_router,
     learning_router,
     command_library_router,
+    hotel_practice_router,
 ]:
     router.include_router(module_router)
