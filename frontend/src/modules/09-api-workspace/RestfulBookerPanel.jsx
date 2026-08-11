@@ -9,18 +9,42 @@ const API = '/v1/hotel-practice';
 const BOOKER_BASE_URL = `${window.location.origin}/booker`;
 const API_DOCS = `${BOOKER_BASE_URL}/apidoc/index.html`;
 
+async function bookerRequest(path, options = {}) {
+  const response = await fetch(`${BOOKER_BASE_URL}${path}`, {
+    ...options,
+    headers: { Accept: 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.headers || {}) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.message || `自建 Restful Booker 返回 HTTP ${response.status}`);
+  return body;
+}
+
+function toBookingRow(bookingid, booking) {
+  return {
+    id: bookingid,
+    room: booking.additionalneeds?.match(/房间[：:](\S+)/)?.[1] || '练习预约',
+    guest: `${booking.firstname || ''} ${booking.lastname || ''}`.trim(),
+    phone: booking.additionalneeds?.match(/电话[：:]([^;；]+)/)?.[1] || '未填写',
+    checkin: booking.bookingdates?.checkin,
+    checkout: booking.bookingdates?.checkout,
+    status: booking.depositpaid ? '已确认' : '待确认',
+  };
+}
+
 export function RestfulBookerPanel({ client }) {
   const [rooms, setRooms] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [bookingRoom, setBookingRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [apiResponse, setApiResponse] = useState(null);
+  const [bookingToken, setBookingToken] = useState('');
   const [form] = Form.useForm();
 
   async function load() {
     setLoading(true);
     try {
-      const [roomRows, bookingRows] = await Promise.all([client.get(`${API}/rooms`), client.get(`${API}/bookings`)]);
+      const [roomRows, bookingIds] = await Promise.all([client.get(`${API}/rooms`), bookerRequest('/booking')]);
+      const bookingRows = await Promise.all(bookingIds.map(async ({ bookingid }) => toBookingRow(bookingid, await bookerRequest(`/booking/${bookingid}`))));
       setRooms(roomRows);
       setBookings(bookingRows);
     } catch (error) {
@@ -51,16 +75,21 @@ export function RestfulBookerPanel({ client }) {
   async function submitBooking() {
     const values = await form.validateFields();
     try {
-      await client.post(`${API}/bookings`, {
-        room_id: bookingRoom.id,
-        guest: values.guest,
-        phone: values.phone,
-        checkin: values.dates[0].format('YYYY-MM-DD'),
-        checkout: values.dates[1].format('YYYY-MM-DD'),
+      const [firstname, ...lastNameParts] = values.guest.trim().split(/\s+/);
+      await bookerRequest('/booking', {
+        method: 'POST',
+        body: JSON.stringify({
+          firstname,
+          lastname: lastNameParts.join(' ') || '测试',
+          totalprice: bookingRoom.price,
+          depositpaid: true,
+          bookingdates: { checkin: values.dates[0].format('YYYY-MM-DD'), checkout: values.dates[1].format('YYYY-MM-DD') },
+          additionalneeds: `房间：${bookingRoom.number}; 电话：${values.phone}`,
+        }),
       });
       setBookingRoom(null);
       form.resetFields();
-      message.success('预约成功：已发送 POST 请求，可在 Network 中查看');
+      message.success('预约成功：已写入自建 Restful Booker，可在 /booker/booking 查看');
       await load();
     } catch (error) {
       message.error(error.message);
@@ -69,8 +98,9 @@ export function RestfulBookerPanel({ client }) {
 
   async function removeBooking(id) {
     try {
-      await client.delete(`${API}/bookings/${id}`);
-      message.success('预约已取消：已发送 DELETE 请求');
+      if (!bookingToken.trim()) throw new Error('请先粘贴通过 POST /booker/auth 获取的 token');
+      await bookerRequest(`/booking/${id}`, { method: 'DELETE', headers: { Cookie: `token=${bookingToken.trim()}` } });
+      message.success('预约已取消：已从自建 Restful Booker 删除');
       await load();
     } catch (error) { message.error(error.message); }
   }
@@ -99,12 +129,14 @@ export function RestfulBookerPanel({ client }) {
   const admin = <div className="hotel-admin">
     <Alert type="success" showIcon title="中文管理后台" description="前台预约会通过接口保存；刷新页面后记录仍会保留。" />
     <Card title="预约记录" className="record-card" extra={<Button icon={<ReloadOutlined />} onClick={load}>刷新数据</Button>}>
+      <Alert type="info" showIcon message="这里的数据与 /booker/booking 完全相同" description="创建预约后会立即同步。若要取消预约，请先在 Postman 调用 POST /booker/auth，并把返回的 token 临时粘贴到下方；token 不会保存。" style={{ marginBottom: 16 }} />
+      <Input.Password value={bookingToken} onChange={event => setBookingToken(event.target.value)} placeholder="取消预约用的 token（仅当前页面临时使用）" style={{ maxWidth: 440, marginBottom: 16 }} />
       <Table loading={loading} rowKey="id" dataSource={bookings} locale={{ emptyText: '还没有预约，请先到“预约前台”创建一条记录' }} pagination={false} columns={[
         { title: '房间', dataIndex: 'room_number', render: (value) => `${value} 房间` },
         { title: '住客姓名', dataIndex: 'guest' }, { title: '联系电话', dataIndex: 'phone' },
         { title: '入住日期', dataIndex: 'checkin' }, { title: '离店日期', dataIndex: 'checkout' },
         { title: '状态', dataIndex: 'status', render: (value) => <Tag color="green">{value}</Tag> },
-        { title: '操作', render: (_, row) => <Button danger size="small" onClick={() => removeBooking(row.id)}>取消预约</Button> },
+        { title: '操作', render: (_, row) => <Button danger size="small" disabled={!bookingToken.trim()} onClick={() => removeBooking(row.id)}>取消预约</Button> },
       ]} />
     </Card>
     <Card title="房间管理" className="record-card">
