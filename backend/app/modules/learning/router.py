@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import or_, select
+from sqlalchemy import desc, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.auth import verify_admin
@@ -85,8 +85,10 @@ def overview(db: Session = Depends(get_db)):
     latest = db.scalar(select(LearningCheckin).order_by(LearningCheckin.checkin_date.desc()))
     shift = db.scalar(select(LearningScheduleShift).order_by(LearningScheduleShift.id.desc()))
     done = sum(t.status == "completed" for t in tasks)
-    today_tasks = [data(t) for t in tasks if t.planned_date == today]
+    today_tasks = []
     next_task = next((data(t) for t in tasks if t.status != "completed"), None)
+    if next_task:
+        today_tasks = [data(t) for t in tasks if t.day_number == next_task["day_number"]]
     return {"profile": data(db.scalar(select(LearningProfile))), "plan": data(plan), "today": today,
         "today_tasks": today_tasks, "next_task": next_task, "current_phase": next_task["phase"] if next_task else "已完成",
         "completed_tasks": done, "total_tasks": len(tasks), "progress": round(done / len(tasks) * 100, 1) if tasks else 0,
@@ -99,7 +101,9 @@ def list_tasks(day: date | None = None, phase: str | None = None, db: Session = 
     ensure_seed(db); plan = db.scalar(select(LearningPlan).where(LearningPlan.status == "active")); q = select(LearningTask).where(LearningTask.plan_id == plan.id)
     if day: q = q.where(LearningTask.planned_date == day)
     if phase: q = q.where(LearningTask.phase == phase)
-    return [data(x) for x in db.scalars(q.order_by(LearningTask.planned_date, LearningTask.sort_order)).all()]
+    tasks = db.scalars(q.order_by(desc(LearningTask.planned_date), desc(LearningTask.day_number), LearningTask.sort_order)).all()
+    checkins = {item.learning_day: item for item in db.scalars(select(LearningCheckin).where(LearningCheckin.learning_day.is_not(None))).all()}
+    return [{**data(task), "day_checkin": data(checkins[task.day_number]) if task.day_number in checkins else None} for task in tasks]
 
 
 @router.post("/tasks")
@@ -129,9 +133,20 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.put("/checkins/{checkin_date}")
 def save_checkin(checkin_date: date, payload: CheckinInput, db: Session = Depends(get_db)):
-    obj = db.scalar(select(LearningCheckin).where(LearningCheckin.checkin_date == checkin_date)) or LearningCheckin(checkin_date=checkin_date)
+    obj = (db.scalar(select(LearningCheckin).where(LearningCheckin.learning_day == payload.learning_day)) if payload.learning_day else None) or LearningCheckin(checkin_date=checkin_date)
     for key, value in payload.model_dump().items(): setattr(obj, key, value)
-    db.add(obj); db.commit(); db.refresh(obj); return data(obj)
+    db.add(obj)
+    if payload.learning_day:
+        plan = db.scalar(select(LearningPlan).where(LearningPlan.status == "active"))
+        task = db.scalar(select(LearningTask).where(LearningTask.plan_id == plan.id, LearningTask.day_number == payload.learning_day).order_by(LearningTask.sort_order.desc()))
+        title = f"Day {payload.learning_day} · 每日复盘"
+        content = f"# {title}\n\n- 打卡日期：{checkin_date}\n- 学习时长：{payload.actual_minutes} 分钟\n\n## 今日收获\n{payload.gains or '暂无'}\n\n## 遇到的问题\n{payload.blockers or '暂无'}\n\n## 明日重点\n{payload.tomorrow_focus or '暂无'}\n"
+        note = db.scalar(select(LearningNote).where(LearningNote.title == title, LearningNote.linked_task_id == (task.id if task else None), LearningNote.deleted_at.is_(None)))
+        if note:
+            note.content_markdown = content
+        else:
+            db.add(LearningNote(title=title, content_markdown=content, tags=["每日复盘", f"Day {payload.learning_day}"], linked_task_id=task.id if task else None))
+    db.commit(); db.refresh(obj); return data(obj)
 
 
 @router.get("/stats")

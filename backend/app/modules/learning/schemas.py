@@ -34,6 +34,7 @@ class TaskInput(BaseModel):
 
 
 class CheckinInput(BaseModel):
+    learning_day: int | None = Field(default=None, ge=1)
     actual_minutes: int = Field(default=0, ge=0, le=1440)
     gains: str = ""
     blockers: str = ""

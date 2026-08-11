@@ -151,10 +151,9 @@ class LearningCheckin(Base, TimestampMixin):
     """Store one daily study check-in and reflection."""
 
     __tablename__ = "learning_checkins"
-    __table_args__ = (UniqueConstraint("checkin_date", name="uq_learning_checkin_date"),)
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     checkin_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    learning_day: Mapped[int | None] = mapped_column(Integer, index=True)
     actual_minutes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     gains: Mapped[str] = mapped_column(Text, default="", nullable=False)
     blockers: Mapped[str] = mapped_column(Text, default="", nullable=False)

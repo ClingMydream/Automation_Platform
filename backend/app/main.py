@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
+from sqlalchemy import inspect, text
+
 from app.db import Base, engine
 from app.models import entities  # noqa: F401
 
@@ -74,6 +76,15 @@ def on_startup() -> None:
     """Create database tables and ensure the default administrator account exists."""
     # SQLAlchemy creates missing tables at startup so a fresh Docker database can boot automatically.
     Base.metadata.create_all(bind=engine)
+    columns = {column["name"] for column in inspect(engine).get_columns("learning_checkins")}
+    if "learning_day" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE learning_checkins ADD COLUMN learning_day INTEGER"))
+    if engine.dialect.name == "mysql":
+        indexes = {index["name"] for index in inspect(engine).get_indexes("learning_checkins")}
+        if "uq_learning_checkin_date" in indexes:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE learning_checkins DROP INDEX uq_learning_checkin_date"))
 
 
 # All feature routers are grouped under /api for a clean Nginx reverse-proxy rule.

@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.db import Base
 from app.models.entities import LearningCheckin, LearningNote, LearningPlan, LearningProfile, LearningTask
-from app.modules.learning.router import delete_plan
+from app.modules.learning.router import delete_plan, list_tasks, overview, save_checkin
+from app.modules.learning.schemas import CheckinInput
 from app.modules.learning.importer import import_zip
 from app.modules.learning.service import TOPICS, ensure_seed, stats
 
@@ -46,6 +47,24 @@ def test_zero_minute_checkin_still_appears_on_calendar(db):
     assert result["checkin_days"]==1
     assert result["days"]["2026-07-23"]["checked_in"] is True
     assert result["days"]["2026-07-23"]["minutes"]==0
+
+
+def test_next_learning_day_and_review_note_are_linked(db):
+    ensure_seed(db)
+    day_one = db.scalars(select(LearningTask).where(LearningTask.day_number == 1)).all()
+    for task in day_one:
+        task.status = "completed"
+    db.commit()
+
+    current = overview(db)
+    assert current["next_task"]["day_number"] == 2
+    assert {task["day_number"] for task in current["today_tasks"]} == {2}
+
+    save_checkin(date(2026, 7, 22), CheckinInput(learning_day=1, actual_minutes=180, gains="完成预约", blockers="暂无", tomorrow_focus="学习接口"), db)
+    note = db.scalar(select(LearningNote).where(LearningNote.title == "Day 1 · 每日复盘"))
+    assert note is not None and "完成预约" in note.content_markdown
+    tasks = list_tasks(db=db)
+    assert any(task["day_number"] == 1 and task["day_checkin"]["actual_minutes"] == 180 for task in tasks)
 
 
 def test_delete_archived_plan_preserves_notes_and_checkins(db):
