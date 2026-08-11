@@ -43,6 +43,7 @@ import './styles/app.css';
 
 const { Header, Sider, Content } = Layout;
 const { Text, Title } = Typography;
+const HOTEL_PROJECT_PATH = '/hotel-project';
 
 const MENU_SECTIONS = [
   {
@@ -89,6 +90,7 @@ function menuForUser(user) {
 
 function ToolboxApp() {
   const params = new URLSearchParams(window.location.search);
+  const isHotelProject = window.location.pathname === HOTEL_PROJECT_PATH;
   const transferToken = params.get('transferToken');
   const testPackage = params.get('testPackage');
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -142,6 +144,15 @@ function ToolboxApp() {
   if (transferToken) return <PublicTransferPage token={transferToken} />;
   if (testPackage === 'latest') return <PublicPackageDownload />;
   if (!token) return <Login notice={loginNotice} onLogin={(value) => { setLoginNotice(''); setToken(value); }} />;
+  if (isHotelProject && user?.is_admin) {
+    return <main className="hotel-project-window">
+      <header className="hotel-project-window__header">
+        <div><Text>cling · 独立练习窗口</Text><Title level={3}>🏨 酒店练习项目</Title></div>
+        <Button onClick={() => window.close()}>关闭此窗口</Button>
+      </header>
+      <RestfulBookerPanel />
+    </main>;
+  }
 
   const menuItems = menuForUser(user);
   const activeItem = ALL_ITEMS.find((item) => item.key === tab) || ALL_ITEMS[0];
@@ -166,7 +177,13 @@ function ToolboxApp() {
           <div className="brand-symbol cute-brand">✦</div>
           {!collapsed && <div><strong>cling</strong><span>cling 的私人空间</span></div>}
         </div>
-        <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => setTab(key)} />
+        <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => {
+          if (key === 'restful_booker') {
+            window.open(HOTEL_PROJECT_PATH, 'cling-hotel-practice', 'noopener,noreferrer');
+            return;
+          }
+          setTab(key);
+        }} />
         <div className="sider-footer">
           <div className="sider-status"><i />{!collapsed && <span>服务运行正常</span>}</div>
         </div>
@@ -202,7 +219,6 @@ function ToolboxApp() {
             {tab === 'codec' && <CodecPanel />}
             {tab === 'learning' && user?.is_admin && <LearningPanel client={client} />}
             {tab === 'command_library' && user?.is_admin && <CommandLibraryPanel client={client} />}
-            {tab === 'restful_booker' && user?.is_admin && <RestfulBookerPanel />}
             {tab === 'api_workspace' && user?.is_admin && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}

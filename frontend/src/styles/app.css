@@ -373,3 +373,26 @@ button, input, textarea, select { font: inherit; }
   .result-card .ant-card-head-wrapper { flex-wrap: wrap; }
   .permission-checks { grid-template-columns: 1fr; }
 }
+.hotel-project-window {
+  min-height: 100vh;
+  padding: 24px clamp(16px, 4vw, 56px) 48px;
+  background: #f6f7f9;
+}
+
+.hotel-project-window__header {
+  max-width: 1240px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hotel-project-window__header h3 {
+  margin: 2px 0 0;
+}
+
+.hotel-project-window .api-workspace {
+  max-width: 1240px;
+  margin: 0 auto;
+}
