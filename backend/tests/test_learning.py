@@ -7,7 +7,8 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.db import Base
-from app.models.entities import LearningCheckin, LearningPlan, LearningProfile, LearningTask
+from app.models.entities import LearningCheckin, LearningNote, LearningPlan, LearningProfile, LearningTask
+from app.modules.learning.router import delete_plan
 from app.modules.learning.importer import import_zip
 from app.modules.learning.service import TOPICS, ensure_seed, stats
 
@@ -45,6 +46,24 @@ def test_zero_minute_checkin_still_appears_on_calendar(db):
     assert result["checkin_days"]==1
     assert result["days"]["2026-07-23"]["checked_in"] is True
     assert result["days"]["2026-07-23"]["minutes"]==0
+
+
+def test_delete_archived_plan_preserves_notes_and_checkins(db):
+    ensure_seed(db)
+    plan = db.scalar(select(LearningPlan))
+    task = db.scalar(select(LearningTask).where(LearningTask.plan_id == plan.id))
+    plan.status = "archived"
+    note = LearningNote(title="历史笔记", content_markdown="复习内容", tags=[], linked_task_id=task.id)
+    db.add_all([note, LearningCheckin(checkin_date=date(2026, 7, 24), actual_minutes=60)])
+    db.commit()
+
+    result = delete_plan(plan.id, db)
+
+    assert result["ok"] is True
+    assert db.get(LearningPlan, plan.id) is None
+    assert db.query(LearningTask).count() == 0
+    assert db.query(LearningCheckin).count() == 1
+    assert db.get(LearningNote, note.id).linked_task_id is None
 
 
 def test_import_rejects_path_traversal(db,tmp_path):

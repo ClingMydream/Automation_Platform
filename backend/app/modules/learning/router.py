@@ -45,6 +45,31 @@ def list_plans(db: Session = Depends(get_db)):
     return [data(item) for item in db.scalars(select(LearningPlan).order_by(LearningPlan.id.desc())).all()]
 
 
+@router.delete("/plans/{plan_id}")
+def delete_plan(plan_id: int, db: Session = Depends(get_db)):
+    plan = db.get(LearningPlan, plan_id)
+    if not plan:
+        raise HTTPException(404, "学习计划不存在")
+    if plan.status == "active":
+        raise HTTPException(400, "当前学习计划不能删除，请先重新开始并将它归档")
+
+    tasks = db.scalars(select(LearningTask).where(LearningTask.plan_id == plan_id)).all()
+    task_ids = [task.id for task in tasks]
+    if task_ids:
+        notes = db.scalars(select(LearningNote).where(LearningNote.linked_task_id.in_(task_ids))).all()
+        for note in notes:
+            note.linked_task_id = None
+        for task in tasks:
+            db.delete(task)
+
+    shifts = db.scalars(select(LearningScheduleShift).where(LearningScheduleShift.plan_id == plan_id)).all()
+    for shift in shifts:
+        db.delete(shift)
+    db.delete(plan)
+    db.commit()
+    return {"ok": True, "deleted_plan_id": plan_id, "message": "历史学习计划已删除，学习笔记和打卡记录已保留"}
+
+
 @router.post("/restart")
 def restart(payload: RestartLearningInput, db: Session = Depends(get_db)):
     if not payload.confirm:
