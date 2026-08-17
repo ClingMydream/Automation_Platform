@@ -34,6 +34,7 @@ import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
 import { TestPackagePanel } from './modules/11-test-packages/TestPackagePanel.jsx';
 import { PublicPackageDownload } from './modules/11-test-packages/PublicPackageDownload.jsx';
 import { CommandLibraryPanel } from './modules/12-command-library/CommandLibraryPanel.jsx';
+import { EffectStudio, PublicEffectPage, HAPPY_ZHAO_PATH } from './modules/13-effects/EffectStudio.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -54,6 +55,7 @@ const MENU_SECTIONS = [
       { key: 'command_library', label: '命令手册', icon: <CuteIcon emoji="⌨️" tone="blue" />, adminOnly: true },
       { key: 'restful_booker', label: '酒店练习项目', icon: <CuteIcon emoji="🏨" tone="peach" />, adminOnly: true },
       { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" />, adminOnly: true },
+      { key: 'effects', label: '临时效果', icon: <CuteIcon emoji="🎀" tone="rose" />, adminOnly: true },
     ],
   },
   {
@@ -91,6 +93,7 @@ function menuForUser(user) {
 function ToolboxApp() {
   const params = new URLSearchParams(window.location.search);
   const isHotelProject = window.location.pathname === HOTEL_PROJECT_PATH;
+  const isPublicEffect = window.location.pathname === HAPPY_ZHAO_PATH;
   const transferToken = params.get('transferToken');
   const testPackage = params.get('testPackage');
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -141,6 +144,7 @@ function ToolboxApp() {
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
   }, []);
 
+  if (isPublicEffect) return <PublicEffectPage />;
   if (transferToken) return <PublicTransferPage token={transferToken} />;
   if (testPackage === 'latest') return <PublicPackageDownload />;
   if (!token) return <Login notice={loginNotice} onLogin={(value) => { setLoginNotice(''); setToken(value); }} />;
@@ -219,6 +223,7 @@ function ToolboxApp() {
             {tab === 'codec' && <CodecPanel />}
             {tab === 'learning' && user?.is_admin && <LearningPanel client={client} />}
             {tab === 'command_library' && user?.is_admin && <CommandLibraryPanel client={client} />}
+            {tab === 'effects' && user?.is_admin && <EffectStudio />}
             {tab === 'api_workspace' && user?.is_admin && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
