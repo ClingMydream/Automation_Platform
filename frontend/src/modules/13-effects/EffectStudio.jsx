@@ -67,13 +67,21 @@ function RoseBouquetCanvas() {
     let bouquetMetrics = null;
     let animationFrame;
     let startedAt = performance.now();
+    let lastFrameAt = startedAt;
+    let autoRotation = 0;
+    let manualRotation = 0;
+    let angularVelocity = 0;
+    let dragging = false;
+    let activePointerId = null;
+    let lastPointerX = 0;
+    let lastPointerAt = 0;
     const bouquet = new Image();
     bouquet.src = '/effects/particle-rose-bouquet-v3-thick-stems.png';
     const buildFromBouquet = () => {
       if (!bouquet.complete || !bouquet.naturalWidth) return;
       const source = document.createElement('canvas');
       const sourceContext = source.getContext('2d', { willReadFrequently: true });
-      const maxWidth = Math.min(canvas.width * .72, 1400);
+      const maxWidth = Math.min(canvas.width * (window.innerWidth <= 650 ? .86 : .72), 1400);
       const maxHeight = Math.min(canvas.height * .86, 1000);
       const ratio = Math.min(maxWidth / bouquet.naturalWidth, maxHeight / bouquet.naturalHeight);
       source.width = Math.max(1, Math.round(bouquet.naturalWidth * ratio));
@@ -118,6 +126,9 @@ function RoseBouquetCanvas() {
         };
       });
       startedAt = performance.now();
+      lastFrameAt = startedAt;
+      autoRotation = 0;
+      angularVelocity = 0;
     };
     const resize = () => {
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -130,21 +141,65 @@ function RoseBouquetCanvas() {
     resize();
     bouquet.addEventListener('load', buildFromBouquet);
     window.addEventListener('resize', resize);
+    const beginDrag = (event) => {
+      dragging = true;
+      activePointerId = event.pointerId;
+      lastPointerX = event.clientX;
+      lastPointerAt = performance.now();
+      angularVelocity = 0;
+      canvas.classList.add('is-dragging');
+      canvas.setPointerCapture?.(event.pointerId);
+    };
+    const dragBouquet = (event) => {
+      if (!dragging || event.pointerId !== activePointerId) return;
+      const now = performance.now();
+      const distance = event.clientX - lastPointerX;
+      const elapsed = Math.max(8, now - lastPointerAt);
+      const rotationChange = distance * .0085;
+      manualRotation += rotationChange;
+      angularVelocity = rotationChange / elapsed;
+      lastPointerX = event.clientX;
+      lastPointerAt = now;
+    };
+    const endDrag = (event) => {
+      if (!dragging || event.pointerId !== activePointerId) return;
+      dragging = false;
+      canvas.classList.remove('is-dragging');
+      if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      activePointerId = null;
+    };
+    const rotateWithKeyboard = (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      manualRotation += event.key === 'ArrowLeft' ? -.24 : .24;
+      angularVelocity = event.key === 'ArrowLeft' ? -.004 : .004;
+    };
+    canvas.addEventListener('pointerdown', beginDrag);
+    canvas.addEventListener('pointermove', dragBouquet);
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('keydown', rotateWithKeyboard);
     const draw = (time) => {
       context.fillStyle = 'rgba(7, 8, 12, .22)';
       context.fillRect(0, 0, canvas.width, canvas.height);
       const progress = Math.min(1, (time - startedAt) / 3600);
       const pull = .012 + progress * .062;
       const breathe = 1 + Math.sin(time / 850) * .012;
-      const rotation = Math.max(0, time - startedAt - 3200) / 12000 * Math.PI * 2;
+      const frameDuration = Math.min(40, Math.max(0, time - lastFrameAt));
+      lastFrameAt = time;
+      if (time - startedAt > 3200 && !dragging) autoRotation += frameDuration / 12000 * Math.PI * 2;
+      if (!dragging) {
+        manualRotation += angularVelocity * frameDuration;
+        angularVelocity *= Math.pow(.91, frameDuration / 16.67);
+      }
+      const rotation = autoRotation + manualRotation;
       const cosine = Math.cos(rotation);
       const sine = Math.sin(rotation);
       if (bouquetMetrics && progress > .72) {
         context.save();
         context.globalCompositeOperation = 'screen';
-        context.globalAlpha = Math.pow(Math.abs(cosine), 7) * .34 * progress;
-        context.translate(canvas.width / 2, 0);
-        context.scale(cosine, 1);
+        context.globalAlpha = (.12 + Math.pow(Math.abs(cosine), 7) * .2) * progress;
+        context.translate(canvas.width / 2 + sine * bouquetMetrics.width * .012, 0);
         context.drawImage(bouquet, -bouquetMetrics.width / 2, bouquetMetrics.top, bouquetMetrics.width, bouquetMetrics.height);
         context.restore();
       }
@@ -153,11 +208,12 @@ function RoseBouquetCanvas() {
         const centerY = canvas.height / 2;
         const localX = (particle.tx - centerX) * breathe;
         const localY = (particle.ty - centerY) * breathe;
-        const rotatedX = localX * cosine - particle.tz * sine;
-        const rotatedZ = localX * sine + particle.tz * cosine;
+        // 保持正面轮廓不被压扁，只让粒子深度产生视差和光影变化。
+        const rotatedX = localX - particle.tz * sine * .31;
+        const rotatedZ = particle.tz * cosine + localX * sine * .18;
         const perspective = 1800 / (1800 + rotatedZ);
         const targetX = centerX + rotatedX * perspective + Math.sin(time / 1100 + particle.seed) * 1.2;
-        const targetY = centerY + localY * perspective + Math.cos(time / 1250 + particle.seed) * 1.1;
+        const targetY = centerY + (localY + particle.tz * sine * .018) * perspective + Math.cos(time / 1250 + particle.seed) * 1.1;
         particle.vx = (particle.vx + (targetX - particle.x) * pull) * .82;
         particle.vy = (particle.vy + (targetY - particle.y) * pull) * .82;
         particle.x += particle.vx;
@@ -175,9 +231,14 @@ function RoseBouquetCanvas() {
       cancelAnimationFrame(animationFrame);
       bouquet.removeEventListener('load', buildFromBouquet);
       window.removeEventListener('resize', resize);
+      canvas.removeEventListener('pointerdown', beginDrag);
+      canvas.removeEventListener('pointermove', dragBouquet);
+      canvas.removeEventListener('pointerup', endDrag);
+      canvas.removeEventListener('pointercancel', endDrag);
+      canvas.removeEventListener('keydown', rotateWithKeyboard);
     };
   }, []);
-  return <canvas ref={canvasRef} className="bouquet-canvas" aria-label="粉白粒子玫瑰花束动画" />;
+  return <canvas ref={canvasRef} className="bouquet-canvas gesture-rose-canvas" role="img" tabIndex={0} aria-label="可左右滑动旋转的粉白粒子玫瑰花束" />;
 }
 
 const ROSE_TONES = {
@@ -513,7 +574,8 @@ function CodeRoseBouquetCanvas() {
 export function PublicEffectPage() {
   return <main className="particle-effect code-rose-effect">
     <div className="rose-aurora" aria-hidden="true" />
-    <CodeRoseBouquetCanvas />
+    <RoseBouquetCanvas />
+    <div className="rose-gesture-hint" aria-hidden="true"><span>↔</span> 左右滑动旋转</div>
     <div className="particle-message"><i /><strong>小赵天天开心</strong><i /></div>
   </main>;
 }
@@ -523,6 +585,6 @@ export function EffectStudio() {
   const copy = async () => { await navigator.clipboard.writeText(url); message.success('公开链接已复制'); };
   return <div className="effect-studio">
     <section className="effect-studio__hero"><div><span>临时创作 · 仅链接可见</span><Title level={2}>🎀 临时效果</Title><Paragraph>生成可独立分享的效果页面，访问者不会看到私人空间和其他内容。</Paragraph></div><div>✨</div></section>
-    <Card title="已生成效果" className="effect-studio__card"><div className="effect-row"><div><b>代码粒子玫瑰 · 小赵天天开心</b><p>纯 Canvas 参数曲面生成，支持粒子聚合、三维旋转、景深呼吸和移动端适配，不再加载视频</p><code>{url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={copy}>复制链接</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => window.open(HAPPY_ZHAO_PATH, '_blank', 'noopener,noreferrer')}>预览效果</Button></Space></div></Card>
+    <Card title="已生成效果" className="effect-studio__card"><div className="effect-row"><div><b>可交互粒子玫瑰 · 小赵天天开心</b><p>约 28000 粒子、12 秒 360° 自动旋转；每个角度保持正面饱满轮廓，支持手指滑动、鼠标拖动和惯性</p><code>{url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={copy}>复制链接</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => window.open(HAPPY_ZHAO_PATH, '_blank', 'noopener,noreferrer')}>预览效果</Button></Space></div></Card>
   </div>;
 }
