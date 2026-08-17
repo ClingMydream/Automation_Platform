@@ -181,11 +181,13 @@ function RoseBouquetCanvas() {
 }
 
 export function PublicEffectPage() {
-  return <main className="particle-effect">
-    <div className="code-wall" aria-hidden="true"><span>def rose_particles(target, scale):</span><br />&nbsp;&nbsp;petals = create_roses(count=9)<br />&nbsp;&nbsp;bouquet.gather(petals)<br /><br />while running:<br />&nbsp;&nbsp;update_particles()<br />&nbsp;&nbsp;render_trails()</div>
-    <div className="wireframe" aria-hidden="true"><i /><i /><i /><i /></div>
-    <RoseBouquetCanvas />
-    <div className="particle-message" aria-label="小赵天天开心"><i /><strong>小赵天天开心</strong><i /></div>
+  return <main className="video-effect-page">
+    <section className="video-effect-stage" aria-label="粒子玫瑰视频效果">
+      <video className="rose-effect-video" autoPlay loop muted playsInline preload="auto">
+        <source src="/effects/rose-video-4x3-clean.mp4" type="video/mp4" />
+      </video>
+      <div className="video-effect-message"><i /><strong>小赵天天开心</strong><i /></div>
+    </section>
   </main>;
 }
 
@@ -194,6 +196,6 @@ export function EffectStudio() {
   const copy = async () => { await navigator.clipboard.writeText(url); message.success('公开链接已复制'); };
   return <div className="effect-studio">
     <section className="effect-studio__hero"><div><span>临时创作 · 仅链接可见</span><Title level={2}>🎀 临时效果</Title><Paragraph>生成可独立分享的效果页面，访问者不会看到私人空间和其他内容。</Paragraph></div><div>✨</div></section>
-    <Card title="已生成效果" className="effect-studio__card"><div className="effect-row"><div><b>粒子玫瑰 · 小赵天天开心</b><p>粗花把玫瑰花束粒子汇聚与呼吸动画</p><code>{url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={copy}>复制链接</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => window.open(HAPPY_ZHAO_PATH, '_blank', 'noopener,noreferrer')}>预览效果</Button></Space></div></Card>
+    <Card title="已生成效果" className="effect-studio__card"><div className="effect-row"><div><b>原视频玫瑰 · 小赵天天开心</b><p>完整保留原视频动作、运镜、特效、光影和色调，4:3 循环播放</p><code>{url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={copy}>复制链接</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => window.open(HAPPY_ZHAO_PATH, '_blank', 'noopener,noreferrer')}>预览效果</Button></Space></div></Card>
   </div>;
 }
