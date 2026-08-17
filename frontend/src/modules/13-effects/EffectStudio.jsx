@@ -7,7 +7,7 @@ const { Paragraph, Title } = Typography;
 export const HAPPY_ZHAO_PATH = '/effect/xiaozhao-happy';
 
 export function PublicEffectPage() {
-  return <main className="happy-effect"><div className="happy-effect__glow" /><div className="happy-effect__hearts">♡ ✦ ♡ ✦ ♡</div><section className="happy-effect__card"><span>✨ 专属小心意 ✨</span><h1>小赵天天开心</h1><p>愿每一天都有小惊喜，<br />也有被好好对待的温柔。</p><div className="happy-effect__icons">🌷 💛 🐣</div></section></main>;
+  return <main className="particle-effect"><div className="code-wall">def make_love():<br />&nbsp;&nbsp;particles = create_heart(5000)<br />&nbsp;&nbsp;return happiness_forever</div><div className="wireframe" /><div className="particle-heart">{Array.from({ length: 86 }, (_, index) => <i key={index} style={{ '--i': index }} />)}<div className="particle-message">小赵<br /><strong>天天开心</strong></div></div></main>;
 }
 
 export function EffectStudio() {
