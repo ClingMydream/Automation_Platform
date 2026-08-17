@@ -80,8 +80,8 @@ function RoseBouquetCanvas() {
       sourceContext.drawImage(bouquet, 0, 0, source.width, source.height);
       const pixels = sourceContext.getImageData(0, 0, source.width, source.height).data;
       const candidates = [];
-      for (let y = 0; y < source.height; y += 4) {
-        for (let x = 0; x < source.width; x += 4) {
+      for (let y = 0; y < source.height; y += 2) {
+        for (let x = 0; x < source.width; x += 2) {
           const offset = (y * source.width + x) * 4;
           const red = pixels[offset];
           const green = pixels[offset + 1];
@@ -95,15 +95,16 @@ function RoseBouquetCanvas() {
       }
       const left = (canvas.width - source.width) / 2;
       const top = (canvas.height - source.height) / 2 - canvas.height * .015;
-      particles = candidates.slice(0, 7200).map(([x, y, red, green, blue]) => ({
+      particles = candidates.slice(0, 16000).map(([x, y, red, green, blue]) => ({
         tx: left + x,
         ty: top + y,
+        tz: (Math.random() - .5) * Math.min(210, source.width * .18),
         x: Math.random() > .5 ? -80 : canvas.width + 80,
         y: Math.random() * canvas.height,
         vx: 0,
         vy: 0,
         color: `rgb(${red},${green},${blue})`,
-        size: .75 + Math.random() * 1.65,
+        size: .45 + Math.random() * .85,
         depth: .62 + Math.random() * .55,
         seed: Math.random() * Math.PI * 2,
       }));
@@ -121,25 +122,32 @@ function RoseBouquetCanvas() {
     bouquet.addEventListener('load', buildFromBouquet);
     window.addEventListener('resize', resize);
     const draw = (time) => {
-      context.fillStyle = 'rgba(7, 8, 12, .17)';
+      context.fillStyle = 'rgba(7, 8, 12, .22)';
       context.fillRect(0, 0, canvas.width, canvas.height);
       const progress = Math.min(1, (time - startedAt) / 3600);
       const pull = .012 + progress * .062;
-      const breathe = 1 + Math.sin(time / 850) * .018;
+      const breathe = 1 + Math.sin(time / 850) * .012;
+      const rotation = Math.max(0, time - startedAt - 3200) / 12000 * Math.PI * 2;
+      const cosine = Math.cos(rotation);
+      const sine = Math.sin(rotation);
       particles.forEach((particle) => {
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
-        const targetX = centerX + (particle.tx - centerX) * breathe + Math.sin(time / 1100 + particle.seed) * 2.2;
-        const targetY = centerY + (particle.ty - centerY) * breathe + Math.cos(time / 1250 + particle.seed) * 1.8;
+        const localX = (particle.tx - centerX) * breathe;
+        const localY = (particle.ty - centerY) * breathe;
+        const rotatedX = localX * cosine - particle.tz * sine;
+        const rotatedZ = localX * sine + particle.tz * cosine;
+        const perspective = 1800 / (1800 + rotatedZ);
+        const targetX = centerX + rotatedX * perspective + Math.sin(time / 1100 + particle.seed) * 1.2;
+        const targetY = centerY + localY * perspective + Math.cos(time / 1250 + particle.seed) * 1.1;
         particle.vx = (particle.vx + (targetX - particle.x) * pull) * .82;
         particle.vy = (particle.vy + (targetY - particle.y) * pull) * .82;
         particle.x += particle.vx;
         particle.y += particle.vy;
-        context.globalAlpha = .35 + particle.depth * .5;
+        context.globalAlpha = .42 + particle.depth * .42;
         context.fillStyle = particle.color;
-        context.beginPath();
-        context.arc(particle.x, particle.y, particle.size * particle.depth, 0, Math.PI * 2);
-        context.fill();
+        const pointSize = Math.max(.6, particle.size * particle.depth * perspective);
+        context.fillRect(particle.x, particle.y, pointSize, pointSize);
       });
       context.globalAlpha = 1;
       animationFrame = requestAnimationFrame(draw);
