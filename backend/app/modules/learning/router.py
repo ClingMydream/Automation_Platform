@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from math import ceil
 from pathlib import Path
 from uuid import uuid4
 
@@ -11,7 +12,7 @@ from app.core.auth import verify_admin
 from app.core.config import get_settings
 from app.db import get_db
 from app.models.entities import (LearningAttachment, LearningCheckin, LearningNote, LearningNoteFolder,
-    LearningPlan, LearningProfile, LearningScheduleShift, LearningTask)
+    LearningPlan, LearningProfile, LearningScheduleShift, LearningStudyTimer, LearningTask)
 from app.modules.learning.schemas import CheckinInput, FolderInput, NoteInput, ProfileUpdate, RestartLearningInput, TaskInput
 from app.modules.learning.service import ensure_seed, local_today, reconcile, restart_learning, stats
 from app.modules.learning.importer import import_zip
@@ -21,6 +22,31 @@ router = APIRouter(prefix="/v1/learning", tags=["learning"], dependencies=[Depen
 
 def data(obj):
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+
+
+def timer_data(timer: LearningStudyTimer):
+    elapsed = timer.accumulated_seconds
+    if timer.status == "running" and timer.started_at:
+        elapsed += max(0, int((datetime.utcnow() - timer.started_at).total_seconds()))
+    return {**data(timer), "elapsed_seconds": elapsed}
+
+
+def active_timer(db: Session, learning_day: int, create: bool = False):
+    plan = db.scalar(select(LearningPlan).where(LearningPlan.status == "active"))
+    timer = db.scalar(select(LearningStudyTimer).where(
+        LearningStudyTimer.plan_id == plan.id,
+        LearningStudyTimer.learning_day == learning_day,
+    ))
+    if not timer and create:
+        timer = LearningStudyTimer(plan_id=plan.id, learning_day=learning_day, status="running", started_at=datetime.utcnow())
+        db.add(timer); db.commit(); db.refresh(timer)
+    return timer
+
+
+def pause_timer_record(timer: LearningStudyTimer):
+    if timer.status == "running" and timer.started_at:
+        timer.accumulated_seconds += max(0, int((datetime.utcnow() - timer.started_at).total_seconds()))
+    timer.started_at = None
 
 
 @router.get("/profile")
@@ -149,6 +175,39 @@ def save_checkin(checkin_date: date, payload: CheckinInput, db: Session = Depend
     db.commit(); db.refresh(obj); return data(obj)
 
 
+@router.get("/timer/{learning_day}")
+def get_study_timer(learning_day: int, db: Session = Depends(get_db)):
+    ensure_seed(db)
+    timer = active_timer(db, learning_day)
+    return timer_data(timer) if timer else {"learning_day": learning_day, "status": "not_started", "elapsed_seconds": 0}
+
+
+@router.post("/timer/{learning_day}/start")
+def start_study_timer(learning_day: int, automatic: bool = False, db: Session = Depends(get_db)):
+    ensure_seed(db)
+    timer = active_timer(db, learning_day, create=True)
+    if timer.status != "running" and not automatic:
+        timer.status = "running"; timer.started_at = datetime.utcnow(); timer.ended_at = None
+        db.commit(); db.refresh(timer)
+    return timer_data(timer)
+
+
+@router.post("/timer/{learning_day}/pause")
+def pause_study_timer(learning_day: int, db: Session = Depends(get_db)):
+    timer = active_timer(db, learning_day)
+    if not timer: raise HTTPException(404, "当天计时尚未开始")
+    pause_timer_record(timer); timer.status = "paused"
+    db.commit(); db.refresh(timer); return timer_data(timer)
+
+
+@router.post("/timer/{learning_day}/stop")
+def stop_study_timer(learning_day: int, db: Session = Depends(get_db)):
+    timer = active_timer(db, learning_day)
+    if not timer: raise HTTPException(404, "当天计时尚未开始")
+    pause_timer_record(timer); timer.status = "stopped"; timer.ended_at = datetime.utcnow()
+    db.commit(); db.refresh(timer); return timer_data(timer)
+
+
 @router.post("/days/{learning_day}/complete")
 def complete_learning_day(learning_day: int, payload: CheckinInput, db: Session = Depends(get_db)):
     """Complete every task for one learning day and persist its review in one action."""
@@ -166,12 +225,19 @@ def complete_learning_day(learning_day: int, payload: CheckinInput, db: Session 
         task.status = "completed"
         task.completed_at = task.completed_at or completed_at
 
-    checkin_payload = payload.model_copy(update={"learning_day": learning_day})
+    timer = active_timer(db, learning_day)
+    elapsed_seconds = 0
+    if timer:
+        pause_timer_record(timer); timer.status = "stopped"; timer.ended_at = datetime.utcnow()
+        elapsed_seconds = timer.accumulated_seconds
+    actual_minutes = max(payload.actual_minutes, ceil(elapsed_seconds / 60))
+    checkin_payload = payload.model_copy(update={"learning_day": learning_day, "actual_minutes": actual_minutes})
     checkin = save_checkin(local_today(), checkin_payload, db)
     return {
         "ok": True,
         "learning_day": learning_day,
         "completed_tasks": len(tasks),
+        "elapsed_seconds": elapsed_seconds,
         "checkin": checkin,
         "message": f"Day {learning_day} 学习内容和每日复盘已提交",
     }

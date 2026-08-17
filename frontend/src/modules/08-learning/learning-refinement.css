@@ -59,3 +59,7 @@
 }
 @media (max-width: 560px) { .guide-steps { grid-template-columns: 1fr; } .guide-content { padding: 13px; } }
 @media (max-width: 760px) { .plan-task{flex-wrap:wrap}.plan-task span{min-width:60%}.learning-heading{align-items:flex-start;flex-direction:column} }
+.study-timer-card { margin-bottom: 16px; text-align: center; }
+.study-timer-value { font-size: 38px; font-weight: 800; letter-spacing: 3px; color: #4338ca; font-variant-numeric: tabular-nums; }
+.study-timer-actions { display: flex; justify-content: center; margin: 18px 0 12px; }
+.study-timer-actions .ant-btn { min-width: 78px; }

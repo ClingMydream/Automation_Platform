@@ -7,8 +7,8 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.db import Base
-from app.models.entities import LearningCheckin, LearningNote, LearningPlan, LearningProfile, LearningTask
-from app.modules.learning.router import complete_learning_day, delete_plan, list_tasks, overview, save_checkin
+from app.models.entities import LearningCheckin, LearningNote, LearningPlan, LearningProfile, LearningStudyTimer, LearningTask
+from app.modules.learning.router import complete_learning_day, delete_plan, list_tasks, overview, pause_study_timer, save_checkin, start_study_timer
 from app.modules.learning.schemas import CheckinInput
 from app.modules.learning.importer import import_zip
 from app.modules.learning.service import TOPICS, ensure_seed, stats
@@ -78,6 +78,23 @@ def test_complete_learning_day_submits_tasks_checkin_and_note(db):
     assert all(task.status == "completed" for task in day_tasks)
     assert checkin.actual_minutes == 90
     assert "学会查询接口" in note.content_markdown
+
+
+def test_study_timer_persists_and_completion_stops_it(db):
+    ensure_seed(db)
+    started = start_study_timer(1, db=db)
+    assert started["status"] == "running"
+    timer = db.scalar(select(LearningStudyTimer).where(LearningStudyTimer.learning_day == 1))
+    timer.accumulated_seconds = 125
+    db.commit()
+    paused = pause_study_timer(1, db)
+    assert paused["status"] == "paused"
+
+    result = complete_learning_day(1, CheckinInput(gains="完成计时学习"), db)
+    checkin = db.scalar(select(LearningCheckin).where(LearningCheckin.learning_day == 1))
+    assert result["elapsed_seconds"] >= 125
+    assert checkin.actual_minutes == 3
+    assert timer.status == "stopped"
 
 
 def test_delete_archived_plan_preserves_notes_and_checkins(db):

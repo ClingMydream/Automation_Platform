@@ -160,6 +160,21 @@ class LearningCheckin(Base, TimestampMixin):
     tomorrow_focus: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
 
+class LearningStudyTimer(Base, TimestampMixin):
+    """Persist the running, paused, or ended timer for one plan day."""
+
+    __tablename__ = "learning_study_timers"
+    __table_args__ = (UniqueConstraint("plan_id", "learning_day", name="uq_learning_timer_plan_day"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("learning_plans.id", ondelete="CASCADE"), index=True, nullable=False)
+    learning_day: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="running", nullable=False)
+    accumulated_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class LearningScheduleShift(Base):
     """Audit automatic schedule shifts so the projected deadline is explainable."""
 
