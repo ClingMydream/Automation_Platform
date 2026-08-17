@@ -64,6 +64,7 @@ function RoseBouquetCanvas() {
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     let particles = [];
+    let bouquetMetrics = null;
     let animationFrame;
     let startedAt = performance.now();
     const bouquet = new Image();
@@ -95,10 +96,17 @@ function RoseBouquetCanvas() {
       }
       const left = (canvas.width - source.width) / 2;
       const top = (canvas.height - source.height) / 2 - canvas.height * .015;
-      particles = candidates.slice(0, 16000).map(([x, y, red, green, blue]) => ({
+      bouquetMetrics = { width: source.width, height: source.height, top };
+      const particleLimit = window.innerWidth <= 650 ? 18000 : 28000;
+      particles = candidates.slice(0, particleLimit).map(([x, y, red, green, blue]) => {
+        const verticalPosition = y / source.height;
+        const normalizedX = (x - source.width / 2) / (source.width / 2);
+        const roundedEdge = Math.sqrt(Math.max(.08, 1 - normalizedX * normalizedX));
+        const depthRatio = verticalPosition < .6 ? .38 : verticalPosition < .78 ? .24 : .1;
+        return {
         tx: left + x,
         ty: top + y,
-        tz: (Math.random() - .5) * Math.min(210, source.width * .18),
+        tz: (Math.random() * 2 - 1) * source.width * depthRatio * roundedEdge,
         x: Math.random() > .5 ? -80 : canvas.width + 80,
         y: Math.random() * canvas.height,
         vx: 0,
@@ -107,7 +115,8 @@ function RoseBouquetCanvas() {
         size: .45 + Math.random() * .85,
         depth: .62 + Math.random() * .55,
         seed: Math.random() * Math.PI * 2,
-      }));
+        };
+      });
       startedAt = performance.now();
     };
     const resize = () => {
@@ -130,6 +139,15 @@ function RoseBouquetCanvas() {
       const rotation = Math.max(0, time - startedAt - 3200) / 12000 * Math.PI * 2;
       const cosine = Math.cos(rotation);
       const sine = Math.sin(rotation);
+      if (bouquetMetrics && progress > .72) {
+        context.save();
+        context.globalCompositeOperation = 'screen';
+        context.globalAlpha = Math.pow(Math.abs(cosine), 7) * .34 * progress;
+        context.translate(canvas.width / 2, 0);
+        context.scale(cosine, 1);
+        context.drawImage(bouquet, -bouquetMetrics.width / 2, bouquetMetrics.top, bouquetMetrics.width, bouquetMetrics.height);
+        context.restore();
+      }
       particles.forEach((particle) => {
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
