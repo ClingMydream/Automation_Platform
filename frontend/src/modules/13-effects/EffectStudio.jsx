@@ -66,22 +66,65 @@ function RoseBouquetCanvas() {
     let particles = [];
     let animationFrame;
     let startedAt = performance.now();
+    const bouquet = new Image();
+    bouquet.src = '/effects/particle-rose-bouquet.png';
+    const buildFromBouquet = () => {
+      if (!bouquet.complete || !bouquet.naturalWidth) return;
+      const source = document.createElement('canvas');
+      const sourceContext = source.getContext('2d', { willReadFrequently: true });
+      const maxWidth = Math.min(canvas.width * .72, 1400);
+      const maxHeight = Math.min(canvas.height * .86, 1000);
+      const ratio = Math.min(maxWidth / bouquet.naturalWidth, maxHeight / bouquet.naturalHeight);
+      source.width = Math.max(1, Math.round(bouquet.naturalWidth * ratio));
+      source.height = Math.max(1, Math.round(bouquet.naturalHeight * ratio));
+      sourceContext.drawImage(bouquet, 0, 0, source.width, source.height);
+      const pixels = sourceContext.getImageData(0, 0, source.width, source.height).data;
+      const candidates = [];
+      for (let y = 0; y < source.height; y += 4) {
+        for (let x = 0; x < source.width; x += 4) {
+          const offset = (y * source.width + x) * 4;
+          const red = pixels[offset];
+          const green = pixels[offset + 1];
+          const blue = pixels[offset + 2];
+          if (red + green + blue > 125) candidates.push([x, y, red, green, blue]);
+        }
+      }
+      for (let index = candidates.length - 1; index > 0; index -= 1) {
+        const other = Math.floor(Math.random() * (index + 1));
+        [candidates[index], candidates[other]] = [candidates[other], candidates[index]];
+      }
+      const left = (canvas.width - source.width) / 2;
+      const top = (canvas.height - source.height) / 2 - canvas.height * .015;
+      particles = candidates.slice(0, 7200).map(([x, y, red, green, blue]) => ({
+        tx: left + x,
+        ty: top + y,
+        x: Math.random() > .5 ? -80 : canvas.width + 80,
+        y: Math.random() * canvas.height,
+        vx: 0,
+        vy: 0,
+        color: `rgb(${red},${green},${blue})`,
+        size: .75 + Math.random() * 1.65,
+        depth: .62 + Math.random() * .55,
+        seed: Math.random() * Math.PI * 2,
+      }));
+      startedAt = performance.now();
+    };
     const resize = () => {
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(window.innerWidth * ratio);
       canvas.height = Math.round(window.innerHeight * ratio);
       canvas.style.width = `${window.innerWidth}px`;
       canvas.style.height = `${window.innerHeight}px`;
-      particles = createRoseParticles(canvas.width, canvas.height);
-      startedAt = performance.now();
+      buildFromBouquet();
     };
     resize();
+    bouquet.addEventListener('load', buildFromBouquet);
     window.addEventListener('resize', resize);
     const draw = (time) => {
       context.fillStyle = 'rgba(7, 8, 12, .17)';
       context.fillRect(0, 0, canvas.width, canvas.height);
-      const progress = Math.min(1, (time - startedAt) / 3200);
-      const pull = .018 + progress * .055;
+      const progress = Math.min(1, (time - startedAt) / 3600);
+      const pull = .012 + progress * .062;
       const breathe = 1 + Math.sin(time / 850) * .018;
       particles.forEach((particle) => {
         const centerX = canvas.width / 2;
@@ -104,6 +147,7 @@ function RoseBouquetCanvas() {
     animationFrame = requestAnimationFrame(draw);
     return () => {
       cancelAnimationFrame(animationFrame);
+      bouquet.removeEventListener('load', buildFromBouquet);
       window.removeEventListener('resize', resize);
     };
   }, []);
