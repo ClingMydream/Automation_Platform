@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.db import Base
-from app.modules.hotel_practice.router import cancel_booking, create_booking, list_bookings, list_rooms, update_room_status
+from app.modules.hotel_practice.router import cancel_booker_booking, cancel_booking, create_booking, list_bookings, list_rooms, update_room_status
 from app.modules.hotel_practice.schemas import BookingInput, RoomStatusInput
 
 
@@ -21,3 +21,21 @@ def test_hotel_booking_api_flow(tmp_path):
         assert updated["status"] == "维护中"
         assert cancel_booking(booking["id"], db) == {"ok": True}
         assert list_bookings(db) == []
+
+
+def test_cancel_booker_booking_uses_server_side_auth(monkeypatch):
+    captured = {}
+
+    class Response:
+        status_code = 201
+
+    def fake_delete(url, auth, timeout):
+        captured.update(url=url, auth=auth, timeout=timeout)
+        return Response()
+
+    monkeypatch.setattr("app.modules.hotel_practice.router.httpx.delete", fake_delete)
+    result = cancel_booker_booking(2)
+
+    assert result == {"ok": True, "booking_id": 2}
+    assert captured["url"].endswith("/booking/2")
+    assert captured["auth"] == ("admin", "password123")

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     database_url: str = "mysql+pymysql://automation:automation@mysql:3306/automation_platform?charset=utf8mb4"
     public_base_url: str = "http://localhost"
     test_sms_phone_numbers: str | None = None
+    restful_booker_url: str = "http://restful-booker:3001"
+    restful_booker_username: str = "admin"
+    restful_booker_password: str = "password123"
     # Security and file-transfer settings used by testing and temporary sharing features.
     allow_private_targets: bool = False
     file_transfer_dir: str = "/tmp/automation-platform-transfers"

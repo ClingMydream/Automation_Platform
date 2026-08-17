@@ -1,8 +1,11 @@
+import httpx
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import verify_admin
+from app.core.config import get_settings
 from app.db import get_db
 from app.models.entities import HotelBooking, HotelRoom
 from app.modules.hotel_practice.schemas import BookingInput, RoomStatusInput
@@ -76,3 +79,22 @@ def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
     db.delete(booking)
     db.commit()
     return {"ok": True}
+
+
+@router.delete("/booker-bookings/{booking_id}")
+def cancel_booker_booking(booking_id: int):
+    """Cancel a Restful Booker booking without exposing service credentials to the browser."""
+    settings = get_settings()
+    try:
+        response = httpx.delete(
+            f"{settings.restful_booker_url.rstrip('/')}/booking/{booking_id}",
+            auth=(settings.restful_booker_username, settings.restful_booker_password),
+            timeout=10,
+        )
+    except httpx.RequestError as error:
+        raise HTTPException(502, "预约服务暂时无法连接") from error
+    if response.status_code == 404:
+        raise HTTPException(404, "预约不存在或已取消")
+    if response.status_code not in (200, 201, 204):
+        raise HTTPException(502, f"预约服务取消失败（HTTP {response.status_code}）")
+    return {"ok": True, "booking_id": booking_id}
