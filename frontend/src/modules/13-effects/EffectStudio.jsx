@@ -182,12 +182,18 @@ function RoseBouquetCanvas() {
 
 export function PublicEffectPage() {
   return <main className="video-effect-page">
-    <section className="video-effect-stage" aria-label="粒子玫瑰视频效果">
-      <video className="rose-effect-video" autoPlay loop muted playsInline preload="auto">
+    <div className="video-effect-ambient" aria-hidden="true">
+      <video className="rose-effect-video rose-effect-video--ambient" autoPlay loop muted playsInline preload="auto">
         <source src="/effects/rose-video-4x3-clean.mp4" type="video/mp4" />
       </video>
-      <div className="video-effect-message"><i /><strong>小赵天天开心</strong><i /></div>
+    </div>
+    <section className="video-effect-stage" aria-label="粒子玫瑰视频效果">
+      <div className="video-effect-glow" aria-hidden="true" />
+      <video className="rose-effect-video rose-effect-video--main" autoPlay loop muted playsInline preload="auto">
+        <source src="/effects/rose-video-4x3-clean.mp4" type="video/mp4" />
+      </video>
     </section>
+    <div className="video-effect-message"><i /><strong>小赵天天开心</strong><i /></div>
   </main>;
 }
 
