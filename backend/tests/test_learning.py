@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db import Base
 from app.models.entities import LearningCheckin, LearningNote, LearningPlan, LearningProfile, LearningTask
-from app.modules.learning.router import delete_plan, list_tasks, overview, save_checkin
+from app.modules.learning.router import complete_learning_day, delete_plan, list_tasks, overview, save_checkin
 from app.modules.learning.schemas import CheckinInput
 from app.modules.learning.importer import import_zip
 from app.modules.learning.service import TOPICS, ensure_seed, stats
@@ -65,6 +65,19 @@ def test_next_learning_day_and_review_note_are_linked(db):
     assert note is not None and "完成预约" in note.content_markdown
     tasks = list_tasks(db=db)
     assert any(task["day_number"] == 1 and task["day_checkin"]["actual_minutes"] == 180 for task in tasks)
+
+
+def test_complete_learning_day_submits_tasks_checkin_and_note(db):
+    ensure_seed(db)
+    result = complete_learning_day(1, CheckinInput(actual_minutes=90, gains="学会查询接口", blockers="暂无", tomorrow_focus="学习断言"), db)
+
+    day_tasks = db.scalars(select(LearningTask).where(LearningTask.day_number == 1)).all()
+    note = db.scalar(select(LearningNote).where(LearningNote.title == "Day 1 · 每日复盘"))
+    checkin = db.scalar(select(LearningCheckin).where(LearningCheckin.learning_day == 1))
+    assert result["completed_tasks"] == len(day_tasks)
+    assert all(task.status == "completed" for task in day_tasks)
+    assert checkin.actual_minutes == 90
+    assert "学会查询接口" in note.content_markdown
 
 
 def test_delete_archived_plan_preserves_notes_and_checkins(db):

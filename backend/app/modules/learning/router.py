@@ -149,6 +149,34 @@ def save_checkin(checkin_date: date, payload: CheckinInput, db: Session = Depend
     db.commit(); db.refresh(obj); return data(obj)
 
 
+@router.post("/days/{learning_day}/complete")
+def complete_learning_day(learning_day: int, payload: CheckinInput, db: Session = Depends(get_db)):
+    """Complete every task for one learning day and persist its review in one action."""
+    ensure_seed(db)
+    plan = db.scalar(select(LearningPlan).where(LearningPlan.status == "active"))
+    tasks = db.scalars(select(LearningTask).where(
+        LearningTask.plan_id == plan.id,
+        LearningTask.day_number == learning_day,
+    )).all()
+    if not tasks:
+        raise HTTPException(404, "当天学习任务不存在")
+
+    completed_at = datetime.utcnow()
+    for task in tasks:
+        task.status = "completed"
+        task.completed_at = task.completed_at or completed_at
+
+    checkin_payload = payload.model_copy(update={"learning_day": learning_day})
+    checkin = save_checkin(local_today(), checkin_payload, db)
+    return {
+        "ok": True,
+        "learning_day": learning_day,
+        "completed_tasks": len(tasks),
+        "checkin": checkin,
+        "message": f"Day {learning_day} 学习内容和每日复盘已提交",
+    }
+
+
 @router.get("/stats")
 def get_stats(month: str = Query(pattern=r"^\d{4}-\d{2}$"), db: Session = Depends(get_db)): ensure_seed(db); return stats(db, month)
 
