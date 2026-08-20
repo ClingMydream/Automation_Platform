@@ -56,6 +56,7 @@ const MENU_SECTIONS = [
       { key: 'restful_booker', label: '酒店练习项目', icon: <CuteIcon emoji="🏨" tone="peach" />, adminOnly: true },
       { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" />, adminOnly: true },
       { key: 'effects', label: '临时效果', icon: <CuteIcon emoji="🎀" tone="rose" />, adminOnly: true },
+      { key: 'online_preview', label: '在线预览', icon: <CuteIcon emoji="📱" tone="mint" />, adminOnly: true },
     ],
   },
   {
@@ -184,6 +185,10 @@ function ToolboxApp() {
         <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => {
           if (key === 'restful_booker') {
             window.open(HOTEL_PROJECT_PATH, 'cling-hotel-practice', 'noopener,noreferrer');
+            return;
+          }
+          if (key === 'online_preview') {
+            window.open('/emote-preview/', 'cling-emote-preview', 'noopener,noreferrer');
             return;
           }
           setTab(key);

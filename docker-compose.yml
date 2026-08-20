@@ -53,6 +53,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      emote-preview:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 15s
@@ -62,6 +64,22 @@ services:
       resources:
         limits:
           memory: 256M
+
+  emote-preview:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - /opt/emote-preview/dist:/usr/share/nginx/html:ro
+      - /opt/emote-preview/default.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 64M
 
 volumes:
   mysql-data:
