@@ -99,7 +99,6 @@ services:
       GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx1024m -Dorg.gradle.workers.max=2 -Dorg.gradle.daemon=false
     volumes:
       - jenkins-data:/var/jenkins_home
-      - gradle-cache:/var/jenkins_home/.gradle
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/jenkins/login"]
       interval: 20s
@@ -117,4 +116,3 @@ volumes:
   learning-data:
   test-package-data:
   jenkins-data:
-  gradle-cache:
