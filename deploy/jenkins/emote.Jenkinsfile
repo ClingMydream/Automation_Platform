@@ -13,10 +13,11 @@ pipeline {
     stage('只读拉取代码') {
       steps {
         script {
-          if (!(params.BRANCH ==~ /^origin\/[A-Za-z0-9._\/-]+$/)) {
-            error("远程分支格式不合法：${params.BRANCH}")
+          def selectedBranch = params.BRANCH?.trim()
+          if (!(selectedBranch ==~ /^(origin\/)?[A-Za-z0-9._\/-]+$/)) {
+            error("远程分支格式不合法：${selectedBranch ?: '未选择'}")
           }
-          def branchName = params.BRANCH.replaceFirst(/^origin\//, '')
+          def branchName = selectedBranch.replaceFirst(/^origin\//, '')
           currentBuild.description = "分支：${branchName}"
           echo "本次只读构建分支：${branchName}"
           checkout([$class: 'GitSCM', branches: [[name: branchName]],

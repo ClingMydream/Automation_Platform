@@ -34,7 +34,8 @@ RUN jenkins-plugin-cli --plugins \
     credentials-binding \
     pipeline-stage-view \
     ws-cleanup \
-    git-parameter
+    git-parameter \
+    localization-zh-cn
 
 COPY --chown=jenkins:jenkins deploy/jenkins/init.groovy.d/ /usr/share/jenkins/ref/init.groovy.d/
 COPY --chown=jenkins:jenkins deploy/jenkins/emote.Jenkinsfile /usr/share/jenkins/ref/emote.Jenkinsfile

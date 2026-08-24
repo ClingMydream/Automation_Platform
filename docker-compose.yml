@@ -90,7 +90,7 @@ services:
     restart: unless-stopped
     environment:
       JENKINS_OPTS: --prefix=/jenkins
-      JAVA_OPTS: -Xms256m -Xmx768m -Djenkins.install.runSetupWizard=false
+      JAVA_OPTS: -Xms256m -Xmx768m -Djenkins.install.runSetupWizard=false -Duser.language=zh -Duser.country=CN
       JENKINS_ADMIN_USER: ${JENKINS_ADMIN_USER:-cling}
       JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD}
       CODEUP_USERNAME: ${CODEUP_USERNAME}
