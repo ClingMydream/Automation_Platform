@@ -55,6 +55,8 @@ services:
         condition: service_healthy
       emote-preview:
         condition: service_healthy
+      jenkins:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 15s
@@ -81,8 +83,30 @@ services:
         limits:
           memory: 64M
 
+  jenkins:
+    build:
+      context: .
+      dockerfile: deploy/jenkins/Dockerfile
+    restart: unless-stopped
+    environment:
+      JENKINS_OPTS: --prefix=/jenkins
+      JAVA_OPTS: -Xms256m -Xmx768m -Djenkins.install.runSetupWizard=true
+    volumes:
+      - jenkins-data:/var/jenkins_home
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/jenkins/login"]
+      interval: 20s
+      timeout: 10s
+      retries: 30
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
 volumes:
   mysql-data:
   transfer-data:
   learning-data:
   test-package-data:
+  jenkins-data:

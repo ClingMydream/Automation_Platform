@@ -1,0 +1,7 @@
+.jenkins-panel { display: grid; gap: 16px; }
+.jenkins-hero .ant-card-body { display: flex; align-items: center; justify-content: space-between; gap: 24px; background: linear-gradient(135deg, #eff6ff, #f5f3ff); border-radius: 8px; }
+.jenkins-hero h2 { margin: 4px 0 8px; }
+.jenkins-grid { margin-top: 0; }
+.jenkins-step { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; margin-right: 10px; border-radius: 50%; color: #fff; background: #2563eb; font-weight: 700; }
+.jenkins-code { max-height: 470px; overflow: auto; padding: 16px; border-radius: 8px; background: #101828; color: #d1e9ff; font-size: 12px; line-height: 1.65; }
+@media (max-width: 768px) { .jenkins-hero .ant-card-body { align-items: flex-start; flex-direction: column; } }

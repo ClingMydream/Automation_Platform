@@ -35,6 +35,7 @@ import { TestPackagePanel } from './modules/11-test-packages/TestPackagePanel.js
 import { PublicPackageDownload } from './modules/11-test-packages/PublicPackageDownload.jsx';
 import { CommandLibraryPanel } from './modules/12-command-library/CommandLibraryPanel.jsx';
 import { EffectStudio, PublicEffectPage, HAPPY_ZHAO_PATH } from './modules/13-effects/EffectStudio.jsx';
+import { JenkinsPanel } from './modules/14-jenkins/JenkinsPanel.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -63,6 +64,7 @@ const MENU_SECTIONS = [
     key: 'tools',
     label: '效率工具',
     children: [
+      { key: 'jenkins', label: '持续集成', icon: <CuteIcon emoji="🧱" tone="blue" />, adminOnly: true },
       { key: 'data_generator', label: '数据生成', icon: <CuteIcon emoji="🧪" tone="blue" /> },
       { key: 'files', label: '文件快传', icon: <CuteIcon emoji="📤" tone="mint" /> },
       { key: 'test_packages', label: '测试包安装', icon: <CuteIcon emoji="📦" tone="blue" /> },
@@ -229,6 +231,7 @@ function ToolboxApp() {
             {tab === 'learning' && user?.is_admin && <LearningPanel client={client} />}
             {tab === 'command_library' && user?.is_admin && <CommandLibraryPanel client={client} />}
             {tab === 'effects' && user?.is_admin && <EffectStudio />}
+            {tab === 'jenkins' && user?.is_admin && <JenkinsPanel />}
             {tab === 'api_workspace' && user?.is_admin && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
