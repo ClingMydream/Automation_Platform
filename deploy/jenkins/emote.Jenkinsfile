@@ -27,7 +27,7 @@ pipeline {
     stage('安装前端依赖') { steps { sh 'pnpm install --frozen-lockfile' } }
     stage('同步 Android 工程') { steps { sh 'pnpm build -- --mode production && pnpm exec cap sync android' } }
     stage('构建 Debug APK') {
-      steps { dir('android') { sh 'chmod +x gradlew && ./gradlew assembleDebug --no-daemon --max-workers=2' } }
+      steps { dir('android') { sh 'chmod +x gradlew && ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" assembleDebug --no-daemon --max-workers=2' } }
     }
     stage('归档并发布') {
       steps {

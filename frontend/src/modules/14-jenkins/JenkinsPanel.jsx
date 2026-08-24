@@ -25,7 +25,7 @@ const PIPELINE = `pipeline {
     }
     stage('安装依赖') { steps { sh 'pnpm install --frozen-lockfile' } }
     stage('同步工程') { steps { sh 'pnpm build -- --mode production && pnpm exec cap sync android' } }
-    stage('构建 APK') { steps { dir('android') { sh './gradlew assembleDebug --no-daemon' } } }
+    stage('构建 APK') { steps { dir('android') { sh './gradlew -Dorg.gradle.java.home="$JAVA_HOME" assembleDebug --no-daemon' } } }
     stage('发布最新版') { steps { archiveArtifacts artifacts: 'android/app/build/outputs/apk/debug/*.apk' } }
   }
   post { always { cleanWs() } }
