@@ -90,9 +90,16 @@ services:
     restart: unless-stopped
     environment:
       JENKINS_OPTS: --prefix=/jenkins
-      JAVA_OPTS: -Xms256m -Xmx768m -Djenkins.install.runSetupWizard=true
+      JAVA_OPTS: -Xms256m -Xmx768m -Djenkins.install.runSetupWizard=false
+      JENKINS_ADMIN_USER: ${JENKINS_ADMIN_USER:-cling}
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD}
+      CODEUP_USERNAME: ${CODEUP_USERNAME}
+      CODEUP_PASSWORD: ${CODEUP_PASSWORD}
+      JENKINS_PUBLISH_TOKEN: ${JENKINS_PUBLISH_TOKEN}
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx1024m -Dorg.gradle.workers.max=2 -Dorg.gradle.daemon=false
     volumes:
       - jenkins-data:/var/jenkins_home
+      - gradle-cache:/var/jenkins_home/.gradle
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/jenkins/login"]
       interval: 20s
@@ -102,7 +109,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+        memory: 2G
 
 volumes:
   mysql-data:
@@ -110,3 +117,4 @@ volumes:
   learning-data:
   test-package-data:
   jenkins-data:
+  gradle-cache:

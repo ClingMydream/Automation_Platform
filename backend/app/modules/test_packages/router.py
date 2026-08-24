@@ -1,9 +1,10 @@
 """Upload the latest test package and expose a stable public download channel."""
 
 import secrets
+from hmac import compare_digest
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -41,20 +42,8 @@ def package_data(item: TestPackage) -> dict:
     }
 
 
-@router.get("/test-packages/latest")
-def latest_package(_: AuthContext = Depends(require_menu("test_packages")), db: Session = Depends(get_db)):
-    item = db.query(TestPackage).filter(TestPackage.channel == "latest").first()
-    return package_data(item) if item else None
-
-
-@router.post("/test-packages/latest")
-def upload_latest_package(
-    file: UploadFile = File(...),
-    version: str = Form(default=""),
-    notes: str = Form(default=""),
-    _: AuthContext = Depends(require_menu("test_packages")),
-    db: Session = Depends(get_db),
-):
+def save_latest(file: UploadFile, version: str, notes: str, db: Session) -> dict:
+    """Store one package and atomically make it the stable latest download."""
     original_name = clean_filename(file.filename or "package")
     extension = Path(original_name).suffix.lower()
     if extension not in ALLOWED_EXTENSIONS:
@@ -87,6 +76,38 @@ def upload_latest_package(
     if old_name and old_name != stored_name:
         (package_dir() / old_name).unlink(missing_ok=True)
     return package_data(item)
+
+
+@router.get("/test-packages/latest")
+def latest_package(_: AuthContext = Depends(require_menu("test_packages")), db: Session = Depends(get_db)):
+    item = db.query(TestPackage).filter(TestPackage.channel == "latest").first()
+    return package_data(item) if item else None
+
+
+@router.post("/test-packages/latest")
+def upload_latest_package(
+    file: UploadFile = File(...),
+    version: str = Form(default=""),
+    notes: str = Form(default=""),
+    _: AuthContext = Depends(require_menu("test_packages")),
+    db: Session = Depends(get_db),
+):
+    return save_latest(file, version, notes, db)
+
+
+@router.post("/test-packages/internal/jenkins/latest")
+def publish_from_jenkins(
+    file: UploadFile = File(...),
+    version: str = Form(default=""),
+    notes: str = Form(default=""),
+    x_jenkins_token: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    """Accept an APK only from Jenkins using a dedicated server-side token."""
+    expected = get_settings().jenkins_publish_token or ""
+    if not expected or not compare_digest(x_jenkins_token, expected):
+        raise HTTPException(403, "Jenkins 发布凭证无效")
+    return save_latest(file, version, notes, db)
 
 
 @router.get("/test-packages/public/latest")
