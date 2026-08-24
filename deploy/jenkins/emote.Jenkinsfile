@@ -1,6 +1,6 @@
 pipeline {
   agent any
-  options { timestamps(); disableConcurrentBuilds(); buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '5')) }
+  options { disableConcurrentBuilds(); buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '5')) }
   parameters {
     gitParameter(name: 'BRANCH', type: 'PT_BRANCH', defaultValue: 'origin/dev-20260811-1.9.1-test',
       branchFilter: 'origin/(.*)', sortMode: 'DESCENDING_SMART', selectedValue: 'DEFAULT',

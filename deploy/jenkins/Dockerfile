@@ -18,9 +18,6 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools \
     && sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" \
     && chown -R jenkins:jenkins ${ANDROID_HOME}
 
-COPY deploy/jenkins/init.groovy.d/ /usr/share/jenkins/ref/init.groovy.d/
-COPY deploy/jenkins/emote.Jenkinsfile /usr/share/jenkins/ref/emote.Jenkinsfile
-
 USER jenkins
 RUN jenkins-plugin-cli --plugins \
     workflow-aggregator \
@@ -29,3 +26,6 @@ RUN jenkins-plugin-cli --plugins \
     pipeline-stage-view \
     ws-cleanup \
     git-parameter
+
+COPY --chown=jenkins:jenkins deploy/jenkins/init.groovy.d/ /usr/share/jenkins/ref/init.groovy.d/
+COPY --chown=jenkins:jenkins deploy/jenkins/emote.Jenkinsfile /usr/share/jenkins/ref/emote.Jenkinsfile
