@@ -26,7 +26,17 @@ pipeline {
       }
     }
     stage('安装前端依赖') { steps { sh 'pnpm install --frozen-lockfile' } }
-    stage('同步 Android 工程') { steps { sh 'pnpm build -- --mode production && pnpm exec cap sync android' } }
+    stage('兼容 Linux 文件名') {
+      steps {
+        sh '''# emote 的 1.9.1 分支引用 .jpg，但仓库素材扩展名为 .JPG。
+          # 这里只修复 Jenkins 临时工作区，不提交或推送 emote 仓库。
+          if [ ! -f assets/activitys/item/card-bg-full.jpg ] && [ -f assets/activitys/item/card-bg-full.JPG ]; then
+            cp assets/activitys/item/card-bg-full.JPG assets/activitys/item/card-bg-full.jpg
+          fi'''
+      }
+    }
+    stage('构建前端资源') { steps { sh 'pnpm build -- --mode production' } }
+    stage('同步 Android 工程') { steps { sh 'pnpm exec cap sync android' } }
     stage('构建 Debug APK') {
       steps { dir('android') { sh 'chmod +x gradlew && ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" assembleDebug --no-daemon --max-workers=2' } }
     }
