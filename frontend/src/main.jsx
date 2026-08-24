@@ -52,19 +52,19 @@ const MENU_SECTIONS = [
     key: 'growth',
     label: '个人成长',
     children: [
-      { key: 'learning', label: '学习空间', icon: <CuteIcon emoji="📚" tone="violet" />, adminOnly: true },
-      { key: 'command_library', label: '命令手册', icon: <CuteIcon emoji="⌨️" tone="blue" />, adminOnly: true },
-      { key: 'restful_booker', label: '酒店练习项目', icon: <CuteIcon emoji="🏨" tone="peach" />, adminOnly: true },
-      { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" />, adminOnly: true },
-      { key: 'effects', label: '临时效果', icon: <CuteIcon emoji="🎀" tone="rose" />, adminOnly: true },
-      { key: 'online_preview', label: '在线预览', icon: <CuteIcon emoji="📱" tone="mint" />, adminOnly: true },
+      { key: 'learning', label: '学习空间', icon: <CuteIcon emoji="📚" tone="violet" /> },
+      { key: 'command_library', label: '命令手册', icon: <CuteIcon emoji="⌨️" tone="blue" /> },
+      { key: 'restful_booker', label: '酒店练习项目', icon: <CuteIcon emoji="🏨" tone="peach" /> },
+      { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" /> },
+      { key: 'effects', label: '临时效果', icon: <CuteIcon emoji="🎀" tone="rose" /> },
+      { key: 'online_preview', label: '在线预览', icon: <CuteIcon emoji="📱" tone="mint" /> },
     ],
   },
   {
     key: 'tools',
     label: '效率工具',
     children: [
-      { key: 'jenkins', label: '持续集成', icon: <CuteIcon emoji="🧱" tone="blue" />, adminOnly: true },
+      { key: 'jenkins', label: '持续集成', icon: <CuteIcon emoji="🧱" tone="blue" /> },
       { key: 'data_generator', label: '数据生成', icon: <CuteIcon emoji="🧪" tone="blue" /> },
       { key: 'files', label: '文件快传', icon: <CuteIcon emoji="📤" tone="mint" /> },
       { key: 'test_packages', label: '测试包安装', icon: <CuteIcon emoji="📦" tone="blue" /> },
@@ -151,7 +151,7 @@ function ToolboxApp() {
   if (transferToken) return <PublicTransferPage token={transferToken} />;
   if (testPackage === 'latest') return <PublicPackageDownload />;
   if (!token) return <Login notice={loginNotice} onLogin={(value) => { setLoginNotice(''); setToken(value); }} />;
-  if (isHotelProject && user?.is_admin) {
+  if (isHotelProject && (user?.is_admin || user?.menu_permissions?.includes('restful_booker'))) {
     return <main className="hotel-project-window">
       <header className="hotel-project-window__header">
         <div><Text>cling · 独立练习窗口</Text><Title level={3}>🏨 酒店练习项目</Title></div>
@@ -228,11 +228,11 @@ function ToolboxApp() {
             {tab === 'images' && <ImageToolPanel token={token} />}
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
-            {tab === 'learning' && user?.is_admin && <LearningPanel client={client} />}
-            {tab === 'command_library' && user?.is_admin && <CommandLibraryPanel client={client} />}
-            {tab === 'effects' && user?.is_admin && <EffectStudio />}
-            {tab === 'jenkins' && user?.is_admin && <JenkinsPanel />}
-            {tab === 'api_workspace' && user?.is_admin && <ApiWorkspacePanel client={client} />}
+            {tab === 'learning' && <LearningPanel client={client} />}
+            {tab === 'command_library' && <CommandLibraryPanel client={client} />}
+            {tab === 'effects' && <EffectStudio />}
+            {tab === 'jenkins' && <JenkinsPanel />}
+            {tab === 'api_workspace' && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
           </div>

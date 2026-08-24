@@ -4,14 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.auth import verify_admin
+from app.core.auth import require_menu
 from app.core.config import get_settings
 from app.db import get_db
 from app.models.entities import HotelBooking, HotelRoom
 from app.modules.hotel_practice.schemas import BookingInput, RoomStatusInput
 
 
-router = APIRouter(prefix="/v1/hotel-practice", tags=["hotel-practice"], dependencies=[Depends(verify_admin)])
+router = APIRouter(prefix="/v1/hotel-practice", tags=["hotel-practice"], dependencies=[Depends(require_menu("restful_booker"))])
 
 INITIAL_ROOMS = [
     {"number": "101", "room_type": "标准大床房", "price": 399, "status": "可预订"},

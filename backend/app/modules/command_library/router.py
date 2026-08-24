@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.core.auth import verify_admin
+from app.core.auth import require_menu
 from app.db import get_db
 from app.models.entities import CommandSnippet
 from app.modules.command_library.schemas import CommandInput
 from app.modules.command_library.service import ensure_commands
 
-router = APIRouter(prefix="/v1/command-library", tags=["命令手册"], dependencies=[Depends(verify_admin)])
+router = APIRouter(prefix="/v1/command-library", tags=["命令手册"], dependencies=[Depends(require_menu("command_library"))])
 
 
 def data(item: CommandSnippet) -> dict:

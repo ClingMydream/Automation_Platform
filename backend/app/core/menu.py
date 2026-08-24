@@ -7,6 +7,13 @@
 """
 
 MENU_OPTIONS = [
+    {"key": "learning", "label": "学习空间"},
+    {"key": "command_library", "label": "命令手册"},
+    {"key": "restful_booker", "label": "酒店练习项目"},
+    {"key": "api_workspace", "label": "接口工作台"},
+    {"key": "effects", "label": "临时效果"},
+    {"key": "online_preview", "label": "在线预览"},
+    {"key": "jenkins", "label": "持续集成"},
     {"key": "files", "label": "文件快传"},
     {"key": "test_packages", "label": "测试包安装"},
     {"key": "images", "label": "图片工具"},

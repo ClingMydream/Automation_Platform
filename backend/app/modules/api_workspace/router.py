@@ -2,13 +2,13 @@ from fastapi import APIRouter,Depends,File,HTTPException,Query,UploadFile
 from sqlalchemy import or_,select
 from sqlalchemy.orm import Session
 
-from app.core.auth import verify_admin
+from app.core.auth import require_menu
 from app.db import get_db
 from app.models.entities import ApiRecord
 from app.modules.api_workspace.schemas import ApiRecordInput
 from app.modules.api_workspace.service import parse_api_import
 
-router=APIRouter(prefix="/v1/api-workspace",tags=["api-workspace"],dependencies=[Depends(verify_admin)])
+router=APIRouter(prefix="/v1/api-workspace",tags=["api-workspace"],dependencies=[Depends(require_menu("api_workspace"))])
 
 def output(item): return {c.name:getattr(item,c.name) for c in item.__table__.columns}
 

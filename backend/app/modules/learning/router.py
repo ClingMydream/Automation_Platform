@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import desc, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.auth import verify_admin
+from app.core.auth import require_menu
 from app.core.config import get_settings
 from app.db import get_db
 from app.models.entities import (LearningAttachment, LearningCheckin, LearningNote, LearningNoteFolder,
@@ -17,7 +17,7 @@ from app.modules.learning.schemas import CheckinInput, FolderInput, NoteInput, P
 from app.modules.learning.service import ensure_seed, local_today, reconcile, restart_learning, stats
 from app.modules.learning.importer import import_zip
 
-router = APIRouter(prefix="/v1/learning", tags=["learning"], dependencies=[Depends(verify_admin)])
+router = APIRouter(prefix="/v1/learning", tags=["learning"], dependencies=[Depends(require_menu("learning"))])
 
 
 def data(obj):
