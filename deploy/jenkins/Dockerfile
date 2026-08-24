@@ -19,6 +19,7 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools \
     && chown -R jenkins:jenkins ${ANDROID_HOME}
 
 COPY deploy/jenkins/init.groovy.d/ /usr/share/jenkins/ref/init.groovy.d/
+COPY deploy/jenkins/emote.Jenkinsfile /usr/share/jenkins/ref/emote.Jenkinsfile
 
 USER jenkins
 RUN jenkins-plugin-cli --plugins \
