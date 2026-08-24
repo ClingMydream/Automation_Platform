@@ -3,8 +3,16 @@ FROM jenkins/jenkins:lts-jdk21
 USER root
 RUN sed -i 's|deb.debian.org/debian|mirrors.cloud.tencent.com/debian|g; s|security.debian.org/debian-security|mirrors.cloud.tencent.com/debian-security|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update \
-    && apt-get install -y --no-install-recommends git nodejs npm unzip curl \
+    && apt-get install -y --no-install-recommends git unzip curl xz-utils \
     && rm -rf /var/lib/apt/lists/*
+
+ARG NODE_VERSION=22.22.1
+RUN curl -fsSL --retry 3 -o /tmp/node.tar.xz "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm -f /tmp/node.tar.xz \
+    && npm install --global pnpm@10.15.1 \
+    && node --version \
+    && pnpm --version
 
 ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=/opt/android-sdk

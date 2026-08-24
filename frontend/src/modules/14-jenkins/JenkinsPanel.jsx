@@ -23,8 +23,8 @@ const PIPELINE = `pipeline {
             url: 'https://codeup.aliyun.com/6523ca864bb5eb36db2f603e/emote-app2.git'
       }
     }
-    stage('安装依赖') { steps { sh 'npm ci --no-audit --no-fund' } }
-    stage('同步工程') { steps { sh 'npm run build -- --mode production && npx cap sync android' } }
+    stage('安装依赖') { steps { sh 'pnpm install --frozen-lockfile' } }
+    stage('同步工程') { steps { sh 'pnpm build -- --mode production && pnpm exec cap sync android' } }
     stage('构建 APK') { steps { dir('android') { sh './gradlew assembleDebug --no-daemon' } } }
     stage('发布最新版') { steps { archiveArtifacts artifacts: 'android/app/build/outputs/apk/debug/*.apk' } }
   }

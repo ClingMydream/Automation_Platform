@@ -24,8 +24,8 @@ pipeline {
         }
       }
     }
-    stage('安装前端依赖') { steps { sh 'npm ci --no-audit --no-fund' } }
-    stage('同步 Android 工程') { steps { sh 'npm run build -- --mode production && npx cap sync android' } }
+    stage('安装前端依赖') { steps { sh 'pnpm install --frozen-lockfile' } }
+    stage('同步 Android 工程') { steps { sh 'pnpm build -- --mode production && pnpm exec cap sync android' } }
     stage('构建 Debug APK') {
       steps { dir('android') { sh 'chmod +x gradlew && ./gradlew assembleDebug --no-daemon --max-workers=2' } }
     }
