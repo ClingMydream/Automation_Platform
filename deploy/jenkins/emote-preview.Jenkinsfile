@@ -37,8 +37,9 @@ pipeline {
       steps {
         sh '''# emote 源码中的 Logo 使用站点根路径；在线预览部署在 /emote-preview/ 下。
           # 只修改本次构建产物，不修改、提交或推送 emote 仓库。
-          find dist -type f \( -name '*.js' -o -name '*.html' -o -name '*.css' \) \
-            -exec sed -i 's|/emote.png|/emote-preview/emote.png|g' {} +'''
+          for pattern in '*.js' '*.html' '*.css'; do
+            find dist -type f -name "$pattern" -exec sed -i 's|/emote.png|/emote-preview/emote.png|g' {} +
+          done'''
       }
     }
     stage('发布在线预览') {
