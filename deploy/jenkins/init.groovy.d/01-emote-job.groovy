@@ -60,4 +60,7 @@ if (!previewJob) previewJob = jenkins.createProject(WorkflowJob, 'emote-preview'
 previewJob.setDescription('Emote 在线预览：选择远程分支，只读拉取并同步最新网页代码。')
 previewJob.setDefinition(new CpsFlowDefinition(previewPipelineScript, true))
 previewJob.save()
+// Declarative Pipeline registers its parameter definitions during the first run.
+// Bootstrap a newly created preview job once so later API calls can pass BRANCH.
+if (previewJob.getLastBuild() == null) previewJob.scheduleBuild2(0)
 jenkins.save()
