@@ -100,6 +100,7 @@ services:
     volumes:
       - jenkins-data:/var/jenkins_home
       - emote-preview-data:/srv/emote-preview
+      - ./deploy/jenkins/init.groovy.d/01-emote-job.groovy:/var/jenkins_home/init.groovy.d/01-emote-job.groovy:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/jenkins/login"]
       interval: 20s
