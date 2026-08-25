@@ -1,19 +1,22 @@
 """Read-only branch selection and Jenkins preview synchronization APIs."""
 
+import os
 import re
+import subprocess
+import tempfile
+from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.core.auth import require_menu
+from app.core.auth import require_any_menu, require_menu
 from app.core.config import get_settings
 
 
 router = APIRouter(
     prefix="/v1/online-preview",
     tags=["在线预览"],
-    dependencies=[Depends(require_menu("online_preview"))],
 )
 
 REPOSITORY_URL = "https://codeup.aliyun.com/6523ca864bb5eb36db2f603e/emote-app2.git"
@@ -54,7 +57,79 @@ def _parse_git_refs(content: bytes) -> list[str]:
     return sorted(set(branches), reverse=True)
 
 
-@router.get("/branches")
+def _validate_branch(value: str) -> str:
+    branch = value.strip().removeprefix("origin/")
+    if not branch or not BRANCH_PATTERN.fullmatch(branch):
+        raise HTTPException(400, "分支名称格式不合法")
+    return branch
+
+
+def _remote_revision(branch: str) -> dict:
+    """Fetch only the selected branch metadata without checking out project files."""
+    settings = get_settings()
+    with tempfile.TemporaryDirectory(prefix="cling-revision-") as directory:
+        askpass = Path(directory) / "askpass.sh"
+        askpass.write_text(
+            '#!/bin/sh\ncase "$1" in *Username*) printf \'%s\\n\' "$CODEUP_USERNAME" ;; *) printf \'%s\\n\' "$CODEUP_PASSWORD" ;; esac\n',
+            encoding="utf-8",
+        )
+        askpass.chmod(0o700)
+        env = os.environ.copy()
+        env.update({
+            "GIT_ASKPASS": str(askpass),
+            "GIT_TERMINAL_PROMPT": "0",
+            "CODEUP_USERNAME": settings.codeup_username,
+            "CODEUP_PASSWORD": settings.codeup_password,
+        })
+        commands = [
+            ["git", "init", "-q", directory],
+            ["git", "-C", directory, "remote", "add", "origin", REPOSITORY_URL],
+            ["git", "-C", directory, "fetch", "-q", "--depth=1", "--filter=blob:none", "origin", f"refs/heads/{branch}"],
+            ["git", "-C", directory, "show", "-s", "--format=%H%x1f%an%x1f%ae%x1f%aI%x1f%s", "FETCH_HEAD"],
+        ]
+        try:
+            for command in commands[:-1]:
+                subprocess.run(command, env=env, check=True, capture_output=True, text=True, timeout=30)
+            output = subprocess.run(commands[-1], env=env, check=True, capture_output=True, text=True, timeout=10).stdout.strip()
+        except (subprocess.SubprocessError, OSError) as exc:
+            raise HTTPException(502, "读取分支最新提交信息失败") from exc
+    sha, author, email, committed_at, subject = output.split("\x1f", 4)
+    return {"branch": branch, "sha": sha, "author": author, "email": email, "committed_at": committed_at, "subject": subject}
+
+
+def _jenkins_job_status(job_name: str) -> dict:
+    settings = get_settings()
+    try:
+        response = httpx.get(
+            f"{settings.jenkins_url}/job/{job_name}/lastBuild/api/json",
+            params={"tree": "number,result,building,timestamp,duration,description,actions[parameters[name,value],lastBuiltRevision[SHA1]]"},
+            auth=_jenkins_auth(),
+            timeout=10,
+        )
+        if response.status_code == 404:
+            return {"number": None, "result": "NOT_BUILT", "building": False, "branch": None, "commit_sha": None}
+        response.raise_for_status()
+        data = response.json()
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, "无法读取 Jenkins 任务状态") from exc
+    branch = None
+    action_sha = None
+    for action in data.get("actions", []):
+        if action.get("lastBuiltRevision"):
+            action_sha = action["lastBuiltRevision"].get("SHA1")
+        for parameter in action.get("parameters", []):
+            if parameter.get("name") == "BRANCH":
+                branch = parameter.get("value")
+    description = data.get("description") or ""
+    sha_match = re.search(r"SHA[：:]\s*([0-9a-f]{40})", description, re.I)
+    return {
+        "number": data.get("number"), "result": data.get("result"), "building": data.get("building", False),
+        "branch": branch, "commit_sha": sha_match.group(1) if sha_match else action_sha,
+        "timestamp": data.get("timestamp"), "duration": data.get("duration"), "description": description,
+    }
+
+
+@router.get("/branches", dependencies=[Depends(require_any_menu("online_preview", "jenkins"))])
 def list_preview_branches():
     settings = get_settings()
     try:
@@ -73,43 +148,24 @@ def list_preview_branches():
     return branches
 
 
-@router.get("/status")
+@router.get("/revision", dependencies=[Depends(require_any_menu("online_preview", "jenkins"))])
+def branch_revision(branch: str):
+    return _remote_revision(_validate_branch(branch))
+
+
+@router.get("/status", dependencies=[Depends(require_menu("online_preview"))])
 def preview_status():
-    settings = get_settings()
-    try:
-        response = httpx.get(
-            f"{settings.jenkins_url}/job/emote-preview/lastBuild/api/json",
-            params={"tree": "number,result,building,timestamp,duration,description,actions[parameters[name,value]]"},
-            auth=_jenkins_auth(),
-            timeout=10,
-        )
-        if response.status_code == 404:
-            return {"number": None, "result": "NOT_BUILT", "building": False, "branch": None}
-        response.raise_for_status()
-        data = response.json()
-    except httpx.HTTPError as exc:
-        raise HTTPException(502, "无法读取 Jenkins 预览任务状态") from exc
-    branch = None
-    for action in data.get("actions", []):
-        for parameter in action.get("parameters", []):
-            if parameter.get("name") == "BRANCH":
-                branch = parameter.get("value")
-    return {
-        "number": data.get("number"),
-        "result": data.get("result"),
-        "building": data.get("building", False),
-        "branch": branch,
-        "timestamp": data.get("timestamp"),
-        "duration": data.get("duration"),
-        "description": data.get("description"),
-    }
+    return _jenkins_job_status("emote-preview")
 
 
-@router.post("/sync", status_code=202)
+@router.get("/apk-status", dependencies=[Depends(require_menu("jenkins"))])
+def apk_build_status():
+    return _jenkins_job_status("emote-apk")
+
+
+@router.post("/sync", status_code=202, dependencies=[Depends(require_menu("online_preview"))])
 def synchronize_preview(payload: PreviewSyncRequest):
-    branch = payload.branch.strip().removeprefix("origin/")
-    if not branch or not BRANCH_PATTERN.fullmatch(branch):
-        raise HTTPException(400, "分支名称格式不合法")
+    branch = _validate_branch(payload.branch)
     settings = get_settings()
     auth = _jenkins_auth()
     try:

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Card, Descriptions, Select, Space, Tag, Typography, message } from 'antd';
 import { ExportOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons';
+import { BranchRevisionStatus } from './BranchRevisionStatus.jsx';
 
 const { Paragraph, Text, Title } = Typography;
 const PREVIEW_URL = '/emote-preview/';
@@ -82,6 +83,7 @@ export function OnlinePreviewPanel({ client }) {
           <Button type="primary" icon={<SyncOutlined spin={syncing || status?.building} />} loading={syncing || status?.building} onClick={synchronize}>同步最新代码</Button>
           <Button icon={<ExportOutlined />} onClick={() => window.open(PREVIEW_URL, 'cling-emote-preview', 'noopener,noreferrer')}>打开预览</Button>
         </Space>
+        <BranchRevisionStatus client={client} branch={branch} buildStatus={status} label="预览代码状态" />
         <Descriptions bordered size="small" column={{ xs: 1, md: 2 }}>
           <Descriptions.Item label="当前状态"><Tag color={statusValue[1]}>{statusValue[0]}</Tag></Descriptions.Item>
           <Descriptions.Item label="构建编号">{status?.number ? `#${status.number}` : '暂无'}</Descriptions.Item>

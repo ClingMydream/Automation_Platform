@@ -228,7 +228,7 @@ function ToolboxApp() {
             {tab === 'learning' && <LearningPanel client={client} />}
             {tab === 'command_library' && <CommandLibraryPanel client={client} />}
             {tab === 'effects' && <EffectStudio />}
-            {tab === 'jenkins' && <JenkinsPanel />}
+            {tab === 'jenkins' && <JenkinsPanel client={client} />}
             {tab === 'online_preview' && <OnlinePreviewPanel client={client} />}
             {tab === 'api_workspace' && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}

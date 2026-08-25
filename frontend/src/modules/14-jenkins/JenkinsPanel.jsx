@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Card, Col, List, QRCode, Row, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, List, QRCode, Row, Select, Space, Tag, Typography, message } from 'antd';
 import { CopyOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
 import './jenkins.css';
+import { BranchRevisionStatus } from '../15-online-preview/BranchRevisionStatus.jsx';
 
 const { Paragraph, Text, Title } = Typography;
 const JENKINS_URL = '/jenkins/';
@@ -31,8 +32,11 @@ const PIPELINE = `pipeline {
   post { always { cleanWs() } }
 }`;
 
-export function JenkinsPanel() {
+export function JenkinsPanel({ client }) {
   const [status, setStatus] = useState('checking');
+  const [branches, setBranches] = useState([]);
+  const [branch, setBranch] = useState('dev-20260811-1.9.1');
+  const [buildStatus, setBuildStatus] = useState(null);
 
   async function check() {
     setStatus('checking');
@@ -44,7 +48,16 @@ export function JenkinsPanel() {
     }
   }
 
-  useEffect(() => { check(); }, []);
+  useEffect(() => {
+    check();
+    Promise.all([client.get('/v1/online-preview/branches'), client.get('/v1/online-preview/apk-status')])
+      .then(([branchRows, currentBuild]) => {
+        setBranches(branchRows);
+        setBuildStatus(currentBuild);
+        if (currentBuild.branch) setBranch(currentBuild.branch.replace(/^origin\//, ''));
+      })
+      .catch((error) => message.error(error.message));
+  }, []);
 
   async function copyPipeline() {
     await navigator.clipboard.writeText(PIPELINE);
@@ -57,6 +70,12 @@ export function JenkinsPanel() {
       <Space direction="vertical" align="end"><Tag color={status === 'online' ? 'green' : status === 'checking' ? 'blue' : 'red'}>{status === 'online' ? '服务正常' : status === 'checking' ? '检查中' : '服务异常'}</Tag><Space wrap><Button icon={<ReloadOutlined />} onClick={check}>检查状态</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => window.open(EMOTE_JOB_URL, 'cling-emote-apk', 'noopener,noreferrer')}>打开 Emote 打包任务</Button></Space></Space>
     </Card>
     <Alert type="warning" showIcon title="代码安全边界" description="Jenkins 只配置 Codeup 读取凭据。流水线不得出现 git commit、git merge、git rebase 或 git push；构建产物只保存在 Jenkins。" />
+    <Card title="最近打包分支代码状态">
+      <Space direction="vertical" size={14} style={{ width: '100%' }}>
+        <Select showSearch value={branch} style={{ width: 360, maxWidth: '100%' }} options={branches.map((value) => ({ label: value, value }))} optionFilterProp="label" onChange={setBranch} />
+        <BranchRevisionStatus client={client} branch={branch} buildStatus={buildStatus} label="APK 打包代码状态" />
+      </Space>
+    </Card>
     <Row gutter={[16,16]} className="jenkins-grid">
       <Col xs={24} lg={12}><Card title="怎么打包"><List dataSource={['打开 Emote 打包任务并登录 Jenkins','点击左侧“使用参数构建”（英文原文 Build with Parameters）','在“分支”下拉框浏览全部远程分支，也可以输入分支名快速筛选','确认分支后点击“开始构建”（英文原文 Build），构建标题会记录本次选择','等待所有阶段变绿，再扫描下方固定二维码下载最新 APK']} renderItem={(item,index)=><List.Item><span className="jenkins-step">{index+1}</span>{item}</List.Item>}/><Alert style={{marginTop:12}} type="info" showIcon title="常用菜单对照" description="控制台输出 = Console Output；构建历史 = Build History；工作区 = Workspace；立即构建 = Build Now；状态 = Status。"/><div style={{textAlign:'center', marginTop:16}}><QRCode value={APK_SHARE_URL} size={180}/><Paragraph type="secondary">APK 固定下载二维码</Paragraph><Button onClick={() => window.open(APK_SHARE_URL, '_blank')}>打开下载页</Button></div></Card></Col>
       <Col xs={24} lg={12}><Card title="自动构建流程" extra={<Button icon={<CopyOutlined />} onClick={copyPipeline}>复制示例</Button>}><pre className="jenkins-code"><code>{PIPELINE}</code></pre></Card></Col>

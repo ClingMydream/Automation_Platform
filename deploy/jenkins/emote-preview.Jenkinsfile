@@ -21,6 +21,8 @@ pipeline {
           currentBuild.description = "预览分支：${branchName}"
           checkout([$class: 'GitSCM', branches: [[name: branchName]],
             userRemoteConfigs: [[url: env.REPOSITORY_URL, credentialsId: 'codeup-readonly']]])
+          def commitSha = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+          currentBuild.description = "预览分支：${branchName} | SHA：${commitSha}"
         }
       }
     }
