@@ -53,4 +53,11 @@ if (!job) job = jenkins.createProject(WorkflowJob, 'emote-apk')
 job.setDescription('Emote Android 测试包：选择远程分支，只读拉取，构建 Debug APK，并发布到 cling 固定二维码。')
 job.setDefinition(new CpsFlowDefinition(pipelineScript, true))
 job.save()
+
+def previewPipelineScript = new File('/usr/share/jenkins/ref/emote-preview.Jenkinsfile').getText('UTF-8')
+def previewJob = jenkins.getItem('emote-preview') as WorkflowJob
+if (!previewJob) previewJob = jenkins.createProject(WorkflowJob, 'emote-preview')
+previewJob.setDescription('Emote 在线预览：选择远程分支，只读拉取并同步最新网页代码。')
+previewJob.setDefinition(new CpsFlowDefinition(previewPipelineScript, true))
+previewJob.save()
 jenkins.save()

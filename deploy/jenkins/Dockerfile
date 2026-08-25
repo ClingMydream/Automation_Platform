@@ -39,3 +39,4 @@ RUN jenkins-plugin-cli --plugins \
 
 COPY --chown=jenkins:jenkins deploy/jenkins/init.groovy.d/ /usr/share/jenkins/ref/init.groovy.d/
 COPY --chown=jenkins:jenkins deploy/jenkins/emote.Jenkinsfile /usr/share/jenkins/ref/emote.Jenkinsfile
+COPY --chown=jenkins:jenkins deploy/jenkins/emote-preview.Jenkinsfile /usr/share/jenkins/ref/emote-preview.Jenkinsfile

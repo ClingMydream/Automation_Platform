@@ -36,6 +36,7 @@ import { PublicPackageDownload } from './modules/11-test-packages/PublicPackageD
 import { CommandLibraryPanel } from './modules/12-command-library/CommandLibraryPanel.jsx';
 import { EffectStudio, PublicEffectPage, HAPPY_ZHAO_PATH } from './modules/13-effects/EffectStudio.jsx';
 import { JenkinsPanel } from './modules/14-jenkins/JenkinsPanel.jsx';
+import { OnlinePreviewPanel } from './modules/15-online-preview/OnlinePreviewPanel.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -189,10 +190,6 @@ function ToolboxApp() {
             window.open(HOTEL_PROJECT_PATH, 'cling-hotel-practice', 'noopener,noreferrer');
             return;
           }
-          if (key === 'online_preview') {
-            window.open('/emote-preview/', 'cling-emote-preview', 'noopener,noreferrer');
-            return;
-          }
           setTab(key);
         }} />
         <div className="sider-footer">
@@ -232,6 +229,7 @@ function ToolboxApp() {
             {tab === 'command_library' && <CommandLibraryPanel client={client} />}
             {tab === 'effects' && <EffectStudio />}
             {tab === 'jenkins' && <JenkinsPanel />}
+            {tab === 'online_preview' && <OnlinePreviewPanel client={client} />}
             {tab === 'api_workspace' && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}

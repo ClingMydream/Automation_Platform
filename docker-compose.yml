@@ -71,7 +71,7 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     volumes:
-      - /opt/emote-preview/dist:/usr/share/nginx/html:ro
+      - emote-preview-data:/usr/share/nginx/html:ro
       - /opt/emote-preview/default.conf:/etc/nginx/conf.d/default.conf:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
@@ -99,6 +99,7 @@ services:
       GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx1024m -Dorg.gradle.workers.max=2 -Dorg.gradle.daemon=false
     volumes:
       - jenkins-data:/var/jenkins_home
+      - emote-preview-data:/srv/emote-preview
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/jenkins/login"]
       interval: 20s
@@ -116,3 +117,4 @@ volumes:
   learning-data:
   test-package-data:
   jenkins-data:
+  emote-preview-data:

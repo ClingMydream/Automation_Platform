@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     test_package_dir: str = "/var/lib/cling-test-packages"
     test_package_max_mb: int = 1024
     jenkins_publish_token: str | None = None
+    jenkins_url: str = "http://jenkins:8080/jenkins"
+    jenkins_admin_user: str = "cling"
+    jenkins_admin_password: str | None = None
+    codeup_username: str = ""
+    codeup_password: str = ""
     app_timezone: str = "Asia/Shanghai"
     learning_data_dir: str = "/var/lib/cling-learning"
     learning_attachment_max_mb: int = 20
