@@ -7,7 +7,6 @@ import hashlib
 import json
 import random
 import secrets
-import shutil
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
@@ -487,19 +486,19 @@ def clear_execution_data(db: Session = Depends(get_db)):
     active = db.query(UiAutomationRun).filter(UiAutomationRun.status.in_(["queued", "running"])).count()
     if active:
         raise HTTPException(409, "当前仍有自动化任务正在执行，请结束后再清理")
-    root = Path(get_settings().ui_automation_data_dir).resolve()
     artifact_count = db.query(UiAutomationArtifact).count()
     run_count = db.query(UiAutomationRun).count()
     released_bytes = sum(value or 0 for (value,) in db.query(UiAutomationArtifact.size_bytes).all())
-    # Resolve and inspect every child before deletion; never remove the configured
-    # volume root itself, only the run directories/files beneath it.
-    if root.is_dir():
-        for child in root.iterdir():
-            target = child.resolve()
-            if not target.is_relative_to(root) or target == root:
-                continue
-            if target.is_dir(): shutil.rmtree(target)
-            else: target.unlink(missing_ok=True)
+    settings = get_settings()
+    try:
+        response = httpx.delete(f"{settings.ui_runner_url}/cleanup",
+                                headers={"X-Runner-Token": settings.ui_runner_token or ""}, timeout=30)
+        if response.status_code == 409: raise HTTPException(409, "Runner 仍有任务正在处理，请稍后再清理")
+        response.raise_for_status()
+    except HTTPException:
+        raise
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, "Runner 文件清理失败，请稍后重试") from exc
     db.query(UiAutomationArtifact).delete(synchronize_session=False)
     db.query(UiAutomationRun).delete(synchronize_session=False)
     db.commit()

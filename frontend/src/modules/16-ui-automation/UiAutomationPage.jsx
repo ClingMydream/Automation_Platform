@@ -218,14 +218,14 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     </header>
     <section className="ui-auto-actions">
       <div><b>可视化回归编排</b><span>选择用例 → 配置环境 → 脚本执行 → 按用例查看证据</span></div>
-      <Space wrap>
+      <div className="ui-auto-action-buttons">
         <Button icon={<DatabaseOutlined />} onClick={() => editDataSet()}>测试数据集</Button>
         <Button danger icon={<DeleteOutlined />} onClick={clearExecutionData}>清空执行数据</Button>
         <Button icon={<FileAddOutlined />} onClick={() => setRequirementOpen(true)}>新增测试需求</Button>
         <Button icon={<PlayCircleOutlined />} onClick={() => requestRun('selected')}>执行已勾选</Button>
         <Button icon={<ExperimentOutlined />} onClick={() => requestRun('smoke')}>随机冒烟</Button>
         <Button type="primary" icon={<VideoCameraOutlined />} onClick={() => requestRun('regression')}>全部回归</Button>
-      </Space>
+      </div>
     </section>
     <div className="ui-auto-grid">
       <aside className="ui-auto-left">

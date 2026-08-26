@@ -1,6 +1,7 @@
 """Single-concurrency, safe-action Playwright runner for Emote web preview."""
 
 import os
+import shutil
 import time
 from pathlib import Path
 from queue import Queue
@@ -277,3 +278,18 @@ def execute(payload: ExecuteInput, x_runner_token: str | None = Header(None)):
     if not TOKEN or x_runner_token != TOKEN: raise HTTPException(403, "Runner token invalid")
     tasks.put(payload.model_dump())
     return {"status": "queued", "position": tasks.qsize()}
+
+
+@app.delete("/cleanup")
+def cleanup(x_runner_token: str | None = Header(None)):
+    if not TOKEN or x_runner_token != TOKEN: raise HTTPException(403, "Runner token invalid")
+    if tasks.unfinished_tasks: raise HTTPException(409, "Runner task is active")
+    removed = 0
+    if DATA_ROOT.is_dir():
+        for child in DATA_ROOT.iterdir():
+            target = child.resolve()
+            if not target.is_relative_to(DATA_ROOT) or target == DATA_ROOT: continue
+            if target.is_dir(): shutil.rmtree(target)
+            else: target.unlink(missing_ok=True)
+            removed += 1
+    return {"status": "ok", "removed": removed}

@@ -17,4 +17,5 @@
 @media(max-width:1050px){.ui-auto-grid{grid-template-columns:280px minmax(0,1fr)}.ui-run-viewer__grid{grid-template-columns:1fr}.ui-run-viewer__grid>aside{min-height:auto}}
 .ui-auto-case{grid-template-columns:24px minmax(0,1fr) 30px 30px}
 .ui-auto-datasets{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid #e5e8ee}
+.ui-auto-action-buttons{display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:8px;width:360px}.ui-auto-action-buttons>.ant-btn{width:100%;height:36px;margin:0}
 .ui-auto-step{grid-template-columns:30px 125px 135px 120px minmax(140px,1fr) minmax(130px,1fr) 105px 100px 86px auto}
