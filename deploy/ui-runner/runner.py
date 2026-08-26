@@ -89,11 +89,22 @@ def friendly_failure(error, case, step, step_index, credentials):
 
 def locator(page, step):
     kind, value = step.get("locator_type", "text"), step.get("locator", "")
-    if kind == "testid": return page.get_by_test_id(value)
-    if kind == "role": return page.get_by_role(step.get("role", "button"), name=value)
-    if kind == "label": return page.get_by_label(value)
-    if kind == "css": return page.locator(value)
-    return page.get_by_text(value, exact=bool(step.get("exact")))
+    exact = bool(step.get("exact"))
+    if kind == "testid": target = page.get_by_test_id(value)
+    elif kind == "role": target = page.get_by_role(step.get("role", "button"), name=value, exact=exact)
+    elif kind == "label": target = page.get_by_label(value, exact=exact)
+    elif kind == "placeholder": target = page.get_by_placeholder(value, exact=exact)
+    elif kind == "alt": target = page.get_by_alt_text(value, exact=exact)
+    elif kind == "title": target = page.get_by_title(value, exact=exact)
+    elif kind == "id": target = page.locator(f"#{value}")
+    elif kind == "xpath": target = page.locator(f"xpath={value}")
+    elif kind == "css": target = page.locator(value)
+    else: target = page.get_by_text(value, exact=exact)
+    match = step.get("match")
+    if match == "first": return target.first
+    if match == "last": return target.last
+    if match == "nth": return target.nth(int(step.get("index", 0)))
+    return target
 
 
 def artifact(path: Path, run_dir: Path, kind: str, content_type: str):

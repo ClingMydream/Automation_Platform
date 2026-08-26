@@ -34,7 +34,7 @@ LOGIN_TEMPLATE_STEPS = [
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "同意并继续"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "登录"},
-    {"action": "assert_visible", "locator_type": "text", "locator": "登录"},
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "登录"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='tel'][placeholder='手机号']", "value": "${account_a.username}"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='password']", "value": "${account_a.password}"},
     {"action": "click", "locator_type": "css", "locator": "form button[type='button']:has(+ p):visible"},
@@ -109,6 +109,7 @@ FEATURE_TEMPLATE_STEPS = {
     ),
 }
 SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "assert_visible", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
+SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath"}
 
 
 class RequirementInput(BaseModel):
@@ -193,7 +194,8 @@ def _seed(db: Session):
                       and case.steps[1].get("locator_type") == "text")
                   or (feature.key != "register" and not any(
                       step.get("action") == "click" and step.get("locator") == "登录" for step in (case.steps or [])
-                  )))):
+                  )) or any(step.get("action") == "assert_visible" and step.get("locator") == "登录"
+                            and step.get("locator_type") == "text" for step in (case.steps or [])))):
                 case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
                 changed = True
         if changed:
@@ -247,6 +249,13 @@ def _validate_steps(steps: list[dict]):
             raise HTTPException(400, f"第 {index} 步动作不允许")
         if step.get("action") == "fill" and not step.get("value") and not step.get("variable"):
             raise HTTPException(400, f"第 {index} 步缺少输入值或变量")
+        locator_type = step.get("locator_type")
+        if locator_type and locator_type not in SAFE_LOCATOR_TYPES:
+            raise HTTPException(400, f"第 {index} 步定位方式不支持")
+        if step.get("match") not in {None, "first", "last", "nth"}:
+            raise HTTPException(400, f"第 {index} 步匹配方式不支持")
+        if step.get("match") == "nth" and not isinstance(step.get("index"), int):
+            raise HTTPException(400, f"第 {index} 步 nth 匹配需要填写从 0 开始的序号")
 
 
 def _data_cipher() -> Fernet:

@@ -18,6 +18,11 @@ const ACTIONS = [
   ['assert_text', '断言文本'], ['assert_url', '断言地址'], ['assert_count', '断言数量'],
   ['screenshot', '截图'], ['switch_account', '切换账号'],
 ];
+const LOCATOR_TYPES = [
+  ['testid', '测试 ID'], ['role', '角色 + 名称'], ['label', '表单标签'], ['placeholder', '占位文字'],
+  ['text', '页面文本'], ['alt', '图片替代文字'], ['title', '标题属性'], ['id', '元素 ID'],
+  ['css', 'CSS 选择器'], ['xpath', 'XPath'],
+];
 const STATUS = {
   queued: ['等待执行', 'default'], running: ['执行中', 'processing'], passed: ['通过', 'success'],
   failed: ['失败', 'error'], interrupted: ['已中断', 'warning'],
@@ -157,6 +162,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     try {
       const values = await caseForm.validateFields();
       values.tags = typeof values.tags === 'string' ? values.tags.split(',').map((x) => x.trim()).filter(Boolean) : values.tags;
+      values.steps = (values.steps || []).map((step) => ({ ...step, index: step.match === 'nth' ? Number(step.index) : undefined }));
       if (editingCase) await client.put(`/v1/ui-automation/cases/${editingCase.id}`, values);
       else await client.post('/v1/ui-automation/cases', values);
       setCaseOpen(false); message.success('用例已保存'); await load(true);
@@ -277,7 +283,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
         <Row gutter={12}><Col span={12}><Form.Item name="preconditions" label="前置条件"><Input.TextArea rows={2} /></Form.Item></Col><Col span={12}><Form.Item name="cleanup_note" label="清理说明"><Input.TextArea rows={2} /></Form.Item></Col></Row>
         <Form.List name="steps">{(fields, { add, remove, move }) => <div className="ui-auto-steps">
           <div className="ui-auto-step-title"><b>可视化步骤</b><Button size="small" onClick={() => add({ action: 'click', locator_type: 'testid' })}>添加步骤</Button></div>
-          {fields.map((field, index) => <div className="ui-auto-step" key={field.key}><span>{index + 1}</span><Form.Item name={[field.name, 'action']} rules={[{ required: true }]}><Select options={ACTIONS.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item name={[field.name, 'locator_type']}><Select placeholder="定位方式" options={['testid', 'role', 'label', 'text', 'css'].map((value) => ({ value, label: value }))} /></Form.Item><Form.Item name={[field.name, 'locator']}><Input placeholder="元素名称 / 选择器" /></Form.Item><Form.Item name={[field.name, 'value']}><Input placeholder="值或 /页面地址" /></Form.Item><Space><Button size="small" disabled={index === 0} onClick={() => move(index, index - 1)}>↑</Button><Button size="small" disabled={index === fields.length - 1} onClick={() => move(index, index + 1)}>↓</Button><Button danger size="small" onClick={() => remove(field.name)}>删</Button></Space></div>)}
+          {fields.map((field, index) => <div className="ui-auto-step" key={field.key}><span>{index + 1}</span><Form.Item name={[field.name, 'action']} rules={[{ required: true }]}><Select options={ACTIONS.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item name={[field.name, 'locator_type']}><Select placeholder="定位方式" options={LOCATOR_TYPES.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item name={[field.name, 'role']}><Select allowClear placeholder="角色（role 时）" options={['button', 'heading', 'link', 'textbox', 'checkbox', 'radio', 'tab', 'dialog', 'listitem', 'img'].map((value) => ({ value, label: value }))} /></Form.Item><Form.Item name={[field.name, 'locator']}><Input placeholder="元素名称 / 选择器" /></Form.Item><Form.Item name={[field.name, 'value']}><Input placeholder="输入值 / 页面地址" /></Form.Item><Form.Item name={[field.name, 'match']}><Select allowClear placeholder="重复匹配" options={[{ value: 'first', label: '第一个' }, { value: 'last', label: '最后一个' }, { value: 'nth', label: '指定序号' }]} /></Form.Item><Form.Item name={[field.name, 'index']}><Input type="number" min={0} placeholder="序号(从0开始)" /></Form.Item><Form.Item name={[field.name, 'exact']} valuePropName="checked"><Checkbox>精确匹配</Checkbox></Form.Item><Space><Button size="small" disabled={index === 0} onClick={() => move(index, index - 1)}>↑</Button><Button size="small" disabled={index === fields.length - 1} onClick={() => move(index, index + 1)}>↓</Button><Button danger size="small" onClick={() => remove(field.name)}>删</Button></Space></div>)}
         </div>}</Form.List>
       </Form>
     </Modal>
