@@ -28,9 +28,9 @@ FEATURES = [
 LOGIN_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
     {"action": "assert_visible", "locator_type": "text", "locator": "登录"},
-    {"action": "fill", "locator_type": "css", "locator": "input[type='tel']", "value": "${account_a.username}"},
-    {"action": "fill", "locator_type": "css", "locator": "input[type='password']", "value": "${account_a.password}"},
-    {"action": "click", "locator_type": "css", "locator": "form button[type='button']:has(+ p)"},
+    {"action": "fill", "locator_type": "css", "locator": "input[type='tel'][placeholder='手机号']:visible", "value": "${account_a.username}"},
+    {"action": "fill", "locator_type": "css", "locator": "input[type='password'][placeholder='请输入密码']:visible", "value": "${account_a.password}"},
+    {"action": "click", "locator_type": "css", "locator": "form button[type='button']:has(+ p):visible"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园"},
 ]
 SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "assert_visible", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
@@ -89,6 +89,11 @@ def _seed(db: Session):
         if login_case and login_case.steps == legacy_steps:
             login_case.steps = LOGIN_TEMPLATE_STEPS
             login_case.preconditions = "运行前填写账号 A 的手机号和密码；脚本会逐步打开登录页、填写表单、勾选协议并点击登录。"
+            db.commit()
+        elif login_case and len(login_case.steps or []) == 6 and (login_case.steps[2].get("locator") == "input[type='tel']"):
+            # Refine the first full-login template: hidden register/reset inputs also
+            # exist in the DOM, so automation must target only the visible sign-in form.
+            login_case.steps = LOGIN_TEMPLATE_STEPS
             db.commit()
         return
     for order, (key, name) in enumerate(FEATURES, 1):
