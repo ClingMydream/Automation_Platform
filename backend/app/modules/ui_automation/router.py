@@ -91,7 +91,7 @@ def _case_dict(case: UiAutomationCase):
     return {"id": case.id, "feature_id": case.feature_id, "requirement_id": case.requirement_id, "name": case.name,
             "priority": case.priority, "tags": case.tags, "preconditions": case.preconditions,
             "cleanup_note": case.cleanup_note, "steps": case.steps, "enabled": case.enabled,
-            "updated_at": case.updated_at}
+            "updated_at": case.updated_at.isoformat() if case.updated_at else None}
 
 
 def _run_dict(run: UiAutomationRun, db: Session):
