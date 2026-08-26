@@ -29,7 +29,7 @@ LOGIN_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
     {"action": "assert_visible", "locator_type": "text", "locator": "登录"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='tel'][placeholder='手机号']", "value": "${account_a.username}"},
-    {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='password'][placeholder='请输入密码']", "value": "${account_a.password}"},
+    {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='password']", "value": "${account_a.password}"},
     {"action": "click", "locator_type": "css", "locator": "form button[type='button']:has(+ p):visible"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园"},
 ]
@@ -90,9 +90,9 @@ def _seed(db: Session):
             login_case.steps = LOGIN_TEMPLATE_STEPS
             login_case.preconditions = "运行前填写账号 A 的手机号和密码；脚本会逐步打开登录页、填写表单、勾选协议并点击登录。"
             db.commit()
-        elif login_case and len(login_case.steps or []) == 6 and login_case.steps[2].get("locator") in {
+        elif login_case and len(login_case.steps or []) == 6 and (login_case.steps[2].get("locator") in {
             "input[type='tel']", "input[type='tel'][placeholder='手机号']:visible"
-        }:
+        } or "placeholder='请输入密码'" in login_case.steps[3].get("locator", "")):
             # Refine the first full-login template: hidden register/reset inputs also
             # exist in the DOM, so automation must target only the visible sign-in form.
             login_case.steps = LOGIN_TEMPLATE_STEPS
