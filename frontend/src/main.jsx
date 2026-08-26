@@ -38,6 +38,7 @@ import { EffectStudio, PublicEffectPage, HAPPY_ZHAO_PATH } from './modules/13-ef
 import { JenkinsPanel } from './modules/14-jenkins/JenkinsPanel.jsx';
 import { OnlinePreviewPanel } from './modules/15-online-preview/OnlinePreviewPanel.jsx';
 import { UiAutomationPage } from './modules/16-ui-automation/UiAutomationPage.jsx';
+import { UiAutomationRunViewer } from './modules/16-ui-automation/UiAutomationRunViewer.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -106,7 +107,7 @@ function menuForUser(user) {
 function ToolboxApp() {
   const params = new URLSearchParams(window.location.search);
   const isHotelProject = window.location.pathname === HOTEL_PROJECT_PATH;
-  const isUiAutomation = window.location.pathname === UI_AUTOMATION_PATH;
+  const uiAutomationRunMatch = window.location.pathname.match(/^\/emote-ui-automation\/run\/([^/]+)$/);
   const isPublicEffect = window.location.pathname === HAPPY_ZHAO_PATH;
   const transferToken = params.get('transferToken');
   const testPackage = params.get('testPackage');
@@ -171,8 +172,8 @@ function ToolboxApp() {
       <RestfulBookerPanel client={client} />
     </main>;
   }
-  if (isUiAutomation && (user?.is_admin || user?.menu_permissions?.includes('emote_ui_automation'))) {
-    return <UiAutomationPage client={client} user={user} onClose={() => window.close()} />;
+  if (uiAutomationRunMatch && (user?.is_admin || user?.menu_permissions?.includes('emote_ui_automation'))) {
+    return <UiAutomationRunViewer client={client} runId={uiAutomationRunMatch[1]} />;
   }
 
   const menuItems = menuForUser(user);
@@ -201,10 +202,6 @@ function ToolboxApp() {
         <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => {
           if (key === 'restful_booker') {
             window.open(HOTEL_PROJECT_PATH, 'cling-hotel-practice', 'noopener,noreferrer');
-            return;
-          }
-          if (key === 'emote_ui_automation') {
-            window.open(UI_AUTOMATION_PATH, 'cling-emote-ui-automation', 'noopener,noreferrer');
             return;
           }
           setTab(key);
@@ -247,6 +244,7 @@ function ToolboxApp() {
             {tab === 'effects' && <EffectStudio />}
             {tab === 'jenkins' && <JenkinsPanel client={client} />}
             {tab === 'online_preview' && <OnlinePreviewPanel client={client} />}
+            {tab === 'emote_ui_automation' && <UiAutomationPage client={client} embedded />}
             {tab === 'api_workspace' && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}

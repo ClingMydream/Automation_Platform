@@ -95,7 +95,7 @@ def _case_dict(case: UiAutomationCase):
 
 
 def _run_dict(run: UiAutomationRun, db: Session):
-    artifacts = db.query(UiAutomationArtifact).filter_by(run_id=run.id).all()
+    artifacts = db.query(UiAutomationArtifact).filter_by(run_id=run.id).order_by(UiAutomationArtifact.id).all()
     return {"id": run.id, "mode": run.mode, "branch": run.branch, "commit_sha": run.commit_sha,
             "viewport": run.viewport, "random_seed": run.random_seed, "status": run.status,
             "case_ids": run.case_ids, "current_step": run.current_step, "progress": run.progress,

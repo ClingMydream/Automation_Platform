@@ -23,7 +23,7 @@ const STATUS = {
   failed: ['失败', 'error'], interrupted: ['已中断', 'warning'],
 };
 
-function ArtifactViewer({ client, artifact }) {
+export function ArtifactViewer({ client, artifact }) {
   const [url, setUrl] = useState('');
   useEffect(() => {
     let objectUrl = '';
@@ -42,7 +42,7 @@ function ArtifactViewer({ client, artifact }) {
     : <img className="ui-auto-media" src={url} alt={artifact.name} />;
 }
 
-export function UiAutomationPage({ client, onClose }) {
+export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [data, setData] = useState({ features: [], cases: [], requirements: [], runs: [] });
   const [branches, setBranches] = useState([]);
   const [branch, setBranch] = useState(DEFAULT_BRANCH);
@@ -51,6 +51,8 @@ export function UiAutomationPage({ client, onClose }) {
   const [selectedCases, setSelectedCases] = useState([]);
   const [selectedRunId, setSelectedRunId] = useState(null);
   const [selectedRun, setSelectedRun] = useState(null);
+  const [evidenceCaseId, setEvidenceCaseId] = useState(null);
+  const [selectedArtifactId, setSelectedArtifactId] = useState(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [runBusy, setRunBusy] = useState(false);
@@ -89,7 +91,15 @@ export function UiAutomationPage({ client, onClose }) {
   }, [selectedRunId]);
 
   const visibleCases = useMemo(() => data.cases.filter((item) => item.name.toLowerCase().includes(search.toLowerCase())), [data.cases, search]);
-  const latestArtifact = (kind) => [...(selectedRun?.artifacts || [])].reverse().find((item) => item.kind === kind);
+  const evidenceCases = (selectedRun?.case_ids || []).map((id) => data.cases.find((item) => item.id === id)).filter(Boolean);
+  const caseArtifacts = (selectedRun?.artifacts || []).filter((item) => !evidenceCaseId || item.name.includes(`case-${evidenceCaseId}-`));
+  const selectedArtifact = caseArtifacts.find((item) => item.id === selectedArtifactId)
+    || [...caseArtifacts].reverse().find((item) => item.kind === (selectedRun?.status === 'running' ? 'screenshot' : 'video'))
+    || [...caseArtifacts].reverse().find((item) => item.kind === 'screenshot');
+
+  useEffect(() => {
+    if (selectedRun?.case_ids?.length && !selectedRun.case_ids.includes(evidenceCaseId)) setEvidenceCaseId(selectedRun.case_ids[0]);
+  }, [selectedRun?.id]);
 
   const waitForSync = async () => {
     await client.post('/v1/online-preview/sync', { branch });
@@ -109,7 +119,11 @@ export function UiAutomationPage({ client, onClose }) {
   };
 
   const startRun = async () => {
-    const credentials = await credentialForm.validateFields();
+    let executionWindow = null;
+    try {
+      executionWindow = window.open('/emote-ui-automation/run/waiting', 'cling-emote-live-execution', 'width=1220,height=900,resizable=yes,scrollbars=yes');
+    } catch (_) { /* Browsers may block popups; the task itself can still run. */ }
+    const credentials = await credentialForm.validateFields().catch((error) => { executionWindow?.close(); throw error; });
     setRunBusy(true);
     try {
       if (syncFirst) { message.loading({ content: '正在同步所选分支…', key: 'ui-sync', duration: 0 }); await waitForSync(); message.success({ content: '分支同步完成', key: 'ui-sync' }); }
@@ -118,8 +132,9 @@ export function UiAutomationPage({ client, onClose }) {
         credentials: { account_a: credentials.account_a || {}, account_b: credentials.account_b || {}, registration: credentials.registration || {} },
       });
       setSelectedRunId(run.id); setSelectedRun(run); setCredentialOpen(false);
+      if (executionWindow) executionWindow.location.replace(`/emote-ui-automation/run/${run.id}`);
       message.success(`执行任务 #${run.id} 已进入队列`); await load(true);
-    } catch (error) { message.error(error.message); }
+    } catch (error) { executionWindow?.close(); message.error(error.message); }
     finally { setRunBusy(false); }
   };
 
@@ -149,18 +164,18 @@ export function UiAutomationPage({ client, onClose }) {
     catch (error) { message.error(error.message); }
   };
 
-  return <main className="ui-auto-page">
+  return <main className={`ui-auto-page ${embedded ? 'ui-auto-page--embedded' : ''}`}>
     <header className="ui-auto-header">
       <div className="ui-auto-brand"><span>🎬</span><div><Text>cling · 测试中心</Text><Title level={3}>Emote UI 自动化</Title></div></div>
       <Space wrap>
         <Select showSearch value={branch} onChange={setBranch} options={branches.map((value) => ({ value, label: value }))} className="ui-auto-branch" suffixIcon={<BranchesOutlined />} />
         <Select value={viewport} onChange={setViewport} options={[{ value: 'mobile', label: '手机视口 390×844' }, { value: 'desktop', label: '桌面视口 1440×900' }]} />
         <Checkbox checked={syncFirst} onChange={(event) => setSyncFirst(event.target.checked)}>同步最新预览后执行</Checkbox>
-        <Button icon={<ArrowLeftOutlined />} onClick={onClose}>返回私人空间</Button>
+        {!embedded && <Button icon={<ArrowLeftOutlined />} onClick={onClose}>返回私人空间</Button>}
       </Space>
     </header>
     <section className="ui-auto-actions">
-      <div><b>可视化回归工作台</b><span>安全步骤执行 · Chromium · 单任务串行 · 产物保留 7 天</span></div>
+      <div><b>可视化回归编排</b><span>选择用例 → 配置环境 → 脚本执行 → 按用例查看证据</span></div>
       <Space wrap>
         <Button icon={<FileAddOutlined />} onClick={() => setRequirementOpen(true)}>新增测试需求</Button>
         <Button icon={<PlayCircleOutlined />} onClick={() => requestRun('selected')}>执行已勾选</Button>
@@ -190,16 +205,23 @@ export function UiAutomationPage({ client, onClose }) {
       <section className="ui-auto-right">
         <Card className="ui-auto-run-card" title={selectedRun ? `执行 #${selectedRun.id}` : '执行过程'} extra={selectedRun && <Badge status={(STATUS[selectedRun.status] || STATUS.queued)[1]} text={(STATUS[selectedRun.status] || STATUS.queued)[0]} />}>
           {!selectedRun ? <Empty description="选择上方执行方式开始回归" /> : <>
+            <div className="ui-auto-evidence-tabs">
+              <Text type="secondary">用例证据</Text>
+              {evidenceCases.map((item) => <Button size="small" type={evidenceCaseId === item.id ? 'primary' : 'default'} key={item.id} onClick={() => { setEvidenceCaseId(item.id); setSelectedArtifactId(null); }}>{item.name}</Button>)}
+            </div>
             <Row gutter={[16, 16]}>
-              <Col xs={24} lg={15}><div className="ui-auto-screen"><ArtifactViewer client={client} artifact={latestArtifact(selectedRun.status === 'passed' ? 'video' : 'screenshot') || latestArtifact('video')} /></div></Col>
+              <Col xs={24} lg={15}>
+                <div className="ui-auto-screen"><ArtifactViewer client={client} artifact={selectedArtifact} /></div>
+                <div className="ui-auto-artifact-strip">{caseArtifacts.filter((item) => item.kind !== 'trace').map((item) => <button type="button" className={item.id === selectedArtifact?.id ? 'active' : ''} key={item.id} onClick={() => setSelectedArtifactId(item.id)}>{item.kind === 'video' ? '🎥 录像' : '🖼️ 截图'}<small>{item.name.replace(`case-${evidenceCaseId}-`, '')}</small></button>)}</div>
+              </Col>
               <Col xs={24} lg={9}>
                 <Space orientation="vertical" size={14} style={{ width: '100%' }}>
                   <div><Text type="secondary">当前步骤</Text><Paragraph strong>{selectedRun.current_step || '等待 Runner 接收任务'}</Paragraph></div>
                   <Progress percent={selectedRun.progress || 0} status={selectedRun.status === 'failed' ? 'exception' : selectedRun.status === 'passed' ? 'success' : 'active'} />
-                  <div className="ui-auto-meta"><span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '手机' : '桌面'}</b></span></div>
-                  {selectedRun.error_message && <Alert type="error" showIcon title="失败信息" description={selectedRun.error_message} />}
-                  <Space wrap>{selectedRun.artifacts?.map((item) => <Button size="small" key={item.id} onClick={() => download(item)}>{item.kind === 'trace' ? '下载 Trace' : item.kind === 'video' ? '下载录屏' : '下载截图'}</Button>)}</Space>
-                  {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.slice(-8).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', children: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
+                  <div className="ui-auto-meta"><span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '390 × 844' : '1440 × 900'}</b></span></div>
+                  {selectedRun.result_summary?.failure ? <Alert type="error" showIcon title={`${selectedRun.result_summary.failure.case_name} · 第 ${selectedRun.result_summary.failure.step_index} 步失败`} description={<div className="ui-auto-failure"><b>{selectedRun.result_summary.failure.reason}</b><span>动作：{selectedRun.result_summary.failure.action}{selectedRun.result_summary.failure.locator ? ` · 元素：${selectedRun.result_summary.failure.locator}` : ''}</span><span>建议：{selectedRun.result_summary.failure.suggestion}</span><details><summary>查看技术详情</summary><pre>{selectedRun.result_summary.failure.technical_detail}</pre></details></div>} /> : selectedRun.error_message && <Alert type="error" showIcon title="执行失败" description={selectedRun.error_message} />}
+                  <Space wrap>{caseArtifacts.map((item) => <Button size="small" key={item.id} onClick={() => download(item)}>{item.kind === 'trace' ? '下载本用例 Trace' : item.kind === 'video' ? '下载本用例录像' : '下载步骤截图'}</Button>)}</Space>
+                  {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.filter((step) => !evidenceCaseId || step.case_id === evidenceCaseId).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', children: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
                 </Space>
               </Col>
             </Row>
