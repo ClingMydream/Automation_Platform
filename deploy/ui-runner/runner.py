@@ -103,7 +103,11 @@ def run_task(task):
     try:
         callback(run_id, status="running", current_step="启动 Chromium", progress=0)
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True, args=["--no-sandbox"])
+            browser = pw.chromium.launch(
+                executable_path=os.environ.get("CHROMIUM_PATH", "/usr/bin/chromium"),
+                headless=True,
+                args=["--no-sandbox", "--disable-dev-shm-usage"],
+            )
             viewport = {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900}
             for name in ("account_a", "account_b"):
                 contexts[name] = browser.new_context(viewport=viewport, record_video_dir=str(run_dir / "video"), record_video_size=viewport)
