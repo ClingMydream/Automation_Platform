@@ -27,7 +27,7 @@ FEATURES = [
 ]
 LOGIN_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
-    {"action": "assert_visible", "locator_type": "text", "locator": "欢迎来到 Emote"},
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "同意并继续"},
     {"action": "assert_visible", "locator_type": "text", "locator": "登录"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='tel'][placeholder='手机号']", "value": "${account_a.username}"},
@@ -37,7 +37,7 @@ LOGIN_TEMPLATE_STEPS = [
 ]
 REGISTER_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
-    {"action": "assert_visible", "locator_type": "text", "locator": "欢迎来到 Emote"},
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "同意并继续"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "注册"},
     {"action": "assert_visible", "locator_type": "text", "locator": "注册"},
@@ -175,8 +175,10 @@ def _seed(db: Session):
                 case.preconditions = "按页面提示填写运行时账号；脚本从登录或注册开始连续执行，每一步都会截图并生成本用例录像。"
                 case.enabled = True
                 changed = True
-            elif (case and case.name == f"{feature.name}基础流程"
-                  and not any(step.get("locator") == "同意并继续" for step in (case.steps or []))):
+            elif (case and case.name == f"{feature.name}基础流程" and (
+                  not any(step.get("locator") == "同意并继续" for step in (case.steps or []))
+                  or (len(case.steps or []) > 1 and case.steps[1].get("locator") == "欢迎来到 Emote"
+                      and case.steps[1].get("locator_type") == "text"))):
                 case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
                 changed = True
         if changed:
