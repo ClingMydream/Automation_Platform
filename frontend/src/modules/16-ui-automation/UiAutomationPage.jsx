@@ -4,7 +4,7 @@ import {
   Progress, Row, Select, Space, Spin, Tag, Timeline, Tooltip, Typography, message,
 } from 'antd';
 import {
-  ArrowLeftOutlined, BranchesOutlined, CopyOutlined, EditOutlined, ExperimentOutlined,
+  ArrowLeftOutlined, BranchesOutlined, CopyOutlined, DatabaseOutlined, DeleteOutlined, EditOutlined, ExperimentOutlined,
   FileAddOutlined, PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
 } from '@ant-design/icons';
 import './ui-automation.css';
@@ -49,6 +49,7 @@ export function ArtifactViewer({ client, artifact }) {
 export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [data, setData] = useState({ features: [], cases: [], requirements: [], runs: [] });
   const [branches, setBranches] = useState([]);
+  const [dataSets, setDataSets] = useState([]);
   const [branch, setBranch] = useState(DEFAULT_BRANCH);
   const [viewport, setViewport] = useState('mobile');
   const [syncFirst, setSyncFirst] = useState(false);
@@ -64,18 +65,21 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [credentialOpen, setCredentialOpen] = useState(false);
   const [caseOpen, setCaseOpen] = useState(false);
   const [requirementOpen, setRequirementOpen] = useState(false);
+  const [dataSetOpen, setDataSetOpen] = useState(false);
+  const [editingDataSet, setEditingDataSet] = useState(null);
   const [editingCase, setEditingCase] = useState(null);
   const [caseForm] = Form.useForm();
   const [credentialForm] = Form.useForm();
   const [requirementForm] = Form.useForm();
+  const [dataSetForm] = Form.useForm();
 
   const load = async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      const [overview, branchRows] = await Promise.all([
-        client.get('/v1/ui-automation/overview'), client.get('/v1/online-preview/branches'),
+      const [overview, branchRows, savedDataSets] = await Promise.all([
+        client.get('/v1/ui-automation/overview'), client.get('/v1/online-preview/branches'), client.get('/v1/ui-automation/data-sets'),
       ]);
-      setData(overview); setBranches(branchRows);
+      setData(overview); setBranches(branchRows); setDataSets(savedDataSets);
       if (!selectedRunId && overview.runs[0]) setSelectedRunId(overview.runs[0].id);
     } catch (error) { message.error(error.message); }
     finally { if (!quiet) setLoading(false); }
@@ -120,7 +124,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     const caseIds = directCaseIds || selectedCases;
     if (mode === 'selected' && !caseIds.length) return message.warning('请先勾选要执行的用例');
     setRunRequest({ mode, case_ids: mode === 'selected' ? caseIds : [] });
-    credentialForm.resetFields(); setCredentialOpen(true);
+    credentialForm.setFieldsValue({ data_set_id: dataSets.find((item) => item.is_default)?.id || dataSets[0]?.id }); setCredentialOpen(true);
   };
 
   const startRun = async () => {
@@ -134,7 +138,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
       if (syncFirst) { message.loading({ content: '正在同步所选分支…', key: 'ui-sync', duration: 0 }); await waitForSync(); message.success({ content: '分支同步完成', key: 'ui-sync' }); }
       const run = await client.post('/v1/ui-automation/runs', {
         ...runRequest, branch, viewport, smoke_count: 10,
-        credentials: { account_a: credentials.account_a || {}, account_b: credentials.account_b || {}, registration: credentials.registration || {} },
+        data_set_id: credentials.data_set_id,
       });
       setSelectedRunId(run.id); setSelectedRun(run); setCredentialOpen(false);
       if (executionWindow) executionWindow.location.replace(`/emote-ui-automation/run/${run.id}`);
@@ -164,6 +168,21 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     catch (error) { if (error.message) message.error(error.message); }
   };
 
+  const editDataSet = (item = null) => {
+    setEditingDataSet(item);
+    dataSetForm.setFieldsValue(item || { name: '', is_default: !dataSets.length, credentials: { account_a: {}, account_b: {}, registration: {} } });
+    setDataSetOpen(true);
+  };
+
+  const saveDataSet = async () => {
+    try {
+      const values = await dataSetForm.validateFields();
+      if (editingDataSet) await client.put(`/v1/ui-automation/data-sets/${editingDataSet.id}`, values);
+      else await client.post('/v1/ui-automation/data-sets', values);
+      setDataSetOpen(false); message.success('测试数据集已加密保存'); await load(true);
+    } catch (error) { if (error.message) message.error(error.message); }
+  };
+
   const download = async (artifact) => {
     try { const { blob, filename } = await client.download(artifact.url); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
     catch (error) { message.error(error.message); }
@@ -182,6 +201,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     <section className="ui-auto-actions">
       <div><b>可视化回归编排</b><span>选择用例 → 配置环境 → 脚本执行 → 按用例查看证据</span></div>
       <Space wrap>
+        <Button icon={<DatabaseOutlined />} onClick={() => editDataSet()}>测试数据集</Button>
         <Button icon={<FileAddOutlined />} onClick={() => setRequirementOpen(true)}>新增测试需求</Button>
         <Button icon={<PlayCircleOutlined />} onClick={() => requestRun('selected')}>执行已勾选</Button>
         <Button icon={<ExperimentOutlined />} onClick={() => requestRun('smoke')}>随机冒烟</Button>
@@ -239,12 +259,15 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
       </section>
     </div>
 
-    <Modal title="运行时测试账号" open={credentialOpen} onCancel={() => setCredentialOpen(false)} onOk={startRun} okText="确认并开始执行" confirmLoading={runBusy} width={760} destroyOnHidden>
-      <Alert type="info" showIcon title="以下信息仅存在本次 Runner 内存中" description="密码和验证码不会写入数据库或日志，任务结束立即销毁。步骤中可使用 account_a.username 等变量。" />
-      <Form form={credentialForm} layout="vertical" className="ui-auto-credentials">
-        <Row gutter={16}><Col span={12}><Card size="small" title="账号 A"><Form.Item name={['account_a', 'username']} label="账号"><Input autoComplete="off" /></Form.Item><Form.Item name={['account_a', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col><Col span={12}><Card size="small" title="账号 B（好友/聊天）"><Form.Item name={['account_b', 'username']} label="账号"><Input autoComplete="off" /></Form.Item><Form.Item name={['account_b', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col></Row>
-        <Row gutter={16}><Col span={12}><Form.Item name={['registration', 'phone']} label="注册手机号"><Input /></Form.Item></Col><Col span={12}><Form.Item name={['registration', 'code']} label="验证码"><Input.Password /></Form.Item></Col></Row>
-      </Form>
+    <Modal title="选择测试数据" open={credentialOpen} onCancel={() => setCredentialOpen(false)} onOk={startRun} okText="确认并开始执行" confirmLoading={runBusy} width={520} destroyOnHidden>
+      <Alert type="info" showIcon title="复用已保存的测试数据" description="账号密码在服务器加密保存，执行时临时解密给 Runner，运行记录、截图说明和日志不会保存明文密码。" />
+      <Form form={credentialForm} layout="vertical" className="ui-auto-credentials"><Form.Item name="data_set_id" label="测试数据集" rules={[{ required: true, message: '请先选择或新建测试数据集' }]}><Select placeholder="选择账号数据" options={dataSets.map((item) => ({ value: item.id, label: `${item.name}${item.is_default ? '（默认）' : ''}` }))} /></Form.Item><Button icon={<DatabaseOutlined />} onClick={() => editDataSet()}>新建测试数据集</Button></Form>
+    </Modal>
+
+    <Modal title={editingDataSet ? '编辑测试数据集' : '新建测试数据集'} open={dataSetOpen} onCancel={() => setDataSetOpen(false)} onOk={saveDataSet} okText="加密保存" width={760} destroyOnHidden>
+      <Alert type="warning" showIcon title="敏感数据安全" description="密码与验证码使用服务器密钥加密入库；列表接口只返回 ******，不会返回密文或明文。" />
+      <Form form={dataSetForm} layout="vertical" style={{ marginTop: 16 }}><Row gutter={16}><Col span={18}><Form.Item name="name" label="数据集名称" rules={[{ required: true }]}><Input placeholder="例如：Emote 测试环境账号" /></Form.Item></Col><Col span={6}><Form.Item name="is_default" label="默认使用" valuePropName="checked"><Checkbox>设为默认</Checkbox></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Card size="small" title="账号 A"><Form.Item name={['credentials', 'account_a', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_a', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col><Col span={12}><Card size="small" title="账号 B（好友/聊天）"><Form.Item name={['credentials', 'account_b', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_b', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col></Row><Row gutter={16} style={{ marginTop: 12 }}><Col span={12}><Form.Item name={['credentials', 'registration', 'phone']} label="注册手机号"><Input /></Form.Item></Col><Col span={12}><Form.Item name={['credentials', 'registration', 'code']} label="注册验证码"><Input.Password /></Form.Item></Col></Row></Form>
+      {!!dataSets.length && <div className="ui-auto-datasets"><Text type="secondary">已保存数据集</Text>{dataSets.map((item) => <Space key={item.id}><Button size="small" onClick={() => editDataSet(item)}>{item.name}{item.is_default ? '（默认）' : ''}</Button><Button danger size="small" icon={<DeleteOutlined />} onClick={async () => { await client.delete(`/v1/ui-automation/data-sets/${item.id}`); await load(true); }} /></Space>)}</div>}
     </Modal>
 
     <Modal title={editingCase ? '编辑测试用例' : '新建测试用例'} open={caseOpen} onCancel={() => setCaseOpen(false)} onOk={saveCase} okText="保存" width={980} destroyOnHidden>

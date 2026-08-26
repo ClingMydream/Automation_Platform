@@ -2,10 +2,14 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
+import base64
+import hashlib
+import json
 import random
 import secrets
 
 import httpx
+from cryptography.fernet import Fernet, InvalidToken
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -14,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import AuthContext, require_menu
 from app.core.config import get_settings
 from app.db import get_db
-from app.models.entities import UiAutomationArtifact, UiAutomationCase, UiAutomationFeature, UiAutomationRequirement, UiAutomationRun
+from app.models.entities import UiAutomationArtifact, UiAutomationCase, UiAutomationDataSet, UiAutomationFeature, UiAutomationRequirement, UiAutomationRun
 from app.modules.online_preview.router import _jenkins_job_status, _remote_revision, _validate_branch
 
 router = APIRouter(prefix="/v1/ui-automation", tags=["Emote UI 自动化"])
@@ -29,6 +33,7 @@ LOGIN_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "同意并继续"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "登录"},
     {"action": "assert_visible", "locator_type": "text", "locator": "登录"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='tel'][placeholder='手机号']", "value": "${account_a.username}"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='password']", "value": "${account_a.password}"},
@@ -137,6 +142,13 @@ class RunInput(BaseModel):
     case_ids: list[int] = Field(default_factory=list)
     smoke_count: int = Field(default=10, ge=1, le=50)
     random_seed: str | None = None
+    data_set_id: int | None = None
+    credentials: dict = Field(default_factory=dict)
+
+
+class DataSetInput(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    is_default: bool = False
     credentials: dict = Field(default_factory=dict)
 
 
@@ -178,7 +190,10 @@ def _seed(db: Session):
             elif (case and case.name == f"{feature.name}基础流程" and (
                   not any(step.get("locator") == "同意并继续" for step in (case.steps or []))
                   or (len(case.steps or []) > 1 and case.steps[1].get("locator") == "欢迎来到 Emote"
-                      and case.steps[1].get("locator_type") == "text"))):
+                      and case.steps[1].get("locator_type") == "text")
+                  or (feature.key != "register" and not any(
+                      step.get("action") == "click" and step.get("locator") == "登录" for step in (case.steps or [])
+                  )))):
                 case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
                 changed = True
         if changed:
@@ -232,6 +247,70 @@ def _validate_steps(steps: list[dict]):
             raise HTTPException(400, f"第 {index} 步动作不允许")
         if step.get("action") == "fill" and not step.get("value") and not step.get("variable"):
             raise HTTPException(400, f"第 {index} 步缺少输入值或变量")
+
+
+def _data_cipher() -> Fernet:
+    key = base64.urlsafe_b64encode(hashlib.sha256(get_settings().app_secret_key.encode()).digest())
+    return Fernet(key)
+
+
+def _encrypt_credentials(value: dict) -> str:
+    return _data_cipher().encrypt(json.dumps(value, ensure_ascii=False).encode()).decode()
+
+
+def _decrypt_credentials(value: str) -> dict:
+    try:
+        return json.loads(_data_cipher().decrypt(value.encode()).decode())
+    except (InvalidToken, ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(500, "测试数据集无法解密，请重新保存") from exc
+
+
+def _data_set_dict(item: UiAutomationDataSet):
+    data = _decrypt_credentials(item.encrypted_data)
+    def masked(group):
+        values = data.get(group, {}) if isinstance(data.get(group), dict) else {}
+        return {key: ("******" if key in {"password", "code"} and value else value) for key, value in values.items()}
+    return {"id": item.id, "name": item.name, "is_default": item.is_default,
+            "credentials": {key: masked(key) for key in ("account_a", "account_b", "registration")},
+            "updated_at": item.updated_at}
+
+
+@router.get("/data-sets", dependencies=[guard])
+def list_data_sets(db: Session = Depends(get_db)):
+    return [_data_set_dict(item) for item in db.query(UiAutomationDataSet).order_by(UiAutomationDataSet.is_default.desc(), UiAutomationDataSet.id).all()]
+
+
+@router.post("/data-sets", dependencies=[guard])
+def create_data_set(payload: DataSetInput, db: Session = Depends(get_db)):
+    if db.query(UiAutomationDataSet).filter_by(name=payload.name.strip()).first(): raise HTTPException(409, "数据集名称已存在")
+    if payload.is_default: db.query(UiAutomationDataSet).update({UiAutomationDataSet.is_default: False})
+    item = UiAutomationDataSet(name=payload.name.strip(), is_default=payload.is_default,
+                               encrypted_data=_encrypt_credentials(payload.credentials))
+    db.add(item); db.commit(); db.refresh(item)
+    return _data_set_dict(item)
+
+
+@router.put("/data-sets/{data_set_id}", dependencies=[guard])
+def update_data_set(data_set_id: int, payload: DataSetInput, db: Session = Depends(get_db)):
+    item = db.get(UiAutomationDataSet, data_set_id)
+    if not item: raise HTTPException(404, "测试数据集不存在")
+    old = _decrypt_credentials(item.encrypted_data)
+    incoming = payload.credentials
+    for group in ("account_a", "account_b", "registration"):
+        for key, value in (incoming.get(group, {}) or {}).items():
+            if value == "******": incoming[group][key] = (old.get(group, {}) or {}).get(key, "")
+    if payload.is_default: db.query(UiAutomationDataSet).update({UiAutomationDataSet.is_default: False})
+    item.name, item.is_default, item.encrypted_data = payload.name.strip(), payload.is_default, _encrypt_credentials(incoming)
+    db.commit(); db.refresh(item)
+    return _data_set_dict(item)
+
+
+@router.delete("/data-sets/{data_set_id}", dependencies=[guard])
+def delete_data_set(data_set_id: int, db: Session = Depends(get_db)):
+    item = db.get(UiAutomationDataSet, data_set_id)
+    if not item: raise HTTPException(404, "测试数据集不存在")
+    db.delete(item); db.commit()
+    return {"message": "测试数据集已删除"}
 
 
 @router.get("/overview", dependencies=[guard])
@@ -348,6 +427,11 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
         random.Random(seed).shuffle(cases)
         cases = cases[:payload.smoke_count]
     if not cases: raise HTTPException(400, "没有可执行的已启用用例")
+    credentials = payload.credentials
+    if payload.data_set_id:
+        data_set = db.get(UiAutomationDataSet, payload.data_set_id)
+        if not data_set: raise HTTPException(404, "所选测试数据集不存在")
+        credentials = _decrypt_credentials(data_set.encrypted_data)
     # UI playback and APK compilation share a small production host. Queueing here would
     # retain credentials, so ask the user to retry after the resource-heavy job finishes.
     if _jenkins_job_status("emote-preview").get("building") or _jenkins_job_status("emote-apk").get("building"):
@@ -359,7 +443,7 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
     # Go through the public preview proxy so /emote-preview/* assets (including the
     # Logo) resolve exactly as they do for a user opening the preview website.
     runner_payload = {"run_id": run.id, "base_url": "http://frontend/emote-preview/", "viewport": payload.viewport,
-                      "cases": [_case_dict(x) for x in cases], "credentials": payload.credentials}
+                      "cases": [_case_dict(x) for x in cases], "credentials": credentials}
     settings = get_settings()
     try:
         response = httpx.post(f"{settings.ui_runner_url}/execute", json=runner_payload,

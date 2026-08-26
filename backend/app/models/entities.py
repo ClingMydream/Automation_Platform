@@ -318,6 +318,15 @@ class UiAutomationCase(Base, TimestampMixin):
     enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
+class UiAutomationDataSet(Base, TimestampMixin):
+    """Store one reusable, server-encrypted set of UI automation runtime data."""
+    __tablename__ = "ui_automation_data_sets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    encrypted_data: Mapped[str] = mapped_column(Text, nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
 class UiAutomationRun(Base, TimestampMixin):
     """Persist a regression/smoke execution without runtime secrets."""
     __tablename__ = "ui_automation_runs"
