@@ -33,6 +33,72 @@ LOGIN_TEMPLATE_STEPS = [
     {"action": "click", "locator_type": "css", "locator": "form button[type='button']:has(+ p):visible"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园"},
 ]
+REGISTER_TEMPLATE_STEPS = [
+    {"action": "goto", "value": "/"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "注册"},
+    {"action": "assert_visible", "locator_type": "text", "locator": "注册"},
+    {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='text']", "value": "AUTO-${run_id}"},
+    {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[placeholder='手机号']", "value": "${registration.phone}"},
+    {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[placeholder='验证码']", "value": "${registration.code}"},
+    {"action": "screenshot"},
+]
+
+
+def _authenticated_steps(*feature_steps):
+    """Every business case shows the complete login precondition before its own flow."""
+    return [dict(step) for step in LOGIN_TEMPLATE_STEPS] + [dict(step) for step in feature_steps]
+
+
+FEATURE_TEMPLATE_STEPS = {
+    "login": LOGIN_TEMPLATE_STEPS,
+    "register": REGISTER_TEMPLATE_STEPS,
+    "post": _authenticated_steps(
+        {"action": "click", "locator_type": "text", "locator": "发布心情"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "发布"},
+        {"action": "screenshot"},
+    ),
+    "delete_post": _authenticated_steps(
+        {"action": "click", "locator_type": "text", "locator": "我的"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "我的记录"},
+        {"action": "screenshot"},
+    ),
+    "like": _authenticated_steps(
+        {"action": "click", "locator_type": "text", "locator": "原野"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "原野"},
+        {"action": "screenshot"},
+    ),
+    "comment": _authenticated_steps(
+        {"action": "click", "locator_type": "text", "locator": "原野"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "添加评论..."},
+        {"action": "screenshot"},
+    ),
+    "favorite": _authenticated_steps(
+        {"action": "click", "locator_type": "text", "locator": "我的"},
+        {"action": "click", "locator_type": "text", "locator": "收藏夹"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "珍藏回声"},
+    ),
+    "friend": _authenticated_steps(
+        {"action": "click", "locator_type": "text", "locator": "连接"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "好友"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "灵魂推荐"},
+    ),
+    "chat": _authenticated_steps(
+        {"action": "click", "locator_type": "text", "locator": "连接"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "好友"},
+        {"action": "screenshot"},
+    ),
+    "daily_task": _authenticated_steps(
+        {"action": "click", "locator_type": "text", "locator": "我的"},
+        {"action": "click", "locator_type": "text", "locator": "每日任务"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "每日任务"},
+    ),
+    "profile": _authenticated_steps(
+        {"action": "click", "locator_type": "text", "locator": "我的"},
+        {"action": "click", "locator_type": "text", "locator": "编辑资料"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "个性签名"},
+        {"action": "screenshot"},
+    ),
+}
 SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "assert_visible", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
 
 
@@ -86,16 +152,28 @@ def _seed(db: Session):
         login_feature = db.query(UiAutomationFeature).filter_by(key="login").first()
         login_case = db.query(UiAutomationCase).filter_by(feature_id=login_feature.id).order_by(UiAutomationCase.id).first() if login_feature else None
         legacy_steps = [{"value": "/", "action": "goto"}, {"action": "assert_visible", "locator": "登录", "locator_type": "text"}]
+        changed = False
         if login_case and login_case.steps == legacy_steps:
             login_case.steps = LOGIN_TEMPLATE_STEPS
             login_case.preconditions = "运行前填写账号 A 的手机号和密码；脚本会逐步打开登录页、填写表单、勾选协议并点击登录。"
-            db.commit()
+            changed = True
         elif login_case and len(login_case.steps or []) == 6 and (login_case.steps[2].get("locator") in {
             "input[type='tel']", "input[type='tel'][placeholder='手机号']:visible"
         } or "placeholder='请输入密码'" in login_case.steps[3].get("locator", "")):
             # Refine the first full-login template: hidden register/reset inputs also
             # exist in the DOM, so automation must target only the visible sign-in form.
             login_case.steps = LOGIN_TEMPLATE_STEPS
+            changed = True
+        for feature in db.query(UiAutomationFeature).all():
+            if feature.key == "login":
+                continue
+            case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
+            if case and case.steps == legacy_steps:
+                case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
+                case.preconditions = "按页面提示填写运行时账号；脚本从登录或注册开始连续执行，每一步都会截图并生成本用例录像。"
+                case.enabled = True
+                changed = True
+        if changed:
             db.commit()
         return
     for order, (key, name) in enumerate(FEATURES, 1):
@@ -105,8 +183,8 @@ def _seed(db: Session):
         db.add(UiAutomationCase(
             feature_id=feature.id, name=f"{name}基础流程", priority="P1", tags=["smoke", "regression"],
             preconditions="运行前填写所需测试账号；请根据当前页面补充定位步骤。", cleanup_note="保留测试数据",
-            steps=LOGIN_TEMPLATE_STEPS if key == "login" else [{"action": "goto", "value": "/"}, {"action": "assert_visible", "locator_type": "text", "locator": "登录"}],
-            enabled=key == "login",
+            steps=FEATURE_TEMPLATE_STEPS[key],
+            enabled=True,
         ))
     db.commit()
 
