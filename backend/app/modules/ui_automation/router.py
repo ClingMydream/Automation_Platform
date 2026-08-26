@@ -102,7 +102,7 @@ def _run_dict(run: UiAutomationRun, db: Session):
             "result_summary": run.result_summary, "error_message": run.error_message,
             "started_at": run.started_at, "finished_at": run.finished_at, "created_at": run.created_at,
             "artifacts": [{"id": x.id, "kind": x.kind, "name": x.name,
-                           "url": f"/api/v1/ui-automation/artifacts/{x.id}"} for x in artifacts]}
+                           "url": f"/v1/ui-automation/artifacts/{x.id}"} for x in artifacts]}
 
 
 def _cleanup(db: Session):

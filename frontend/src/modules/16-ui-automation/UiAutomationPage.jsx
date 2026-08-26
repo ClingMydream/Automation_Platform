@@ -25,17 +25,21 @@ const STATUS = {
 
 export function ArtifactViewer({ client, artifact }) {
   const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
     let objectUrl = '';
+    setUrl(''); setError('');
     if (artifact?.kind === 'video' || artifact?.kind === 'screenshot') {
       client.download(artifact.url).then(({ blob }) => {
         objectUrl = URL.createObjectURL(blob);
         setUrl(objectUrl);
-      }).catch(() => setUrl(''));
+      }).catch((reason) => { setUrl(''); setError(reason.message || '产物读取失败'); });
     }
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [artifact?.id]);
+  }, [artifact?.id, retry]);
   if (!artifact) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="执行后会在这里显示录屏和截图" />;
+  if (error) return <Alert type="error" showIcon title="产物读取失败" description={<Space orientation="vertical"><span>{error}</span><Button size="small" onClick={() => setRetry((value) => value + 1)}>重新读取</Button></Space>} />;
   if (!url) return <Spin tip="正在读取鉴权产物" />;
   return artifact.kind === 'video'
     ? <video className="ui-auto-media" src={url} controls playsInline />
