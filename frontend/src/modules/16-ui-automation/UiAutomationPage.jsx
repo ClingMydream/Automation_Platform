@@ -1,0 +1,240 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Alert, Badge, Button, Card, Checkbox, Col, Drawer, Empty, Form, Input, Modal,
+  Progress, Row, Select, Space, Spin, Tag, Timeline, Tooltip, Typography, message,
+} from 'antd';
+import {
+  ArrowLeftOutlined, BranchesOutlined, CopyOutlined, EditOutlined, ExperimentOutlined,
+  FileAddOutlined, PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
+} from '@ant-design/icons';
+import './ui-automation.css';
+import './ui-automation-timeline.css';
+
+const { Paragraph, Text, Title } = Typography;
+const DEFAULT_BRANCH = 'dev-20260811-1.9.1';
+const ACTIONS = [
+  ['goto', '打开页面'], ['click', '点击'], ['fill', '输入'], ['select', '选择'],
+  ['press', '键盘操作'], ['wait', '等待'], ['assert_visible', '断言元素可见'],
+  ['assert_text', '断言文本'], ['assert_url', '断言地址'], ['assert_count', '断言数量'],
+  ['screenshot', '截图'], ['switch_account', '切换账号'],
+];
+const STATUS = {
+  queued: ['等待执行', 'default'], running: ['执行中', 'processing'], passed: ['通过', 'success'],
+  failed: ['失败', 'error'], interrupted: ['已中断', 'warning'],
+};
+
+function ArtifactViewer({ client, artifact }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    let objectUrl = '';
+    if (artifact?.kind === 'video' || artifact?.kind === 'screenshot') {
+      client.download(artifact.url).then(({ blob }) => {
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      }).catch(() => setUrl(''));
+    }
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [artifact?.id]);
+  if (!artifact) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="执行后会在这里显示录屏和截图" />;
+  if (!url) return <Spin tip="正在读取鉴权产物" />;
+  return artifact.kind === 'video'
+    ? <video className="ui-auto-media" src={url} controls playsInline />
+    : <img className="ui-auto-media" src={url} alt={artifact.name} />;
+}
+
+export function UiAutomationPage({ client, onClose }) {
+  const [data, setData] = useState({ features: [], cases: [], requirements: [], runs: [] });
+  const [branches, setBranches] = useState([]);
+  const [branch, setBranch] = useState(DEFAULT_BRANCH);
+  const [viewport, setViewport] = useState('mobile');
+  const [syncFirst, setSyncFirst] = useState(false);
+  const [selectedCases, setSelectedCases] = useState([]);
+  const [selectedRunId, setSelectedRunId] = useState(null);
+  const [selectedRun, setSelectedRun] = useState(null);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [runBusy, setRunBusy] = useState(false);
+  const [runRequest, setRunRequest] = useState(null);
+  const [credentialOpen, setCredentialOpen] = useState(false);
+  const [caseOpen, setCaseOpen] = useState(false);
+  const [requirementOpen, setRequirementOpen] = useState(false);
+  const [editingCase, setEditingCase] = useState(null);
+  const [caseForm] = Form.useForm();
+  const [credentialForm] = Form.useForm();
+  const [requirementForm] = Form.useForm();
+
+  const load = async (quiet = false) => {
+    if (!quiet) setLoading(true);
+    try {
+      const [overview, branchRows] = await Promise.all([
+        client.get('/v1/ui-automation/overview'), client.get('/v1/online-preview/branches'),
+      ]);
+      setData(overview); setBranches(branchRows);
+      if (!selectedRunId && overview.runs[0]) setSelectedRunId(overview.runs[0].id);
+    } catch (error) { message.error(error.message); }
+    finally { if (!quiet) setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (!selectedRunId) { setSelectedRun(null); return undefined; }
+    let active = true;
+    const read = async () => {
+      try { const row = await client.get(`/v1/ui-automation/runs/${selectedRunId}`); if (active) setSelectedRun(row); }
+      catch (error) { if (active) message.error(error.message); }
+    };
+    read();
+    const timer = window.setInterval(read, 3000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [selectedRunId]);
+
+  const visibleCases = useMemo(() => data.cases.filter((item) => item.name.toLowerCase().includes(search.toLowerCase())), [data.cases, search]);
+  const latestArtifact = (kind) => [...(selectedRun?.artifacts || [])].reverse().find((item) => item.kind === kind);
+
+  const waitForSync = async () => {
+    await client.post('/v1/online-preview/sync', { branch });
+    for (let index = 0; index < 90; index += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 3000));
+      const status = await client.get('/v1/online-preview/status');
+      if (!status.building && status.result === 'SUCCESS') return;
+      if (!status.building && status.result && status.result !== 'SUCCESS') throw new Error(status.description || '预览同步失败');
+    }
+    throw new Error('等待预览同步超时');
+  };
+
+  const requestRun = (mode) => {
+    if (mode === 'selected' && !selectedCases.length) return message.warning('请先勾选要执行的用例');
+    setRunRequest({ mode, case_ids: mode === 'selected' ? selectedCases : [] });
+    credentialForm.resetFields(); setCredentialOpen(true);
+  };
+
+  const startRun = async () => {
+    const credentials = await credentialForm.validateFields();
+    setRunBusy(true);
+    try {
+      if (syncFirst) { message.loading({ content: '正在同步所选分支…', key: 'ui-sync', duration: 0 }); await waitForSync(); message.success({ content: '分支同步完成', key: 'ui-sync' }); }
+      const run = await client.post('/v1/ui-automation/runs', {
+        ...runRequest, branch, viewport, smoke_count: 10,
+        credentials: { account_a: credentials.account_a || {}, account_b: credentials.account_b || {}, registration: credentials.registration || {} },
+      });
+      setSelectedRunId(run.id); setSelectedRun(run); setCredentialOpen(false);
+      message.success(`执行任务 #${run.id} 已进入队列`); await load(true);
+    } catch (error) { message.error(error.message); }
+    finally { setRunBusy(false); }
+  };
+
+  const openCase = (item) => {
+    setEditingCase(item || null);
+    caseForm.setFieldsValue(item || { feature_id: data.features[0]?.id, name: '', priority: 'P1', tags: ['regression'], enabled: false, preconditions: '', cleanup_note: '保留测试数据', steps: [{ action: 'goto', value: '/' }] });
+    setCaseOpen(true);
+  };
+
+  const saveCase = async () => {
+    try {
+      const values = await caseForm.validateFields();
+      values.tags = typeof values.tags === 'string' ? values.tags.split(',').map((x) => x.trim()).filter(Boolean) : values.tags;
+      if (editingCase) await client.put(`/v1/ui-automation/cases/${editingCase.id}`, values);
+      else await client.post('/v1/ui-automation/cases', values);
+      setCaseOpen(false); message.success('用例已保存'); await load(true);
+    } catch (error) { if (error.message) message.error(error.message); }
+  };
+
+  const saveRequirement = async () => {
+    try { await client.post('/v1/ui-automation/requirements', await requirementForm.validateFields()); setRequirementOpen(false); requirementForm.resetFields(); message.success('测试需求已保存为草稿'); await load(true); }
+    catch (error) { if (error.message) message.error(error.message); }
+  };
+
+  const download = async (artifact) => {
+    try { const { blob, filename } = await client.download(artifact.url); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
+    catch (error) { message.error(error.message); }
+  };
+
+  return <main className="ui-auto-page">
+    <header className="ui-auto-header">
+      <div className="ui-auto-brand"><span>🎬</span><div><Text>cling · 测试中心</Text><Title level={3}>Emote UI 自动化</Title></div></div>
+      <Space wrap>
+        <Select showSearch value={branch} onChange={setBranch} options={branches.map((value) => ({ value, label: value }))} className="ui-auto-branch" suffixIcon={<BranchesOutlined />} />
+        <Select value={viewport} onChange={setViewport} options={[{ value: 'mobile', label: '手机视口 390×844' }, { value: 'desktop', label: '桌面视口 1440×900' }]} />
+        <Checkbox checked={syncFirst} onChange={(event) => setSyncFirst(event.target.checked)}>同步最新预览后执行</Checkbox>
+        <Button icon={<ArrowLeftOutlined />} onClick={onClose}>返回私人空间</Button>
+      </Space>
+    </header>
+    <section className="ui-auto-actions">
+      <div><b>可视化回归工作台</b><span>安全步骤执行 · Chromium · 单任务串行 · 产物保留 7 天</span></div>
+      <Space wrap>
+        <Button icon={<FileAddOutlined />} onClick={() => setRequirementOpen(true)}>新增测试需求</Button>
+        <Button icon={<PlayCircleOutlined />} onClick={() => requestRun('selected')}>执行已勾选</Button>
+        <Button icon={<ExperimentOutlined />} onClick={() => requestRun('smoke')}>随机冒烟</Button>
+        <Button type="primary" icon={<VideoCameraOutlined />} onClick={() => requestRun('regression')}>全部回归</Button>
+      </Space>
+    </section>
+    <div className="ui-auto-grid">
+      <aside className="ui-auto-left">
+        <div className="ui-auto-panel-title"><div><b>功能与用例</b><Text type="secondary">已覆盖 {data.features.length} 个功能</Text></div><Button type="text" icon={<ReloadOutlined />} onClick={() => load()} /></div>
+        <Input.Search allowClear placeholder="搜索用例" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <Spin spinning={loading}>
+          {data.features.map((feature) => {
+            const rows = visibleCases.filter((item) => item.feature_id === feature.id);
+            return <section className="ui-auto-feature" key={feature.id}>
+              <div className="ui-auto-feature-head"><span>{feature.name}</span><Badge count={rows.length} showZero color="#6d5dfc" /></div>
+              {rows.map((item) => <div className={`ui-auto-case ${selectedCases.includes(item.id) ? 'selected' : ''}`} key={item.id}>
+                <Checkbox checked={selectedCases.includes(item.id)} onChange={(event) => setSelectedCases((old) => event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id))} />
+                <button type="button" onClick={() => openCase(item)}><span>{item.name}</span><small><Tag color={item.enabled ? 'green' : 'default'}>{item.enabled ? '已启用' : '草稿'}</Tag>{item.steps.length} 步 · {item.priority}</small></button>
+                <Tooltip title="复制用例"><Button type="text" size="small" icon={<CopyOutlined />} onClick={async () => { await client.post(`/v1/ui-automation/cases/${item.id}/duplicate`, {}); await load(true); }} /></Tooltip>
+              </div>)}
+            </section>;
+          })}
+        </Spin>
+        <Button block type="dashed" icon={<FileAddOutlined />} onClick={() => openCase(null)}>新建结构化用例</Button>
+      </aside>
+      <section className="ui-auto-right">
+        <Card className="ui-auto-run-card" title={selectedRun ? `执行 #${selectedRun.id}` : '执行过程'} extra={selectedRun && <Badge status={(STATUS[selectedRun.status] || STATUS.queued)[1]} text={(STATUS[selectedRun.status] || STATUS.queued)[0]} />}>
+          {!selectedRun ? <Empty description="选择上方执行方式开始回归" /> : <>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} lg={15}><div className="ui-auto-screen"><ArtifactViewer client={client} artifact={latestArtifact(selectedRun.status === 'passed' ? 'video' : 'screenshot') || latestArtifact('video')} /></div></Col>
+              <Col xs={24} lg={9}>
+                <Space orientation="vertical" size={14} style={{ width: '100%' }}>
+                  <div><Text type="secondary">当前步骤</Text><Paragraph strong>{selectedRun.current_step || '等待 Runner 接收任务'}</Paragraph></div>
+                  <Progress percent={selectedRun.progress || 0} status={selectedRun.status === 'failed' ? 'exception' : selectedRun.status === 'passed' ? 'success' : 'active'} />
+                  <div className="ui-auto-meta"><span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '手机' : '桌面'}</b></span></div>
+                  {selectedRun.error_message && <Alert type="error" showIcon title="失败信息" description={selectedRun.error_message} />}
+                  <Space wrap>{selectedRun.artifacts?.map((item) => <Button size="small" key={item.id} onClick={() => download(item)}>{item.kind === 'trace' ? '下载 Trace' : item.kind === 'video' ? '下载录屏' : '下载截图'}</Button>)}</Space>
+                  {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.slice(-8).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', children: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
+                </Space>
+              </Col>
+            </Row>
+          </>}
+        </Card>
+        <Card title="历史执行" size="small">
+          <div className="ui-auto-history">{data.runs.map((run) => <button type="button" key={run.id} className={run.id === selectedRunId ? 'active' : ''} onClick={() => setSelectedRunId(run.id)}><b>#{run.id} · {(STATUS[run.status] || STATUS.queued)[0]}</b><span>{run.mode} · {run.branch}</span><small>{run.created_at ? new Date(run.created_at).toLocaleString('zh-CN') : ''}</small></button>)}</div>
+        </Card>
+      </section>
+    </div>
+
+    <Modal title="运行时测试账号" open={credentialOpen} onCancel={() => setCredentialOpen(false)} onOk={startRun} okText="确认并开始执行" confirmLoading={runBusy} width={760} destroyOnHidden>
+      <Alert type="info" showIcon title="以下信息仅存在本次 Runner 内存中" description="密码和验证码不会写入数据库或日志，任务结束立即销毁。步骤中可使用 account_a.username 等变量。" />
+      <Form form={credentialForm} layout="vertical" className="ui-auto-credentials">
+        <Row gutter={16}><Col span={12}><Card size="small" title="账号 A"><Form.Item name={['account_a', 'username']} label="账号"><Input autoComplete="off" /></Form.Item><Form.Item name={['account_a', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col><Col span={12}><Card size="small" title="账号 B（好友/聊天）"><Form.Item name={['account_b', 'username']} label="账号"><Input autoComplete="off" /></Form.Item><Form.Item name={['account_b', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col></Row>
+        <Row gutter={16}><Col span={12}><Form.Item name={['registration', 'phone']} label="注册手机号"><Input /></Form.Item></Col><Col span={12}><Form.Item name={['registration', 'code']} label="验证码"><Input.Password /></Form.Item></Col></Row>
+      </Form>
+    </Modal>
+
+    <Modal title={editingCase ? '编辑测试用例' : '新建测试用例'} open={caseOpen} onCancel={() => setCaseOpen(false)} onOk={saveCase} okText="保存" width={980} destroyOnHidden>
+      <Form form={caseForm} layout="vertical">
+        <Row gutter={12}><Col span={10}><Form.Item name="name" label="用例名称" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={6}><Form.Item name="feature_id" label="所属功能" rules={[{ required: true }]}><Select options={data.features.map((x) => ({ value: x.id, label: x.name }))} /></Form.Item></Col><Col span={4}><Form.Item name="priority" label="优先级"><Select options={['P0', 'P1', 'P2'].map((x) => ({ value: x }))} /></Form.Item></Col><Col span={4}><Form.Item name="enabled" label="进入回归" valuePropName="checked"><Checkbox>确认并启用</Checkbox></Form.Item></Col></Row>
+        <Form.Item name="tags" label="标签（英文逗号分隔）" getValueProps={(value) => ({ value: Array.isArray(value) ? value.join(',') : value })}><Input placeholder="smoke,regression" /></Form.Item>
+        <Row gutter={12}><Col span={12}><Form.Item name="preconditions" label="前置条件"><Input.TextArea rows={2} /></Form.Item></Col><Col span={12}><Form.Item name="cleanup_note" label="清理说明"><Input.TextArea rows={2} /></Form.Item></Col></Row>
+        <Form.List name="steps">{(fields, { add, remove, move }) => <div className="ui-auto-steps">
+          <div className="ui-auto-step-title"><b>可视化步骤</b><Button size="small" onClick={() => add({ action: 'click', locator_type: 'testid' })}>添加步骤</Button></div>
+          {fields.map((field, index) => <div className="ui-auto-step" key={field.key}><span>{index + 1}</span><Form.Item name={[field.name, 'action']} rules={[{ required: true }]}><Select options={ACTIONS.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item name={[field.name, 'locator_type']}><Select placeholder="定位方式" options={['testid', 'role', 'label', 'text', 'css'].map((value) => ({ value, label: value }))} /></Form.Item><Form.Item name={[field.name, 'locator']}><Input placeholder="元素名称 / 选择器" /></Form.Item><Form.Item name={[field.name, 'value']}><Input placeholder="值或 /页面地址" /></Form.Item><Space><Button size="small" disabled={index === 0} onClick={() => move(index, index - 1)}>↑</Button><Button size="small" disabled={index === fields.length - 1} onClick={() => move(index, index + 1)}>↓</Button><Button danger size="small" onClick={() => remove(field.name)}>删</Button></Space></div>)}
+        </div>}</Form.List>
+      </Form>
+    </Modal>
+
+    <Drawer title="新增自然语言测试需求" open={requirementOpen} onClose={() => setRequirementOpen(false)} width={520} extra={<Button type="primary" onClick={saveRequirement}>保存草稿</Button>}>
+      <Alert type="warning" showIcon title="首版不会自动生成脚本" description="先记录你想测什么，再进入可视化步骤编辑器补充动作和断言，确认启用后才会加入回归。" />
+      <Form form={requirementForm} layout="vertical" style={{ marginTop: 20 }}><Form.Item name="feature_id" label="所属功能"><Select allowClear options={data.features.map((x) => ({ value: x.id, label: x.name }))} /></Form.Item><Form.Item name="content" label="请用自然语言描述测试需求" rules={[{ required: true, min: 2 }]}><Input.TextArea rows={10} placeholder="例如：使用账号 A 登录，进入发帖页发布一条带 [AUTO] 标记的文字动态，并检查首页能看到它。" /></Form.Item></Form>
+      {data.requirements.length > 0 && <><Title level={5}>最近草稿</Title><Timeline items={data.requirements.slice(0, 8).map((x) => ({ children: x.content }))} /></>}
+    </Drawer>
+  </main>;
+}

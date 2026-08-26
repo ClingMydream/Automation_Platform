@@ -7,6 +7,7 @@
 """
 
 MENU_OPTIONS = [
+    {"key": "emote_ui_automation", "label": "Emote UI 自动化"},
     {"key": "learning", "label": "学习空间"},
     {"key": "command_library", "label": "命令手册"},
     {"key": "restful_booker", "label": "酒店练习项目"},

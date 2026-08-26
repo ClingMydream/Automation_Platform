@@ -30,6 +30,7 @@ services:
       - transfer-data:/tmp/automation-platform-transfers
       - learning-data:/var/lib/cling-learning
       - test-package-data:/var/lib/cling-test-packages
+      - ui-automation-data:/var/lib/cling-ui-automation
     depends_on:
       mysql:
         condition: service_healthy
@@ -56,6 +57,8 @@ services:
       emote-preview:
         condition: service_healthy
       jenkins:
+        condition: service_healthy
+      ui-runner:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
@@ -89,6 +92,32 @@ services:
     volumes:
       - emote-preview-data:/srv/emote-preview
     restart: "no"
+
+  ui-runner:
+    build:
+      context: .
+      dockerfile: deploy/ui-runner/Dockerfile
+    restart: unless-stopped
+    environment:
+      UI_RUNNER_TOKEN: ${UI_RUNNER_TOKEN}
+      UI_RUNNER_CALLBACK: http://backend:8000/api/v1/ui-automation/internal/runs
+      UI_AUTOMATION_DATA_DIR: /data
+    volumes:
+      - ui-automation-data:/data
+    depends_on:
+      backend:
+        condition: service_healthy
+      emote-preview:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
   jenkins:
     build:
@@ -129,3 +158,4 @@ volumes:
   test-package-data:
   jenkins-data:
   emote-preview-data:
+  ui-automation-data:

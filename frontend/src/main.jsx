@@ -37,6 +37,7 @@ import { CommandLibraryPanel } from './modules/12-command-library/CommandLibrary
 import { EffectStudio, PublicEffectPage, HAPPY_ZHAO_PATH } from './modules/13-effects/EffectStudio.jsx';
 import { JenkinsPanel } from './modules/14-jenkins/JenkinsPanel.jsx';
 import { OnlinePreviewPanel } from './modules/15-online-preview/OnlinePreviewPanel.jsx';
+import { UiAutomationPage } from './modules/16-ui-automation/UiAutomationPage.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -47,8 +48,16 @@ import './styles/app.css';
 const { Header, Sider, Content } = Layout;
 const { Text, Title } = Typography;
 const HOTEL_PROJECT_PATH = '/hotel-project';
+const UI_AUTOMATION_PATH = '/emote-ui-automation';
 
 const MENU_SECTIONS = [
+  {
+    key: 'testing',
+    label: '测试中心',
+    children: [
+      { key: 'emote_ui_automation', label: 'Emote UI 自动化', icon: <CuteIcon emoji="🎬" tone="violet" /> },
+    ],
+  },
   {
     key: 'growth',
     label: '个人成长',
@@ -97,6 +106,7 @@ function menuForUser(user) {
 function ToolboxApp() {
   const params = new URLSearchParams(window.location.search);
   const isHotelProject = window.location.pathname === HOTEL_PROJECT_PATH;
+  const isUiAutomation = window.location.pathname === UI_AUTOMATION_PATH;
   const isPublicEffect = window.location.pathname === HAPPY_ZHAO_PATH;
   const transferToken = params.get('transferToken');
   const testPackage = params.get('testPackage');
@@ -161,6 +171,9 @@ function ToolboxApp() {
       <RestfulBookerPanel client={client} />
     </main>;
   }
+  if (isUiAutomation && (user?.is_admin || user?.menu_permissions?.includes('emote_ui_automation'))) {
+    return <UiAutomationPage client={client} user={user} onClose={() => window.close()} />;
+  }
 
   const menuItems = menuForUser(user);
   const activeItem = ALL_ITEMS.find((item) => item.key === tab) || ALL_ITEMS[0];
@@ -188,6 +201,10 @@ function ToolboxApp() {
         <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => {
           if (key === 'restful_booker') {
             window.open(HOTEL_PROJECT_PATH, 'cling-hotel-practice', 'noopener,noreferrer');
+            return;
+          }
+          if (key === 'emote_ui_automation') {
+            window.open(UI_AUTOMATION_PATH, 'cling-emote-ui-automation', 'noopener,noreferrer');
             return;
           }
           setTab(key);

@@ -282,3 +282,68 @@ class HotelBooking(Base, TimestampMixin):
     checkin: Mapped[date] = mapped_column(Date, nullable=False)
     checkout: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="已确认", nullable=False)
+
+
+class UiAutomationFeature(Base, TimestampMixin):
+    """Group Emote browser cases by user-visible product capability."""
+    __tablename__ = "ui_automation_features"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(60), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class UiAutomationRequirement(Base, TimestampMixin):
+    """Store a natural-language test requirement draft."""
+    __tablename__ = "ui_automation_requirements"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    feature_id: Mapped[int | None] = mapped_column(ForeignKey("ui_automation_features.id", ondelete="SET NULL"), index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False)
+
+
+class UiAutomationCase(Base, TimestampMixin):
+    """Store one safe, structured Playwright browser flow."""
+    __tablename__ = "ui_automation_cases"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    feature_id: Mapped[int] = mapped_column(ForeignKey("ui_automation_features.id", ondelete="CASCADE"), index=True, nullable=False)
+    requirement_id: Mapped[int | None] = mapped_column(ForeignKey("ui_automation_requirements.id", ondelete="SET NULL"), index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    priority: Mapped[str] = mapped_column(String(20), default="P1", nullable=False)
+    tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    preconditions: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    cleanup_note: Mapped[str] = mapped_column(Text, default="保留测试数据", nullable=False)
+    steps: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class UiAutomationRun(Base, TimestampMixin):
+    """Persist a regression/smoke execution without runtime secrets."""
+    __tablename__ = "ui_automation_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    mode: Mapped[str] = mapped_column(String(30), nullable=False)
+    branch: Mapped[str] = mapped_column(String(240), nullable=False)
+    commit_sha: Mapped[str | None] = mapped_column(String(40))
+    viewport: Mapped[str] = mapped_column(String(30), default="mobile", nullable=False)
+    random_seed: Mapped[str | None] = mapped_column(String(80))
+    status: Mapped[str] = mapped_column(String(30), default="queued", index=True, nullable=False)
+    case_ids: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    current_step: Mapped[str] = mapped_column(String(300), default="", nullable=False)
+    progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    result_summary: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    error_message: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class UiAutomationArtifact(Base, TimestampMixin):
+    """Track authenticated video, screenshot and trace files."""
+    __tablename__ = "ui_automation_artifacts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("ui_automation_runs.id", ondelete="CASCADE"), index=True, nullable=False)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    stored_name: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)

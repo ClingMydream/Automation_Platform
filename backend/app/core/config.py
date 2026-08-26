@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     jenkins_admin_password: str | None = None
     codeup_username: str = ""
     codeup_password: str = ""
+    ui_runner_url: str = "http://ui-runner:8090"
+    ui_runner_token: str | None = None
+    ui_automation_data_dir: str = "/var/lib/cling-ui-automation"
     app_timezone: str = "Asia/Shanghai"
     learning_data_dir: str = "/var/lib/cling-learning"
     learning_attachment_max_mb: int = 20

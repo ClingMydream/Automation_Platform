@@ -1,10 +1,13 @@
 """FastAPI application entrypoint for backend startup, middleware, and route mounting."""
 
+from datetime import datetime
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from sqlalchemy import inspect, text
+from sqlalchemy.orm import Session
 
 from app.db import Base, engine
 from app.models import entities  # noqa: F401
@@ -76,6 +79,17 @@ def on_startup() -> None:
     """Create database tables and ensure the default administrator account exists."""
     # SQLAlchemy creates missing tables at startup so a fresh Docker database can boot automatically.
     Base.metadata.create_all(bind=engine)
+    # A runner keeps its queue only in memory. After a service restart, old queued/running
+    # records must be explicit instead of looking as if they are still executing forever.
+    with Session(engine) as session:
+        interrupted = session.query(entities.UiAutomationRun).filter(
+            entities.UiAutomationRun.status.in_(["queued", "running"])
+        ).all()
+        for run in interrupted:
+            run.status = "interrupted"
+            run.current_step = "服务重启，执行已中断，可在页面重新运行"
+            run.finished_at = datetime.utcnow()
+        session.commit()
     columns = {column["name"] for column in inspect(engine).get_columns("learning_checkins")}
     if "learning_day" not in columns:
         with engine.begin() as connection:

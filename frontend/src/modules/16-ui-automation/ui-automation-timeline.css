@@ -1,0 +1,16 @@
+.ui-auto-timeline {
+  margin-top: 8px;
+  max-height: 190px;
+  overflow: auto;
+}
+
+.ui-auto-timeline span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ui-auto-timeline small {
+  color: #959bab;
+  white-space: nowrap;
+}

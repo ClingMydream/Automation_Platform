@@ -129,7 +129,7 @@ def _jenkins_job_status(job_name: str) -> dict:
     }
 
 
-@router.get("/branches", dependencies=[Depends(require_any_menu("online_preview", "jenkins"))])
+@router.get("/branches", dependencies=[Depends(require_any_menu("online_preview", "jenkins", "emote_ui_automation"))])
 def list_preview_branches():
     settings = get_settings()
     try:
@@ -148,12 +148,12 @@ def list_preview_branches():
     return branches
 
 
-@router.get("/revision", dependencies=[Depends(require_any_menu("online_preview", "jenkins"))])
+@router.get("/revision", dependencies=[Depends(require_any_menu("online_preview", "jenkins", "emote_ui_automation"))])
 def branch_revision(branch: str):
     return _remote_revision(_validate_branch(branch))
 
 
-@router.get("/status", dependencies=[Depends(require_menu("online_preview"))])
+@router.get("/status", dependencies=[Depends(require_any_menu("online_preview", "emote_ui_automation"))])
 def preview_status():
     return _jenkins_job_status("emote-preview")
 
@@ -163,7 +163,7 @@ def apk_build_status():
     return _jenkins_job_status("emote-apk")
 
 
-@router.post("/sync", status_code=202, dependencies=[Depends(require_menu("online_preview"))])
+@router.post("/sync", status_code=202, dependencies=[Depends(require_any_menu("online_preview", "emote_ui_automation"))])
 def synchronize_preview(payload: PreviewSyncRequest):
     branch = _validate_branch(payload.branch)
     settings = get_settings()
