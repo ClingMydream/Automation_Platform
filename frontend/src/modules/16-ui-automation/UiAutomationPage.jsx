@@ -189,6 +189,18 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     } catch (error) { if (error.message) message.error(error.message); }
   };
 
+  const clearExecutionData = () => Modal.confirm({
+    title: '确认清空自动化执行数据？',
+    content: '将永久删除全部历史执行记录、步骤日志、错误详情、截图、录屏和 Trace。测试用例与测试数据集会保留。',
+    okText: '确认清空', cancelText: '取消', okButtonProps: { danger: true },
+    onOk: async () => {
+      const result = await client.delete('/v1/ui-automation/maintenance/execution-data');
+      setSelectedRunId(null); setSelectedRun(null); setSelectedArtifactId(null);
+      message.success(`已清空 ${result.runs} 次执行、${result.artifacts} 个产物`);
+      await load(true);
+    },
+  });
+
   const download = async (artifact) => {
     try { const { blob, filename } = await client.download(artifact.url); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
     catch (error) { message.error(error.message); }
@@ -208,6 +220,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
       <div><b>可视化回归编排</b><span>选择用例 → 配置环境 → 脚本执行 → 按用例查看证据</span></div>
       <Space wrap>
         <Button icon={<DatabaseOutlined />} onClick={() => editDataSet()}>测试数据集</Button>
+        <Button danger icon={<DeleteOutlined />} onClick={clearExecutionData}>清空执行数据</Button>
         <Button icon={<FileAddOutlined />} onClick={() => setRequirementOpen(true)}>新增测试需求</Button>
         <Button icon={<PlayCircleOutlined />} onClick={() => requestRun('selected')}>执行已勾选</Button>
         <Button icon={<ExperimentOutlined />} onClick={() => requestRun('smoke')}>随机冒烟</Button>

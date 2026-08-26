@@ -7,6 +7,7 @@ import hashlib
 import json
 import random
 import secrets
+import shutil
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
@@ -478,6 +479,32 @@ def artifact(artifact_id: int, db: Session = Depends(get_db)):
     root = Path(get_settings().ui_automation_data_dir).resolve(); path = (root / item.stored_name).resolve()
     if not path.is_relative_to(root) or not path.is_file(): raise HTTPException(404, "执行产物文件不存在")
     return FileResponse(path, media_type=item.content_type, filename=item.name)
+
+
+@router.delete("/maintenance/execution-data", dependencies=[guard])
+def clear_execution_data(db: Session = Depends(get_db)):
+    """Delete UI execution evidence and history while preserving cases and data sets."""
+    active = db.query(UiAutomationRun).filter(UiAutomationRun.status.in_(["queued", "running"])).count()
+    if active:
+        raise HTTPException(409, "当前仍有自动化任务正在执行，请结束后再清理")
+    root = Path(get_settings().ui_automation_data_dir).resolve()
+    artifact_count = db.query(UiAutomationArtifact).count()
+    run_count = db.query(UiAutomationRun).count()
+    released_bytes = sum(value or 0 for (value,) in db.query(UiAutomationArtifact.size_bytes).all())
+    # Resolve and inspect every child before deletion; never remove the configured
+    # volume root itself, only the run directories/files beneath it.
+    if root.is_dir():
+        for child in root.iterdir():
+            target = child.resolve()
+            if not target.is_relative_to(root) or target == root:
+                continue
+            if target.is_dir(): shutil.rmtree(target)
+            else: target.unlink(missing_ok=True)
+    db.query(UiAutomationArtifact).delete(synchronize_session=False)
+    db.query(UiAutomationRun).delete(synchronize_session=False)
+    db.commit()
+    return {"message": "自动化执行数据已清空", "runs": run_count,
+            "artifacts": artifact_count, "released_bytes": released_bytes}
 
 
 def _internal_auth(token: str | None):
