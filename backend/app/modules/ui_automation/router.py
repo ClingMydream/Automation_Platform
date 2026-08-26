@@ -25,6 +25,14 @@ FEATURES = [
     ("like", "点赞"), ("comment", "评论"), ("favorite", "收藏"), ("friend", "添加好友"),
     ("chat", "聊天"), ("daily_task", "每日任务"), ("profile", "修改资料"),
 ]
+LOGIN_TEMPLATE_STEPS = [
+    {"action": "goto", "value": "/"},
+    {"action": "assert_visible", "locator_type": "text", "locator": "登录"},
+    {"action": "fill", "locator_type": "css", "locator": "input[type='tel']", "value": "${account_a.username}"},
+    {"action": "fill", "locator_type": "css", "locator": "input[type='password']", "value": "${account_a.password}"},
+    {"action": "click", "locator_type": "css", "locator": "form button[type='button']:has(+ p)"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园"},
+]
 SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "assert_visible", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
 
 
@@ -73,6 +81,15 @@ class RunnerUpdate(BaseModel):
 
 def _seed(db: Session):
     if db.query(UiAutomationFeature).count():
+        # Upgrade only the untouched first-version login template. User-edited cases
+        # are never overwritten by this idempotent seed migration.
+        login_feature = db.query(UiAutomationFeature).filter_by(key="login").first()
+        login_case = db.query(UiAutomationCase).filter_by(feature_id=login_feature.id).order_by(UiAutomationCase.id).first() if login_feature else None
+        legacy_steps = [{"value": "/", "action": "goto"}, {"action": "assert_visible", "locator": "登录", "locator_type": "text"}]
+        if login_case and login_case.steps == legacy_steps:
+            login_case.steps = LOGIN_TEMPLATE_STEPS
+            login_case.preconditions = "运行前填写账号 A 的手机号和密码；脚本会逐步打开登录页、填写表单、勾选协议并点击登录。"
+            db.commit()
         return
     for order, (key, name) in enumerate(FEATURES, 1):
         feature = UiAutomationFeature(key=key, name=name, description=f"Emote {name}核心流程", sort_order=order)
@@ -81,7 +98,7 @@ def _seed(db: Session):
         db.add(UiAutomationCase(
             feature_id=feature.id, name=f"{name}基础流程", priority="P1", tags=["smoke", "regression"],
             preconditions="运行前填写所需测试账号；请根据当前页面补充定位步骤。", cleanup_note="保留测试数据",
-            steps=[{"action": "goto", "value": "/"}, {"action": "assert_visible", "locator_type": "text", "locator": "登录"}],
+            steps=LOGIN_TEMPLATE_STEPS if key == "login" else [{"action": "goto", "value": "/"}, {"action": "assert_visible", "locator_type": "text", "locator": "登录"}],
             enabled=key == "login",
         ))
     db.commit()
@@ -246,7 +263,9 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
     run = UiAutomationRun(mode=payload.mode, branch=branch, commit_sha=revision["sha"], viewport=payload.viewport,
                           random_seed=seed, status="queued", case_ids=[x.id for x in cases])
     db.add(run); db.commit(); db.refresh(run)
-    runner_payload = {"run_id": run.id, "base_url": "http://emote-preview/", "viewport": payload.viewport,
+    # Go through the public preview proxy so /emote-preview/* assets (including the
+    # Logo) resolve exactly as they do for a user opening the preview website.
+    runner_payload = {"run_id": run.id, "base_url": "http://frontend/emote-preview/", "viewport": payload.viewport,
                       "cases": [_case_dict(x) for x in cases], "credentials": payload.credentials}
     settings = get_settings()
     try:

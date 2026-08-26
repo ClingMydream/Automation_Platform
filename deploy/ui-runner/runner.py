@@ -105,7 +105,11 @@ def execute_step(page, contexts, step, variables, base_url):
     action = step["action"]
     value = resolve_value(step.get("value") if "value" in step else step.get("variable") and "${" + step["variable"] + "}", variables)
     target = locator(page, step) if action not in {"goto", "wait", "screenshot", "switch_account", "assert_url"} else None
-    if action == "goto": page.goto(urljoin(base_url, value or "/"), wait_until="domcontentloaded")
+    if action == "goto":
+        # Test paths are relative to the configured preview base. A leading slash
+        # must not escape /emote-preview/ and accidentally open the cling home page.
+        target_url = urljoin(base_url.rstrip("/") + "/", (value or "/").lstrip("/"))
+        page.goto(target_url, wait_until="domcontentloaded")
     elif action == "click": target.click()
     elif action == "fill": target.fill(value)
     elif action == "select": target.select_option(value)
@@ -193,6 +197,9 @@ def run_task(task):
                     callback(run_id, status="running", current_step=label, progress=int(completed / total * 100),
                              result_summary={"timeline": timeline, "viewport": viewport},
                              artifacts=[artifact(live, run_dir, "screenshot", "image/png")])
+                    # Keep each completed action visible long enough for the live
+                    # execution window to poll and show the form-filling process.
+                    page.wait_for_timeout(1200)
                 artifacts.extend(finalize_case(case_id, case_dir))
                 callback(run_id, status="running", current_step=f"{case['name']} · 证据已保存", progress=int(completed / total * 100),
                          result_summary={"timeline": timeline, "viewport": viewport}, artifacts=artifacts)
