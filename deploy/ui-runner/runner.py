@@ -125,6 +125,24 @@ def execute_step(page, contexts, step, variables, base_url):
     return page
 
 
+def describe_step(case, index, step):
+    """Use beginner-friendly Chinese labels in the live window and reports."""
+    action, target, value = step.get("action", ""), step.get("locator", ""), step.get("value", "")
+    if action == "goto": detail = "跳转登录页" if value in {"", "/"} else f"跳转页面：{value}"
+    elif action == "assert_visible": detail = f"断言元素出现：{target}"
+    elif action == "assert_text": detail = f"断言文本正确：{target}"
+    elif action == "assert_url": detail = "断言页面地址正确"
+    elif action == "fill" and "password" in target: detail = "填写登录密码"
+    elif action == "fill" and ("tel" in target or "手机号" in target): detail = "填写手机号/账号"
+    elif action == "fill": detail = f"填写内容：{target or '输入框'}"
+    elif action == "click": detail = f"点击：{target or '目标按钮'}"
+    elif action == "screenshot": detail = "保存当前页面截图"
+    elif action == "switch_account": detail = "切换测试账号"
+    elif action == "wait": detail = "等待页面响应"
+    else: detail = action
+    return f"{case['name']} · 第 {index} 步 · {detail}"
+
+
 def run_task(task):
     run_id, run_dir = task["run_id"], DATA_ROOT / f"run-{task['run_id']}"
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -186,7 +204,7 @@ def run_task(task):
                     current_step, current_step_index = step, index
                     if time.monotonic() > deadline:
                         raise TimeoutError("达到最长执行时间 20 分钟，任务已停止")
-                    label = f"{case['name']} · 第 {index} 步 · {step['action']}"
+                    label = describe_step(case, index, step)
                     step_started = time.monotonic()
                     page = execute_step(page, contexts, step, variables, task["base_url"])
                     timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,

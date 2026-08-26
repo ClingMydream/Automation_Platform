@@ -116,9 +116,10 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     throw new Error('等待预览同步超时');
   };
 
-  const requestRun = (mode) => {
-    if (mode === 'selected' && !selectedCases.length) return message.warning('请先勾选要执行的用例');
-    setRunRequest({ mode, case_ids: mode === 'selected' ? selectedCases : [] });
+  const requestRun = (mode, directCaseIds = null) => {
+    const caseIds = directCaseIds || selectedCases;
+    if (mode === 'selected' && !caseIds.length) return message.warning('请先勾选要执行的用例');
+    setRunRequest({ mode, case_ids: mode === 'selected' ? caseIds : [] });
     credentialForm.resetFields(); setCredentialOpen(true);
   };
 
@@ -199,6 +200,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
               {rows.map((item) => <div className={`ui-auto-case ${selectedCases.includes(item.id) ? 'selected' : ''}`} key={item.id}>
                 <Checkbox checked={selectedCases.includes(item.id)} onChange={(event) => setSelectedCases((old) => event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id))} />
                 <button type="button" onClick={() => openCase(item)}><span>{item.name}</span><small><Tag color={item.enabled ? 'green' : 'default'}>{item.enabled ? '已启用' : '草稿'}</Tag>{item.steps.length} 步 · {item.priority}</small></button>
+                <Tooltip title="立即执行此用例"><Button type="text" size="small" icon={<PlayCircleOutlined />} disabled={!item.enabled} onClick={() => requestRun('selected', [item.id])} /></Tooltip>
                 <Tooltip title="复制用例"><Button type="text" size="small" icon={<CopyOutlined />} onClick={async () => { await client.post(`/v1/ui-automation/cases/${item.id}/duplicate`, {}); await load(true); }} /></Tooltip>
               </div>)}
             </section>;
