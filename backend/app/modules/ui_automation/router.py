@@ -39,7 +39,7 @@ LOGIN_FORM_STEPS = [
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='password']", "value": "${account_a.password}"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园"},
 ]
-LOGIN_SUCCESS_STEP = {"action": "assert_visible", "locator_type": "text", "locator": "原野", "exact": True}
+LOGIN_SUCCESS_STEP = {"action": "assert_url", "value": "#/home"}
 LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP]
 OBSOLETE_AGREEMENT_XPATH = '//*[@id="auth-modal-container"]/div[3]/div/div/div/form/div[7]/button'
 AGREEMENT_TOGGLE_CSS = "form button[type='button']:has(+ p):visible"
@@ -203,7 +203,14 @@ def _seed(db: Session):
                 case.steps = cleaned_steps
                 steps = cleaned_steps
                 changed = True
-            has_home_assertion = any(step.get("action") == "assert_visible" and step.get("locator") == "原野" for step in steps)
+            normalized_steps = [LOGIN_SUCCESS_STEP if (
+                step.get("action") == "assert_visible" and step.get("locator") == "原野"
+            ) else step for step in steps]
+            if case and case.name == f"{feature.name}基础流程" and normalized_steps != steps:
+                case.steps = normalized_steps
+                steps = normalized_steps
+                changed = True
+            has_home_assertion = any(step.get("action") == "assert_url" and step.get("value") == "#/home" for step in steps)
             if case and case.name == f"{feature.name}基础流程" and not has_home_assertion:
                 submit_index = next((index for index, step in enumerate(steps)
                                      if step.get("action") == "click" and step.get("locator") == "进入心灵花园"), None)
