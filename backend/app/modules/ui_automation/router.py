@@ -183,15 +183,19 @@ def _seed(db: Session):
             # exist in the DOM, so automation must target only the visible sign-in form.
             login_case.steps = LOGIN_TEMPLATE_STEPS
             changed = True
-        # The previous login template stopped after clicking submit. A click alone
-        # cannot prove that authentication succeeded, so append a stable home-page
-        # assertion to every untouched built-in flow that still has that prefix.
+        # The previous login template stopped after clicking submit. Some production
+        # cases also contain a user-added tab-switch step, so migrate by locating the
+        # submit action instead of requiring the whole prefix to be byte-for-byte equal.
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
             steps = list(case.steps or []) if case else []
-            if case and case.name == f"{feature.name}基础流程" and steps[:len(LOGIN_FORM_STEPS)] == LOGIN_FORM_STEPS:
-                case.steps = LOGIN_TEMPLATE_STEPS + steps[len(LOGIN_FORM_STEPS):]
-                changed = True
+            has_home_assertion = any(step.get("action") == "assert_visible" and step.get("locator") == "原野" for step in steps)
+            if case and case.name == f"{feature.name}基础流程" and not has_home_assertion:
+                submit_index = next((index for index, step in enumerate(steps)
+                                     if step.get("action") == "click" and step.get("locator") == "进入心灵花园"), None)
+                if submit_index is not None:
+                    case.steps = steps[:submit_index + 1] + [LOGIN_SUCCESS_STEP] + steps[submit_index + 1:]
+                    changed = True
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
             if case and case.steps == legacy_steps:
