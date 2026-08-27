@@ -42,6 +42,7 @@ LOGIN_FORM_STEPS = [
 ]
 LOGIN_SUCCESS_STEP = {"action": "assert_visible", "locator_type": "text", "locator": "原野", "exact": True}
 LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP]
+OBSOLETE_AGREEMENT_XPATH = '//*[@id="auth-modal-container"]/div[3]/div/div/div/form/div[7]/button'
 REGISTER_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
@@ -189,6 +190,17 @@ def _seed(db: Session):
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
             steps = list(case.steps or []) if case else []
+            # This old XPath points to the agreement toggle, not the sign-in tab.
+            # Keeping it alongside the stable CSS toggle clicks the checkbox twice
+            # and silently prevents the form from issuing the login request.
+            cleaned_steps = [step for step in steps if not (
+                step.get("action") == "click" and step.get("locator_type") == "xpath"
+                and step.get("locator") == OBSOLETE_AGREEMENT_XPATH
+            )]
+            if case and case.name == f"{feature.name}基础流程" and cleaned_steps != steps:
+                case.steps = cleaned_steps
+                steps = cleaned_steps
+                changed = True
             has_home_assertion = any(step.get("action") == "assert_visible" and step.get("locator") == "原野" for step in steps)
             if case and case.name == f"{feature.name}基础流程" and not has_home_assertion:
                 submit_index = next((index for index, step in enumerate(steps)
