@@ -157,7 +157,7 @@ def execute_step(page, contexts, step, variables, base_url):
         # must not escape /emote-preview/ and accidentally open the cling home page.
         target_url = urljoin(base_url.rstrip("/") + "/", (value or "/").lstrip("/"))
         page.goto(target_url, wait_until="domcontentloaded")
-    elif action == "click": target.click()
+    elif action == "click": target.click(force=bool(step.get("force")))
     elif action == "fill": target.fill(value)
     elif action == "select": target.select_option(value)
     elif action == "check": target.check()
