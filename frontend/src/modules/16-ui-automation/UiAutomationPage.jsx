@@ -45,7 +45,18 @@ export function ArtifactViewer({ client, artifact }) {
   }, [artifact?.id, retry]);
   if (!artifact) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="执行后会在这里显示录屏和截图" />;
   if (error) return <Alert type="error" showIcon title="产物读取失败" description={<Space orientation="vertical"><span>{error}</span><Button size="small" onClick={() => setRetry((value) => value + 1)}>重新读取</Button></Space>} />;
-  if (!url) return <Spin tip="正在读取鉴权产物" />;
+  if (!url) return (
+    <div className="ui-auto-artifact-loading" role="status" aria-live="polite">
+      <div className="ui-auto-artifact-loading__visual" aria-hidden="true">
+        <span className="ui-auto-artifact-loading__orbit" />
+        <span className="ui-auto-artifact-loading__orbit ui-auto-artifact-loading__orbit--second" />
+        <span className="ui-auto-artifact-loading__core">{artifact.kind === 'video' ? '▶' : '▣'}</span>
+      </div>
+      <strong>{artifact.kind === 'video' ? '正在准备执行录像' : '正在同步执行画面'}</strong>
+      <span>安全加载测试证据，请稍候</span>
+      <div className="ui-auto-artifact-loading__bar"><i /></div>
+    </div>
+  );
   return artifact.kind === 'video'
     ? <video className="ui-auto-media" src={url} controls playsInline />
     : <img className="ui-auto-media" src={url} alt={artifact.name} />;
