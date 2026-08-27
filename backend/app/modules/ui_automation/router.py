@@ -489,6 +489,7 @@ def delete_case(case_id: int, db: Session = Depends(get_db)):
 
 @router.post("/runs", dependencies=[guard])
 def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(get_db)):
+    _seed(db)
     if payload.mode not in {"regression", "selected", "smoke"} or payload.viewport not in {"desktop", "mobile"}:
         raise HTTPException(400, "执行模式或视口不合法")
     branch = _validate_branch(payload.branch)
