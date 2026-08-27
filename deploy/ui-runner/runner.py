@@ -91,6 +91,26 @@ def friendly_failure(error, case, step, step_index, credentials):
     }
 
 
+def visible_auth_feedback(page):
+    """Return only known validation messages, never arbitrary page/account text."""
+    messages = [
+        "请先同意用户协议和隐私政策", "手机号格式不正确", "请输入正确的 11 位手机号",
+        "密码至少需要6位", "服务连接失败", "账号或密码错误", "手机号或密码错误",
+        "登录失败", "密码错误", "用户不存在", "网络请求失败",
+    ]
+    found = []
+    for message in messages:
+        try:
+            matches = page.get_by_text(message, exact=False)
+            if any(matches.nth(index).is_visible() for index in range(min(matches.count(), 10))): found.append(message)
+        except Exception:
+            try:
+                if message in page.locator("body").inner_text(): found.append(message)
+            except Exception:
+                pass
+    return list(dict.fromkeys(found))
+
+
 def locator(page, step):
     kind, value = step.get("locator_type", "text"), step.get("locator", "")
     exact = bool(step.get("exact"))
@@ -169,6 +189,7 @@ def run_task(task):
     total = sum(len(case.get("steps", [])) for case in task["cases"]) or 1
     completed = 0
     timeline = []
+    network_issues = []
     deadline = time.monotonic() + 20 * 60
     contexts = {}
     browser = None
@@ -213,7 +234,15 @@ def run_task(task):
                 for name in ("account_a", "account_b"):
                     contexts[name] = browser.new_context(viewport=viewport, record_video_dir=str(case_dir / "raw-video"), record_video_size=viewport)
                     contexts[name].tracing.start(screenshots=True, snapshots=True, sources=False)
-                    contexts[name].new_page()
+                    new_page = contexts[name].new_page()
+                    new_page.on("response", lambda response: network_issues.append({
+                        "type": "http", "method": response.request.method, "status": response.status,
+                        "url": response.url.split("?", 1)[0],
+                    }) if response.status >= 400 else None)
+                    new_page.on("requestfailed", lambda request: network_issues.append({
+                        "type": "network", "method": request.method,
+                        "url": request.url.split("?", 1)[0], "error": (request.failure or "网络请求失败")[:300],
+                    }))
                 page = contexts["account_a"].pages[0]
                 for index, step in enumerate(case.get("steps", []), 1):
                     current_step, current_step_index = step, index
@@ -241,6 +270,8 @@ def run_task(task):
                  result_summary={"passed": len(task["cases"]), "failed": 0, "timeline": timeline, "viewport": viewport}, artifacts=artifacts)
     except Exception as exc:
         failure = friendly_failure(exc, current_case, current_step, current_step_index, task.get("credentials", {}))
+        failure["page_feedback"] = visible_auth_feedback(page) if page else []
+        failure["network_issues"] = network_issues[-10:]
         case_id = current_case.get("id", "startup") if current_case else "startup"
         case_dir = run_dir / f"case-{case_id}"
         case_dir.mkdir(parents=True, exist_ok=True)
