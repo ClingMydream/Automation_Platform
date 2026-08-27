@@ -39,8 +39,29 @@ LOGIN_FORM_STEPS = [
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='password']", "value": "${account_a.password}"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园"},
 ]
-LOGIN_SUCCESS_STEP = {"action": "assert_url", "value": "#/home"}
-LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP]
+LOGIN_SUCCESS_STEP = {"action": "assert_url", "value": "#/home", "flow": "login_success"}
+ONBOARDING_TEMPLATE_STEPS = [
+    {"action": "detect_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到心屿", "condition": "onboarding", "flow": "onboarding"},
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到心屿", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_visible", "locator_type": "text", "locator": "一个情绪的庇护所，每一种感受都能找到归属。", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "text", "locator": "✨", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "继续", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "培育你的花园", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_visible", "locator_type": "text", "locator": "播种思想的种子，用反思浇灌，看着内心世界绽放。", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "text", "locator": "🌿", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "继续", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "自由表达", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_visible", "locator_type": "text", "locator": "在无评判的空间里，分享你的色彩、情绪和真实的自己。", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "text", "locator": "🌡️", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "继续", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "深度连接", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_visible", "locator_type": "text", "locator": "找到与你频率共振的灵魂伙伴，一起前行。", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "text", "locator": "🌊", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_visible", "locator_type": "role", "role": "button", "locator": "开启旅程", "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "开启旅程", "when": "onboarding", "flow": "onboarding"},
+]
+HOME_READY_STEP = {"action": "assert_visible", "locator_type": "text", "locator": "发布心情", "flow": "home_ready"}
+LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP] + ONBOARDING_TEMPLATE_STEPS + [HOME_READY_STEP]
 OBSOLETE_AGREEMENT_XPATH = '//*[@id="auth-modal-container"]/div[3]/div/div/div/form/div[7]/button'
 AGREEMENT_TOGGLE_CSS = "form button[type='button']:has(+ p):visible"
 REGISTER_TEMPLATE_STEPS = [
@@ -111,7 +132,7 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "screenshot"},
     ),
 }
-SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "assert_visible", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
+SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "detect_visible", "assert_visible", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
 SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath"}
 
 
@@ -210,13 +231,20 @@ def _seed(db: Session):
                 case.steps = normalized_steps
                 steps = normalized_steps
                 changed = True
-            has_home_assertion = any(step.get("action") == "assert_url" and step.get("value") == "#/home" for step in steps)
-            if case and case.name == f"{feature.name}基础流程" and not has_home_assertion:
-                submit_index = next((index for index, step in enumerate(steps)
+            if case and case.name == f"{feature.name}基础流程":
+                managed_flows = {"login_success", "onboarding", "home_ready"}
+                unmanaged_steps = [step for step in steps if step.get("flow") not in managed_flows and not (
+                    step.get("action") == "assert_url" and step.get("value") == "#/home"
+                )]
+                submit_index = next((index for index, step in enumerate(unmanaged_steps)
                                      if step.get("action") == "click" and step.get("locator") == "进入心灵花园"), None)
                 if submit_index is not None:
-                    case.steps = steps[:submit_index + 1] + [LOGIN_SUCCESS_STEP] + steps[submit_index + 1:]
-                    changed = True
+                    upgraded_steps = (unmanaged_steps[:submit_index + 1] + [LOGIN_SUCCESS_STEP]
+                                      + ONBOARDING_TEMPLATE_STEPS + [HOME_READY_STEP]
+                                      + unmanaged_steps[submit_index + 1:])
+                    if upgraded_steps != steps:
+                        case.steps = upgraded_steps
+                        changed = True
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
             if case and case.steps == legacy_steps:

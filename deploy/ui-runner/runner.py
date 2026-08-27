@@ -164,6 +164,12 @@ def execute_step(page, contexts, step, variables, base_url):
     elif action == "uncheck": target.uncheck()
     elif action == "press": target.press(value)
     elif action == "wait": page.wait_for_timeout(min(int(value or 1000), 10000))
+    elif action == "detect_visible":
+        try:
+            target.wait_for(state="visible", timeout=3000)
+            variables[f"condition.{step.get('condition', '')}"] = True
+        except Exception:
+            variables[f"condition.{step.get('condition', '')}"] = False
     elif action == "assert_visible": target.wait_for(state="visible")
     elif action == "assert_text": target.wait_for(state="visible"); assert value in target.inner_text()
     elif action == "assert_url":
@@ -182,6 +188,7 @@ def describe_step(case, index, step):
     elif action == "assert_visible": detail = f"断言元素出现：{target}"
     elif action == "assert_text": detail = f"断言文本正确：{target}"
     elif action == "assert_url": detail = "断言页面地址正确"
+    elif action == "detect_visible": detail = "检测是否显示新手引导"
     elif action == "fill" and "password" in target: detail = "填写登录密码"
     elif action == "fill" and ("tel" in target or "手机号" in target): detail = "填写手机号/账号"
     elif action == "fill": detail = f"填写内容：{target or '输入框'}"
@@ -264,6 +271,14 @@ def run_task(task):
                     if time.monotonic() > deadline:
                         raise TimeoutError("达到最长执行时间 20 分钟，任务已停止")
                     label = describe_step(case, index, step)
+                    condition = step.get("when")
+                    if condition and not variables.get(f"condition.{condition}", False):
+                        timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
+                                         "action": step["action"], "status": "skipped", "duration_ms": 0})
+                        completed += 1
+                        callback(run_id, status="running", current_step=f"{label}（本次无引导，已跳过）",
+                                 progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
+                        continue
                     step_started = time.monotonic()
                     page = execute_step(page, contexts, step, variables, task["base_url"])
                     timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
