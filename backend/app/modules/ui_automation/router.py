@@ -44,21 +44,21 @@ ONBOARDING_TEMPLATE_STEPS = [
     {"action": "detect_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到心屿", "condition": "onboarding", "flow": "onboarding"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到心屿", "when": "onboarding", "flow": "onboarding"},
     {"action": "assert_visible", "locator_type": "text", "locator": "一个情绪的庇护所，每一种感受都能找到归属。", "exact": True, "when": "onboarding", "flow": "onboarding"},
-    {"action": "click", "locator_type": "text", "locator": "✨", "exact": True, "force": True, "when": "onboarding", "flow": "onboarding"},
-    {"action": "click", "locator_type": "role", "role": "button", "locator": "继续", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_in_viewport", "locator_type": "text", "locator": "✨", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "继续", "force": True, "when": "onboarding", "flow": "onboarding"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "培育你的花园", "when": "onboarding", "flow": "onboarding"},
     {"action": "assert_visible", "locator_type": "text", "locator": "播种思想的种子，用反思浇灌，看着内心世界绽放。", "exact": True, "when": "onboarding", "flow": "onboarding"},
-    {"action": "click", "locator_type": "text", "locator": "🌿", "exact": True, "force": True, "when": "onboarding", "flow": "onboarding"},
-    {"action": "click", "locator_type": "role", "role": "button", "locator": "继续", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_in_viewport", "locator_type": "text", "locator": "🌿", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "继续", "force": True, "when": "onboarding", "flow": "onboarding"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "自由表达", "when": "onboarding", "flow": "onboarding"},
     {"action": "assert_visible", "locator_type": "text", "locator": "在无评判的空间里，分享你的色彩、情绪和真实的自己。", "exact": True, "when": "onboarding", "flow": "onboarding"},
-    {"action": "click", "locator_type": "text", "locator": "🌡️", "exact": True, "force": True, "when": "onboarding", "flow": "onboarding"},
-    {"action": "click", "locator_type": "role", "role": "button", "locator": "继续", "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_in_viewport", "locator_type": "text", "locator": "🌡️", "exact": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "继续", "force": True, "when": "onboarding", "flow": "onboarding"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "深度连接", "when": "onboarding", "flow": "onboarding"},
     {"action": "assert_visible", "locator_type": "text", "locator": "找到与你频率共振的灵魂伙伴，一起前行。", "exact": True, "when": "onboarding", "flow": "onboarding"},
-    {"action": "click", "locator_type": "text", "locator": "🌊", "exact": True, "force": True, "when": "onboarding", "flow": "onboarding"},
+    {"action": "assert_in_viewport", "locator_type": "text", "locator": "🌊", "exact": True, "when": "onboarding", "flow": "onboarding"},
     {"action": "assert_visible", "locator_type": "role", "role": "button", "locator": "开启旅程", "when": "onboarding", "flow": "onboarding"},
-    {"action": "click", "locator_type": "role", "role": "button", "locator": "开启旅程", "when": "onboarding", "flow": "onboarding"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "开启旅程", "force": True, "when": "onboarding", "flow": "onboarding"},
 ]
 HOME_READY_STEP = {"action": "assert_hidden", "locator_type": "role", "role": "heading", "locator": "深度连接", "flow": "home_ready"}
 LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP] + ONBOARDING_TEMPLATE_STEPS + [HOME_READY_STEP]
@@ -132,7 +132,7 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "screenshot"},
     ),
 }
-SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "detect_visible", "assert_visible", "assert_hidden", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
+SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "detect_visible", "assert_visible", "assert_hidden", "assert_in_viewport", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
 SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath"}
 
 

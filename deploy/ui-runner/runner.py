@@ -174,6 +174,12 @@ def execute_step(page, contexts, step, variables, base_url):
             variables[f"condition.{step.get('condition', '')}"] = False
     elif action == "assert_visible": target.wait_for(state="visible")
     elif action == "assert_hidden": target.wait_for(state="hidden")
+    elif action == "assert_in_viewport":
+        target.wait_for(state="visible")
+        box, viewport = target.bounding_box(), page.viewport_size
+        assert box and viewport and box["x"] >= 0 and box["y"] >= 0 \
+            and box["x"] + box["width"] <= viewport["width"] \
+            and box["y"] + box["height"] <= viewport["height"], "元素没有完整显示在当前屏幕内"
     elif action == "assert_text": target.wait_for(state="visible"); assert value in target.inner_text()
     elif action == "assert_url":
         # Hash-router changes do not emit a new page load. Waiting for navigation
@@ -190,6 +196,7 @@ def describe_step(case, index, step):
     if action == "goto": detail = "跳转登录页" if value in {"", "/"} else f"跳转页面：{value}"
     elif action == "assert_visible": detail = f"断言元素出现：{target}"
     elif action == "assert_hidden": detail = f"断言引导已关闭：{target}"
+    elif action == "assert_in_viewport": detail = f"检查图标完整显示：{target}"
     elif action == "assert_text": detail = f"断言文本正确：{target}"
     elif action == "assert_url": detail = "断言页面地址正确"
     elif action == "detect_visible": detail = "检测是否显示新手引导"
