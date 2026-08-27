@@ -166,7 +166,10 @@ def execute_step(page, contexts, step, variables, base_url):
     elif action == "wait": page.wait_for_timeout(min(int(value or 1000), 10000))
     elif action == "assert_visible": target.wait_for(state="visible")
     elif action == "assert_text": target.wait_for(state="visible"); assert value in target.inner_text()
-    elif action == "assert_url": page.wait_for_url(f"**{value}**")
+    elif action == "assert_url":
+        # Hash-router changes do not emit a new page load. Waiting for navigation
+        # can therefore time out even after the browser is already on #/home.
+        page.wait_for_function("expected => window.location.href.includes(expected)", value)
     elif action == "assert_count": assert target.count() == int(value)
     elif action == "switch_account": return contexts[value if value in contexts else "account_a"].pages[0]
     return page
