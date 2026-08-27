@@ -1,12 +1,13 @@
 """Single-concurrency, safe-action Playwright runner for Emote web preview."""
 
 import os
+import json
 import shutil
 import time
 from pathlib import Path
 from queue import Queue
 from threading import Thread
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException
@@ -51,6 +52,46 @@ def redact_error(error, credentials):
             if secret:
                 text = text.replace(secret, "******")
     return text[:4000]
+
+
+def diagnostic_url(url: str) -> str:
+    """Keep the endpoint path but never expose query parameters in reports."""
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+
+
+def redact_payload(value):
+    """Mask credentials before a captured request is rendered as a cURL command."""
+    if isinstance(value, list): return [redact_payload(item) for item in value]
+    if not isinstance(value, dict): return value
+    redacted = {}
+    for key, item in value.items():
+        lowered = key.lower()
+        if any(word in lowered for word in ("password", "token", "code", "secret", "authorization")):
+            redacted[key] = "******"
+        elif "phone" in lowered or "mobile" in lowered:
+            text = str(item or "")
+            redacted[key] = "*******" + text[-4:] if text else "******"
+        else:
+            redacted[key] = redact_payload(item)
+    return redacted
+
+
+def safe_curl(request) -> str:
+    """Build a reproducible but credential-safe cURL command for failure reports."""
+    endpoint = diagnostic_url(request.url)
+    command = f"curl -X {request.method} '{endpoint}'"
+    content_type = request.headers.get("content-type", "")
+    if content_type:
+        command += f" -H 'Content-Type: {content_type}'"
+    payload = request.post_data
+    if payload:
+        try:
+            payload = json.dumps(redact_payload(json.loads(payload)), ensure_ascii=False, separators=(",", ":"))
+        except Exception:
+            payload = "******"
+        command += f" --data '{payload}'"
+    return command
 
 
 def friendly_failure(error, case, step, step_index, credentials):
@@ -244,6 +285,43 @@ def run_task(task):
     current_step = None
     current_step_index = 0
 
+    def remember_request(request):
+        if request.resource_type not in {"xhr", "fetch"}: return
+        network_issues.append({
+            "type": "pending", "method": request.method, "url": diagnostic_url(request.url),
+            "curl": safe_curl(request),
+        })
+
+    def remember_response(response):
+        request = response.request
+        if request.resource_type not in {"xhr", "fetch"}: return
+        endpoint = diagnostic_url(request.url)
+        # A successful non-auth request is noise. Keep failed requests, pending
+        # requests and authentication traffic so login errors are reproducible.
+        is_auth = any(part in endpoint.lower() for part in ("/login", "/register", "/auth/", "/otp", "/verify"))
+        for index in range(len(network_issues) - 1, -1, -1):
+            item = network_issues[index]
+            if item.get("type") == "pending" and item.get("method") == request.method and item.get("url") == endpoint:
+                if response.status >= 400 or is_auth:
+                    item.update({"type": "http", "status": response.status})
+                else:
+                    network_issues.pop(index)
+                return
+        if response.status >= 400 or is_auth:
+            network_issues.append({"type": "http", "method": request.method, "status": response.status,
+                                   "url": endpoint, "curl": safe_curl(request)})
+
+    def remember_failed_request(request):
+        if request.resource_type not in {"xhr", "fetch"}: return
+        endpoint = diagnostic_url(request.url)
+        detail = (request.failure or "网络请求失败")[:300]
+        for item in reversed(network_issues):
+            if item.get("type") == "pending" and item.get("method") == request.method and item.get("url") == endpoint:
+                item.update({"type": "network", "error": detail})
+                return
+        network_issues.append({"type": "network", "method": request.method, "url": endpoint,
+                               "error": detail, "curl": safe_curl(request)})
+
     def finalize_case(case_id, case_dir):
         """Close one case context so its video and trace are finalized independently."""
         case_artifacts = []
@@ -282,14 +360,9 @@ def run_task(task):
                     contexts[name] = browser.new_context(viewport=viewport, record_video_dir=str(case_dir / "raw-video"), record_video_size=viewport)
                     contexts[name].tracing.start(screenshots=True, snapshots=True, sources=False)
                     new_page = contexts[name].new_page()
-                    new_page.on("response", lambda response: network_issues.append({
-                        "type": "http", "method": response.request.method, "status": response.status,
-                        "url": response.url.split("?", 1)[0],
-                    }) if response.status >= 400 or response.request.resource_type in {"xhr", "fetch"} else None)
-                    new_page.on("requestfailed", lambda request: network_issues.append({
-                        "type": "network", "method": request.method,
-                        "url": request.url.split("?", 1)[0], "error": (request.failure or "网络请求失败")[:300],
-                    }))
+                    new_page.on("request", remember_request)
+                    new_page.on("response", remember_response)
+                    new_page.on("requestfailed", remember_failed_request)
                 page = contexts["account_a"].pages[0]
                 for index, step in enumerate(case.get("steps", []), 1):
                     current_step, current_step_index = step, index
@@ -328,7 +401,9 @@ def run_task(task):
         failure["page_feedback"] = visible_auth_feedback(page) if page else []
         failure["page_markers"] = visible_page_markers(page) if page else []
         failure["current_url"] = page.url if page else ""
-        failure["network_issues"] = network_issues[-10:]
+        # Keep only the newest relevant calls. Pending entries indicate requests
+        # that were still waiting when Playwright timed out.
+        failure["network_issues"] = [item for item in network_issues if item.get("type") != "pending" or item.get("curl")][-10:]
         case_id = current_case.get("id", "startup") if current_case else "startup"
         case_dir = run_dir / f"case-{case_id}"
         case_dir.mkdir(parents=True, exist_ok=True)

@@ -280,6 +280,11 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     } catch (error) { message.error(error.message); }
   };
 
+  const copyDiagnostic = async (value) => {
+    try { await navigator.clipboard.writeText(value); message.success('已复制脱敏 cURL'); }
+    catch (_) { message.error('复制失败，请手动复制下方命令'); }
+  };
+
   return <main className={`ui-auto-page ${embedded ? 'ui-auto-page--embedded' : ''}`}>
     <header className="ui-auto-header">
       <div className="ui-auto-brand"><span>🎬</span><div><Text>cling · 测试中心</Text><Title level={3}>Emote UI 自动化</Title></div></div>
@@ -339,7 +344,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
                   <div><Text type="secondary">当前步骤</Text><Paragraph strong>{selectedRun.current_step || '等待 Runner 接收任务'}</Paragraph></div>
                   <Progress percent={selectedRun.progress || 0} status={selectedRun.status === 'failed' ? 'exception' : selectedRun.status === 'passed' ? 'success' : 'active'} />
                   <div className="ui-auto-meta"><span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '390 × 844' : '1440 × 900'}</b></span></div>
-                  {selectedRun.result_summary?.failure ? <Alert type="error" showIcon title={`${selectedRun.result_summary.failure.case_name} · 第 ${selectedRun.result_summary.failure.step_index} 步失败`} description={<div className="ui-auto-failure"><b>{selectedRun.result_summary.failure.reason}</b><span>动作：{selectedRun.result_summary.failure.action}{selectedRun.result_summary.failure.locator ? ` · 元素：${selectedRun.result_summary.failure.locator}` : ''}</span><span>建议：{selectedRun.result_summary.failure.suggestion}</span><details><summary>查看技术详情</summary><pre>{selectedRun.result_summary.failure.technical_detail}</pre></details></div>} /> : selectedRun.error_message && <Alert type="error" showIcon title="执行失败" description={selectedRun.error_message} />}
+                  {selectedRun.result_summary?.failure ? <Alert type="error" showIcon title={`${selectedRun.result_summary.failure.case_name} · 第 ${selectedRun.result_summary.failure.step_index} 步失败`} description={<div className="ui-auto-failure"><b>{selectedRun.result_summary.failure.reason}</b><span>动作：{selectedRun.result_summary.failure.action}{selectedRun.result_summary.failure.locator ? ` · 元素：${selectedRun.result_summary.failure.locator}` : ''}</span><span>建议：{selectedRun.result_summary.failure.suggestion}</span>{!!selectedRun.result_summary.failure.network_issues?.length && <details className="ui-auto-network-details" open><summary>接口排查记录（已脱敏）</summary>{selectedRun.result_summary.failure.network_issues.map((item, index) => <div className="ui-auto-network-item" key={`${item.method}-${item.url}-${index}`}><b>{item.method} · {item.type === 'pending' ? '请求未返回（疑似超时）' : item.status ? `HTTP ${item.status}` : '网络失败'}</b><code>{item.url}</code>{item.error && <span>{item.error}</span>}{item.curl && <><pre>{item.curl}</pre><Button size="small" icon={<CopyOutlined />} onClick={() => copyDiagnostic(item.curl)}>复制 cURL</Button></>}</div>)}</details>}<details><summary>查看技术详情</summary><pre>{selectedRun.result_summary.failure.technical_detail}</pre></details></div>} /> : selectedRun.error_message && <Alert type="error" showIcon title="执行失败" description={selectedRun.error_message} />}
                   <Button size="small" icon={<VideoCameraOutlined />} disabled={!caseArtifacts.some((item) => item.kind === 'screenshot')} onClick={downloadCaseScreenshots}>下载当前用例全部截图</Button>
                   {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.filter((step) => !evidenceCaseId || step.case_id === evidenceCaseId).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', children: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
                 </Space>
