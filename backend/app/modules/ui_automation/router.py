@@ -60,7 +60,7 @@ ONBOARDING_TEMPLATE_STEPS = [
     {"action": "assert_visible", "locator_type": "role", "role": "button", "locator": "开启旅程", "when": "onboarding", "flow": "onboarding"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "开启旅程", "when": "onboarding", "flow": "onboarding"},
 ]
-HOME_READY_STEP = {"action": "assert_visible", "locator_type": "text", "locator": "发布心情", "flow": "home_ready"}
+HOME_READY_STEP = {"action": "assert_hidden", "locator_type": "role", "role": "heading", "locator": "深度连接", "flow": "home_ready"}
 LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP] + ONBOARDING_TEMPLATE_STEPS + [HOME_READY_STEP]
 OBSOLETE_AGREEMENT_XPATH = '//*[@id="auth-modal-container"]/div[3]/div/div/div/form/div[7]/button'
 AGREEMENT_TOGGLE_CSS = "form button[type='button']:has(+ p):visible"
@@ -132,7 +132,7 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "screenshot"},
     ),
 }
-SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "detect_visible", "assert_visible", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
+SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "detect_visible", "assert_visible", "assert_hidden", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
 SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath"}
 
 

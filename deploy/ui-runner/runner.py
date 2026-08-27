@@ -173,6 +173,7 @@ def execute_step(page, contexts, step, variables, base_url):
         except Exception:
             variables[f"condition.{step.get('condition', '')}"] = False
     elif action == "assert_visible": target.wait_for(state="visible")
+    elif action == "assert_hidden": target.wait_for(state="hidden")
     elif action == "assert_text": target.wait_for(state="visible"); assert value in target.inner_text()
     elif action == "assert_url":
         # Hash-router changes do not emit a new page load. Waiting for navigation
@@ -188,6 +189,7 @@ def describe_step(case, index, step):
     action, target, value = step.get("action", ""), step.get("locator", ""), step.get("value", "")
     if action == "goto": detail = "跳转登录页" if value in {"", "/"} else f"跳转页面：{value}"
     elif action == "assert_visible": detail = f"断言元素出现：{target}"
+    elif action == "assert_hidden": detail = f"断言引导已关闭：{target}"
     elif action == "assert_text": detail = f"断言文本正确：{target}"
     elif action == "assert_url": detail = "断言页面地址正确"
     elif action == "detect_visible": detail = "检测是否显示新手引导"
