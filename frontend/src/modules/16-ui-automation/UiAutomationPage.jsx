@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert, Badge, Button, Card, Checkbox, Col, Drawer, Empty, Form, Input, Modal,
   Progress, Row, Select, Space, Spin, Tag, Timeline, Tooltip, Typography, message,
@@ -28,38 +28,82 @@ const STATUS = {
   failed: ['失败', 'error'], interrupted: ['已中断', 'warning'],
 };
 
-export function ArtifactViewer({ client, artifact }) {
-  const [url, setUrl] = useState('');
-  const [error, setError] = useState('');
-  const [retry, setRetry] = useState(0);
-  useEffect(() => {
-    let objectUrl = '';
-    setUrl(''); setError('');
-    if (artifact?.kind === 'video' || artifact?.kind === 'screenshot') {
-      client.download(artifact.url).then(({ blob }) => {
-        objectUrl = URL.createObjectURL(blob);
-        setUrl(objectUrl);
-      }).catch((reason) => { setUrl(''); setError(reason.message || '产物读取失败'); });
-    }
-    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [artifact?.id, retry]);
-  if (!artifact) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="执行后会在这里显示录屏和截图" />;
-  if (error) return <Alert type="error" showIcon title="产物读取失败" description={<Space orientation="vertical"><span>{error}</span><Button size="small" onClick={() => setRetry((value) => value + 1)}>重新读取</Button></Space>} />;
-  if (!url) return (
-    <div className="ui-auto-artifact-loading" role="status" aria-live="polite">
+const ARTIFACT_LOADING_MIN_MS = 700;
+
+function ArtifactLoading({ kind, overlay = false }) {
+  return (
+    <div className={`ui-auto-artifact-loading${overlay ? ' ui-auto-artifact-loading--overlay' : ''}`} role="status" aria-live="polite">
       <div className="ui-auto-artifact-loading__visual" aria-hidden="true">
         <span className="ui-auto-artifact-loading__orbit" />
         <span className="ui-auto-artifact-loading__orbit ui-auto-artifact-loading__orbit--second" />
-        <span className="ui-auto-artifact-loading__core">{artifact.kind === 'video' ? '▶' : '▣'}</span>
+        <span className="ui-auto-artifact-loading__core">{kind === 'video' ? '▶' : '▣'}</span>
       </div>
-      <strong>{artifact.kind === 'video' ? '正在准备执行录像' : '正在同步执行画面'}</strong>
+      <strong>{kind === 'video' ? '正在准备执行录像' : '正在更新执行画面'}</strong>
       <span>安全加载测试证据，请稍候</span>
       <div className="ui-auto-artifact-loading__bar"><i /></div>
     </div>
   );
-  return artifact.kind === 'video'
-    ? <video className="ui-auto-media" src={url} controls playsInline />
-    : <img className="ui-auto-media" src={url} alt={artifact.name} />;
+}
+
+export function ArtifactViewer({ client, artifact }) {
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const activeUrlRef = useRef('');
+
+  useEffect(() => () => {
+    if (activeUrlRef.current) URL.revokeObjectURL(activeUrlRef.current);
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let delayTimer;
+    if (artifact?.kind !== 'video' && artifact?.kind !== 'screenshot') {
+      setLoading(false);
+      return undefined;
+    }
+    const startedAt = Date.now();
+    setError('');
+    setLoading(true);
+    const finishAfterMinimumTime = (callback) => {
+      const wait = Math.max(0, ARTIFACT_LOADING_MIN_MS - (Date.now() - startedAt));
+      delayTimer = window.setTimeout(callback, wait);
+    };
+    client.download(artifact.url).then(({ blob }) => {
+      const nextUrl = URL.createObjectURL(blob);
+      finishAfterMinimumTime(() => {
+        if (disposed) {
+          URL.revokeObjectURL(nextUrl);
+          return;
+        }
+        if (activeUrlRef.current) URL.revokeObjectURL(activeUrlRef.current);
+        activeUrlRef.current = nextUrl;
+        setUrl(nextUrl);
+        setLoading(false);
+      });
+    }).catch((reason) => {
+      finishAfterMinimumTime(() => {
+        if (disposed) return;
+        setError(reason.message || '产物读取失败');
+        setLoading(false);
+      });
+    });
+    return () => {
+      disposed = true;
+      if (delayTimer) window.clearTimeout(delayTimer);
+    };
+  }, [artifact?.id, retry]);
+  if (!artifact) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="执行后会在这里显示录屏和截图" />;
+  if (error) return <Alert type="error" showIcon title="产物读取失败" description={<Space orientation="vertical"><span>{error}</span><Button size="small" onClick={() => setRetry((value) => value + 1)}>重新读取</Button></Space>} />;
+  return (
+    <div className="ui-auto-artifact-frame">
+      {url && (artifact.kind === 'video'
+        ? <video className="ui-auto-media" src={url} controls playsInline />
+        : <img className="ui-auto-media" src={url} alt={artifact.name} />)}
+      {loading && <ArtifactLoading kind={artifact.kind} overlay={Boolean(url)} />}
+    </div>
+  );
 }
 
 export function UiAutomationPage({ client, onClose, embedded = false }) {
