@@ -111,6 +111,18 @@ def visible_auth_feedback(page):
     return list(dict.fromkeys(found))
 
 
+def visible_page_markers(page):
+    markers = ["原野", "发布心情", "连接", "我的", "每日任务", "成功", "正在进入花园"]
+    visible = []
+    for marker in markers:
+        try:
+            matches = page.get_by_text(marker, exact=False)
+            if any(matches.nth(index).is_visible() for index in range(min(matches.count(), 10))): visible.append(marker)
+        except Exception:
+            pass
+    return visible
+
+
 def locator(page, step):
     kind, value = step.get("locator_type", "text"), step.get("locator", "")
     exact = bool(step.get("exact"))
@@ -238,7 +250,7 @@ def run_task(task):
                     new_page.on("response", lambda response: network_issues.append({
                         "type": "http", "method": response.request.method, "status": response.status,
                         "url": response.url.split("?", 1)[0],
-                    }) if response.status >= 400 else None)
+                    }) if response.status >= 400 or response.request.resource_type in {"xhr", "fetch"} else None)
                     new_page.on("requestfailed", lambda request: network_issues.append({
                         "type": "network", "method": request.method,
                         "url": request.url.split("?", 1)[0], "error": (request.failure or "网络请求失败")[:300],
@@ -271,6 +283,8 @@ def run_task(task):
     except Exception as exc:
         failure = friendly_failure(exc, current_case, current_step, current_step_index, task.get("credentials", {}))
         failure["page_feedback"] = visible_auth_feedback(page) if page else []
+        failure["page_markers"] = visible_page_markers(page) if page else []
+        failure["current_url"] = page.url if page else ""
         failure["network_issues"] = network_issues[-10:]
         case_id = current_case.get("id", "startup") if current_case else "startup"
         case_dir = run_dir / f"case-{case_id}"
