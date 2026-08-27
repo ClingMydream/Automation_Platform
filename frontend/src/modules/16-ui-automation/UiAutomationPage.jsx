@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   ArrowLeftOutlined, BranchesOutlined, CopyOutlined, DatabaseOutlined, DeleteOutlined, EditOutlined, ExperimentOutlined,
-  FileAddOutlined, PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
+  FileAddOutlined, PlayCircleOutlined, ReloadOutlined, SyncOutlined, VideoCameraOutlined,
 } from '@ant-design/icons';
 import './ui-automation.css';
 import './ui-automation-timeline.css';
@@ -121,6 +121,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [runBusy, setRunBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
   const [runRequest, setRunRequest] = useState(null);
   const [credentialOpen, setCredentialOpen] = useState(false);
   const [caseOpen, setCaseOpen] = useState(false);
@@ -178,6 +179,20 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
       if (!status.building && status.result && status.result !== 'SUCCESS') throw new Error(status.description || '预览同步失败');
     }
     throw new Error('等待预览同步超时');
+  };
+
+  const synchronizeBranch = async () => {
+    setSyncBusy(true);
+    message.loading({ content: `正在同步 ${branch} 分支预览…`, key: 'ui-preview-sync', duration: 0 });
+    try {
+      await waitForSync();
+      message.success({ content: `${branch} 已同步到在线预览`, key: 'ui-preview-sync' });
+      await load(true);
+    } catch (error) {
+      message.error({ content: error.message || '预览同步失败', key: 'ui-preview-sync' });
+    } finally {
+      setSyncBusy(false);
+    }
   };
 
   const requestRun = (mode, directCaseIds = null) => {
@@ -266,6 +281,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
       <div className="ui-auto-brand"><span>🎬</span><div><Text>cling · 测试中心</Text><Title level={3}>Emote UI 自动化</Title></div></div>
       <Space wrap>
         <Select showSearch value={branch} onChange={setBranch} options={branches.map((value) => ({ value, label: value }))} className="ui-auto-branch" suffixIcon={<BranchesOutlined />} />
+        <Button icon={<SyncOutlined spin={syncBusy} />} loading={syncBusy} onClick={synchronizeBranch}>同步当前分支</Button>
         <Select value={viewport} onChange={setViewport} options={[{ value: 'mobile', label: '手机视口 390×844' }, { value: 'desktop', label: '桌面视口 1440×900' }]} />
         <Checkbox checked={syncFirst} onChange={(event) => setSyncFirst(event.target.checked)}>同步最新预览后执行</Checkbox>
         {!embedded && <Button icon={<ArrowLeftOutlined />} onClick={onClose}>返回私人空间</Button>}
