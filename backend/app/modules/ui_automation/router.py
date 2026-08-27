@@ -1,17 +1,19 @@
 """Visual case management, execution orchestration and authenticated artifacts."""
 
 from datetime import datetime, timedelta
+import io
 from pathlib import Path
 import base64
 import hashlib
 import json
 import random
 import secrets
+import zipfile
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -56,7 +58,9 @@ REGISTER_TEMPLATE_STEPS = [
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "同意并继续"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "注册"},
-    {"action": "assert_visible", "locator_type": "text", "locator": "注册"},
+    # The page has both a tab button and a heading named "注册". The heading is
+    # unique and proves the form has actually switched, avoiding strict-mode errors.
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "注册", "exact": True},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='text']", "value": "AUTO-${run_id}"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[placeholder='手机号']", "value": "${registration.phone}"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[placeholder='验证码']", "value": "${registration.code}"},
@@ -232,6 +236,15 @@ def _seed(db: Session):
                     if upgraded_steps != steps:
                         case.steps = upgraded_steps
                         changed = True
+            # Registration used a text locator for "注册", which is ambiguous because
+            # the tab button and the form title coexist. Upgrade this platform-owned
+            # base case to the stable heading locator, while leaving custom cases alone.
+            if case and feature.key == "register" and case.name == "注册基础流程" and any(
+                step.get("action") == "assert_visible" and step.get("locator") == "注册"
+                and step.get("locator_type") == "text" for step in steps
+            ):
+                case.steps = REGISTER_TEMPLATE_STEPS
+                changed = True
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
             if case and case.steps == legacy_steps:
@@ -530,6 +543,31 @@ def artifact(artifact_id: int, db: Session = Depends(get_db)):
     root = Path(get_settings().ui_automation_data_dir).resolve(); path = (root / item.stored_name).resolve()
     if not path.is_relative_to(root) or not path.is_file(): raise HTTPException(404, "执行产物文件不存在")
     return FileResponse(path, media_type=item.content_type, filename=item.name)
+
+
+@router.get("/runs/{run_id}/cases/{case_id}/screenshots", dependencies=[guard])
+def case_screenshots_archive(run_id: int, case_id: int, db: Session = Depends(get_db)):
+    """Download every screenshot belonging to the selected case as one ZIP file."""
+    run = db.get(UiAutomationRun, run_id)
+    if not run: raise HTTPException(404, "执行记录不存在")
+    if case_id not in (run.case_ids or []): raise HTTPException(404, "该用例不属于此执行记录")
+    marker = f"case-{case_id}-"
+    items = [item for item in db.query(UiAutomationArtifact).filter_by(run_id=run.id, kind="screenshot").all()
+             if marker in item.name]
+    if not items: raise HTTPException(404, "该用例暂时没有可下载的截图")
+    root = Path(get_settings().ui_automation_data_dir).resolve()
+    payload = io.BytesIO()
+    with zipfile.ZipFile(payload, "w", zipfile.ZIP_DEFLATED) as archive:
+        for item in items:
+            path = (root / item.stored_name).resolve()
+            if path.is_relative_to(root) and path.is_file(): archive.write(path, arcname=item.name)
+    if not payload.tell(): raise HTTPException(404, "截图文件已过期或不存在")
+    payload.seek(0)
+    filename = f"run-{run.id}-case-{case_id}-screenshots.zip"
+    return StreamingResponse(payload, media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "X-Content-Type-Options": "nosniff",
+    })
 
 
 @router.delete("/maintenance/execution-data", dependencies=[guard])

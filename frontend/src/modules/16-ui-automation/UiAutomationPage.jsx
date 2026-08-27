@@ -271,9 +271,13 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     },
   });
 
-  const download = async (artifact) => {
-    try { const { blob, filename } = await client.download(artifact.url); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
-    catch (error) { message.error(error.message); }
+  const downloadCaseScreenshots = async () => {
+    if (!selectedRun || !evidenceCaseId) return;
+    try {
+      const { blob, filename } = await client.download(`/v1/ui-automation/runs/${selectedRun.id}/cases/${evidenceCaseId}/screenshots`);
+      const url = URL.createObjectURL(blob); const a = document.createElement('a');
+      a.href = url; a.download = filename || `case-${evidenceCaseId}-screenshots.zip`; a.click(); URL.revokeObjectURL(url);
+    } catch (error) { message.error(error.message); }
   };
 
   return <main className={`ui-auto-page ${embedded ? 'ui-auto-page--embedded' : ''}`}>
@@ -336,7 +340,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
                   <Progress percent={selectedRun.progress || 0} status={selectedRun.status === 'failed' ? 'exception' : selectedRun.status === 'passed' ? 'success' : 'active'} />
                   <div className="ui-auto-meta"><span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '390 × 844' : '1440 × 900'}</b></span></div>
                   {selectedRun.result_summary?.failure ? <Alert type="error" showIcon title={`${selectedRun.result_summary.failure.case_name} · 第 ${selectedRun.result_summary.failure.step_index} 步失败`} description={<div className="ui-auto-failure"><b>{selectedRun.result_summary.failure.reason}</b><span>动作：{selectedRun.result_summary.failure.action}{selectedRun.result_summary.failure.locator ? ` · 元素：${selectedRun.result_summary.failure.locator}` : ''}</span><span>建议：{selectedRun.result_summary.failure.suggestion}</span><details><summary>查看技术详情</summary><pre>{selectedRun.result_summary.failure.technical_detail}</pre></details></div>} /> : selectedRun.error_message && <Alert type="error" showIcon title="执行失败" description={selectedRun.error_message} />}
-                  <Space wrap>{caseArtifacts.map((item) => <Button size="small" key={item.id} onClick={() => download(item)}>{item.kind === 'trace' ? '下载本用例 Trace' : item.kind === 'video' ? '下载本用例录像' : '下载步骤截图'}</Button>)}</Space>
+                  <Button size="small" icon={<VideoCameraOutlined />} disabled={!caseArtifacts.some((item) => item.kind === 'screenshot')} onClick={downloadCaseScreenshots}>下载当前用例全部截图</Button>
                   {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.filter((step) => !evidenceCaseId || step.case_id === evidenceCaseId).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', children: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
                 </Space>
               </Col>
