@@ -37,12 +37,12 @@ LOGIN_FORM_STEPS = [
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "登录"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='tel'][placeholder='手机号']", "value": "${account_a.username}"},
     {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='password']", "value": "${account_a.password}"},
-    {"action": "click", "locator_type": "css", "locator": "form button[type='button']:has(+ p):visible"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园"},
 ]
 LOGIN_SUCCESS_STEP = {"action": "assert_visible", "locator_type": "text", "locator": "原野", "exact": True}
 LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP]
 OBSOLETE_AGREEMENT_XPATH = '//*[@id="auth-modal-container"]/div[3]/div/div/div/form/div[7]/button'
+AGREEMENT_TOGGLE_CSS = "form button[type='button']:has(+ p):visible"
 REGISTER_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
@@ -190,12 +190,14 @@ def _seed(db: Session):
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
             steps = list(case.steps or []) if case else []
-            # This old XPath points to the agreement toggle, not the sign-in tab.
-            # Keeping it alongside the stable CSS toggle clicks the checkbox twice
+            # Confirming the initial privacy dialog already sets the auth form's
+            # agreement state to true. Either legacy toggle step turns it back off
             # and silently prevents the form from issuing the login request.
             cleaned_steps = [step for step in steps if not (
-                step.get("action") == "click" and step.get("locator_type") == "xpath"
-                and step.get("locator") == OBSOLETE_AGREEMENT_XPATH
+                step.get("action") == "click" and (
+                    (step.get("locator_type") == "xpath" and step.get("locator") == OBSOLETE_AGREEMENT_XPATH)
+                    or (step.get("locator_type") == "css" and step.get("locator") == AGREEMENT_TOGGLE_CSS)
+                )
             )]
             if case and case.name == f"{feature.name}基础流程" and cleaned_steps != steps:
                 case.steps = cleaned_steps
