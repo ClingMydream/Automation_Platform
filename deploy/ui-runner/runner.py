@@ -172,6 +172,19 @@ def execute_step(page, contexts, step, variables, base_url):
             variables[f"condition.{step.get('condition', '')}"] = True
         except Exception:
             variables[f"condition.{step.get('condition', '')}"] = False
+    elif action == "validate_onboarding_page":
+        heading = page.get_by_role("heading", name=step.get("title", ""), exact=True)
+        description = page.get_by_text(step.get("description", ""), exact=True)
+        icon = page.get_by_text(step.get("icon", ""), exact=True)
+        button = page.get_by_role("button", name=step.get("locator", ""), exact=True)
+        for element in (heading, description, icon, button):
+            element.wait_for(state="visible")
+        box, viewport = icon.bounding_box(), page.viewport_size
+        assert box and viewport and box["x"] >= 0 and box["y"] >= 0 \
+            and box["x"] + box["width"] <= viewport["width"] \
+            and box["y"] + box["height"] <= viewport["height"], "引导图标没有完整显示在当前屏幕内"
+        page.wait_for_timeout(500)
+        button.dispatch_event("click")
     elif action == "assert_visible": target.wait_for(state="visible")
     elif action == "assert_hidden": target.wait_for(state="hidden")
     elif action == "assert_in_viewport":
@@ -200,6 +213,7 @@ def describe_step(case, index, step):
     elif action == "assert_text": detail = f"断言文本正确：{target}"
     elif action == "assert_url": detail = "断言页面地址正确"
     elif action == "detect_visible": detail = "检测是否显示新手引导"
+    elif action == "validate_onboarding_page": detail = f"确认引导页并继续：{step.get('title', '')}"
     elif action == "fill" and "password" in target: detail = "填写登录密码"
     elif action == "fill" and ("tel" in target or "手机号" in target): detail = "填写手机号/账号"
     elif action == "fill": detail = f"填写内容：{target or '输入框'}"

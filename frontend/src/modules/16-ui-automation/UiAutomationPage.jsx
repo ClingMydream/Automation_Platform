@@ -14,7 +14,7 @@ const { Paragraph, Text, Title } = Typography;
 const DEFAULT_BRANCH = 'dev-20260811-1.9.1';
 const ACTIONS = [
   ['goto', '打开页面'], ['click', '点击'], ['fill', '输入'], ['select', '选择'],
-  ['press', '键盘操作'], ['wait', '等待'], ['detect_visible', '检测元素是否出现'], ['assert_visible', '断言元素可见'], ['assert_hidden', '断言元素已隐藏'], ['assert_in_viewport', '检查元素完整显示'],
+  ['press', '键盘操作'], ['wait', '等待'], ['detect_visible', '检测元素是否出现'], ['validate_onboarding_page', '确认引导页并继续'], ['assert_visible', '断言元素可见'], ['assert_hidden', '断言元素已隐藏'], ['assert_in_viewport', '检查元素完整显示'],
   ['assert_text', '断言文本'], ['assert_url', '断言地址'], ['assert_count', '断言数量'],
   ['screenshot', '截图'], ['switch_account', '切换账号'],
 ];
