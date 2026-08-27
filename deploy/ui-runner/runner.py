@@ -57,7 +57,10 @@ def friendly_failure(error, case, step, step_index, credentials):
     """Turn Playwright internals into an actionable Chinese failure report."""
     technical = redact_error(error, credentials)
     lowered = technical.lower()
-    if "timeout" in lowered:
+    if (step or {}).get("action") == "assert_visible" and (step or {}).get("locator") == "原野":
+        reason = "登录后没有进入首页"
+        suggestion = "检查账号密码是否正确、登录接口是否成功，以及页面是否仍停留在登录页；请结合失败截图确认页面提示。"
+    elif "timeout" in lowered:
         reason = "等待页面或元素超时"
         suggestion = "确认预览服务可访问，并检查元素名称、定位方式及页面加载速度。"
     elif "strict mode violation" in lowered:

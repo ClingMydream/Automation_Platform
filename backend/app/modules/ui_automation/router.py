@@ -29,7 +29,7 @@ FEATURES = [
     ("like", "点赞"), ("comment", "评论"), ("favorite", "收藏"), ("friend", "添加好友"),
     ("chat", "聊天"), ("daily_task", "每日任务"), ("profile", "修改资料"),
 ]
-LOGIN_TEMPLATE_STEPS = [
+LOGIN_FORM_STEPS = [
     {"action": "goto", "value": "/"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "同意并继续"},
@@ -40,6 +40,8 @@ LOGIN_TEMPLATE_STEPS = [
     {"action": "click", "locator_type": "css", "locator": "form button[type='button']:has(+ p):visible"},
     {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园"},
 ]
+LOGIN_SUCCESS_STEP = {"action": "assert_visible", "locator_type": "text", "locator": "原野", "exact": True}
+LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP]
 REGISTER_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
@@ -181,6 +183,15 @@ def _seed(db: Session):
             # exist in the DOM, so automation must target only the visible sign-in form.
             login_case.steps = LOGIN_TEMPLATE_STEPS
             changed = True
+        # The previous login template stopped after clicking submit. A click alone
+        # cannot prove that authentication succeeded, so append a stable home-page
+        # assertion to every untouched built-in flow that still has that prefix.
+        for feature in db.query(UiAutomationFeature).all():
+            case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
+            steps = list(case.steps or []) if case else []
+            if case and case.name == f"{feature.name}基础流程" and steps[:len(LOGIN_FORM_STEPS)] == LOGIN_FORM_STEPS:
+                case.steps = LOGIN_TEMPLATE_STEPS + steps[len(LOGIN_FORM_STEPS):]
+                changed = True
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
             if case and case.steps == legacy_steps:
