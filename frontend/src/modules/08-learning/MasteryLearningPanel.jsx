@@ -11,8 +11,19 @@ import './mastery-learning.css';
 
 const { Paragraph, Text, Title } = Typography;
 const API = '/v1/learning/mastery';
-const STEP_TITLES = ['为什么学', '请求/执行图', '逐行示例', '预测结果', '照着跟写', '改写一处', '独立小题', '理解问答', '证据与复盘'];
+const LEARNING_PHASES = [
+  { title: '理解原理', description: '为什么、流程与逐行示例', progressStep: 0 },
+  { title: '动手实践', description: '跟写、改写与独立小题', progressStep: 4 },
+  { title: '掌握验收', description: '理解问答、证据与复盘', progressStep: 7 },
+];
+const PHASE_STEP_GROUPS = [[0, 1, 2, 3], [4, 5, 6], [7, 8]];
 const EMPTY_EVIDENCE = { run_confirmed: false, run_output: '', modified_code: '', exercise_answer: '', quiz_answers: [], explanation: '' };
+
+function phaseFromProgress(step = 0) {
+  if (step >= 7) return 2;
+  if (step >= 4) return 1;
+  return 0;
+}
 
 function duration(seconds = 0) {
   const minutes = Math.floor(seconds / 60);
@@ -58,7 +69,7 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
     setLoading(true); hydrated.current = false;
     try {
       const data = await client.get(`${API}/lessons/${id}`);
-      setLesson(data); setLessonId(id); setStep(data.progress.current_step || 0);
+      setLesson(data); setLessonId(id); setStep(phaseFromProgress(data.progress.current_step));
       setEvidence({ ...EMPTY_EVIDENCE, ...(data.progress.evidence || {}) });
       setTimer(data.progress); setSaveState('已保存');
     } catch (error) { message.error(error.message); }
@@ -83,7 +94,7 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
     setSaving(true); setSaveState('保存中…');
     try {
       const payloadEvidence = { ...evidence, ...(immediatePatch || {}) };
-      const data = await client.put(`${API}/lessons/${lessonId}/progress`, { ...payloadEvidence, current_step: step, complete: false });
+      const data = await client.put(`${API}/lessons/${lessonId}/progress`, { ...payloadEvidence, current_step: LEARNING_PHASES[step].progressStep, complete: false });
       setLesson(data); setSaveState('已保存');
       if (showMessage) message.success('学习证据已保存，并已同步到关卡笔记');
     } catch (error) { setSaveState('保存失败'); if (showMessage) message.error(error.message); }
@@ -96,6 +107,19 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
       const data = await client.put(`${API}/lessons/${lessonId}/progress`, { ...evidence, current_step: 8, complete: true });
       setLesson(data); message.success(data.message); await loadOverview(lessonId);
     } catch (error) { message.warning(error.message); }
+    finally { setSaving(false); }
+  }
+
+  async function changePhase(nextPhase) {
+    clearTimeout(saveTimer.current);
+    setSaving(true); setSaveState('保存中…');
+    try {
+      const data = await client.put(`${API}/lessons/${lessonId}/progress`, {
+        ...evidence, current_step: LEARNING_PHASES[nextPhase].progressStep, complete: false,
+      });
+      setLesson(data); setStep(nextPhase); setSaveState('已保存');
+      document.querySelector('.lesson-document')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) { setSaveState('保存失败'); message.error(error.message); }
     finally { setSaving(false); }
   }
 
@@ -146,7 +170,7 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
       <aside className="mastery-route"><div className="route-title"><b>能力路线</b><Text type="secondary">可回到已解锁关卡复习</Text></div>{overview.stages.map((stage) => <section key={stage.id}><div className="stage-title"><span>{stage.icon}</span><div><b>{stage.title}</b><small>{stage.objective}</small></div></div>{stage.lessons.map((item) => { const meta = statusMeta(item.progress.status); return <button key={item.id} disabled={item.progress.status === 'locked'} className={lessonId === item.id ? 'active' : ''} onClick={() => openLesson(item.id)}><span>{meta.icon}</span><div><b>{item.title}</b><small>{meta.label}</small></div></button>; })}</section>)}</aside>
       <main className="mastery-lesson">
         <Card className="lesson-top"><Row gutter={[16, 16]} align="middle"><Col flex="auto"><Space wrap><Tag color="purple">{lesson.stage.icon} {lesson.stage.title}</Tag><Tag>{lesson.estimated_minutes} 分钟建议</Tag><Text type="secondary">{saveState}</Text></Space><Title level={2}>{lesson.title}</Title><Paragraph>{lesson.outcome}</Paragraph></Col><Col><Space direction="vertical"><Text strong>本关计时：{duration(timer.elapsed_seconds)}</Text><Space><Button icon={<PlayCircleOutlined />} disabled={timer.timer_status === 'running'} onClick={() => timerAction('start')}>开始</Button><Button icon={<PauseCircleOutlined />} disabled={timer.timer_status !== 'running'} onClick={() => timerAction('pause')}>暂停</Button><Button icon={<StopOutlined />} onClick={() => timerAction('stop')}>结束</Button></Space></Space></Col></Row></Card>
-        <div className="lesson-workbench"><Steps current={step} direction="vertical" size="small" items={STEP_TITLES.map((title) => ({ title }))} onChange={(value) => { setStep(value); client.put(`${API}/lessons/${lessonId}/progress`, { ...evidence, current_step: value, complete: false }).catch(() => {}); }} /><Card loading={loading} className="lesson-content">{stepBody[step]}<div className="lesson-nav"><Button disabled={step === 0} onClick={() => setStep((value) => value - 1)}>上一步</Button><Space><Button icon={<SaveOutlined />} loading={saving} onClick={() => saveDraft(true)}>保存当前内容</Button>{step < 8 ? <Button type="primary" onClick={() => setStep((value) => value + 1)}>下一步</Button> : <Button type="primary" loading={saving} onClick={completeLesson}>完成本关并解锁下一关</Button>}</Space></div></Card></div>
+        <div className="lesson-workbench document-workbench"><Steps className="mastery-phase-nav" current={step} responsive items={LEARNING_PHASES.map((phase) => ({ title: phase.title, description: phase.description }))} onChange={changePhase} /><Card loading={loading} className="lesson-content lesson-document"><article className="learning-document">{PHASE_STEP_GROUPS[step].map((contentIndex) => <section key={contentIndex}>{stepBody[contentIndex]}</section>)}</article><div className="lesson-nav"><Button disabled={step === 0} onClick={() => changePhase(step - 1)}>上一阶段</Button><Space wrap><Button icon={<SaveOutlined />} loading={saving} onClick={() => saveDraft(true)}>保存当前内容</Button>{step < LEARNING_PHASES.length - 1 ? <Button type="primary" loading={saving} onClick={() => changePhase(step + 1)}>进入下一阶段</Button> : <Button type="primary" loading={saving} onClick={completeLesson}>完成本关并解锁下一关</Button>}</Space></div></Card></div>
       </main>
     </div>
     <Modal open={resetOpen} title="备份并彻底重置学习空间" okText="确认备份并重置" okButtonProps={{ danger: true, disabled: resetText !== '彻底重置学习空间' }} onOk={resetLearning} onCancel={() => { setResetOpen(false); setResetText(''); }}><Alert type="warning" showIcon title="旧课程、进度、笔记和附件会先备份，再从页面清空。其他平台模块不受影响。" /><Paragraph style={{ marginTop: 16 }}>请输入：<Text code>彻底重置学习空间</Text></Paragraph><Input value={resetText} onChange={(event) => setResetText(event.target.value)} /></Modal>
