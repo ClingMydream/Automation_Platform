@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from queue import Queue
 from threading import Thread
-from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.parse import urljoin
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException
@@ -55,30 +55,12 @@ def redact_error(error, credentials):
 
 
 def diagnostic_url(url: str) -> str:
-    """Keep the endpoint path but never expose query parameters in reports."""
-    parts = urlsplit(url)
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
-
-
-def redact_payload(value):
-    """Mask credentials before a captured request is rendered as a cURL command."""
-    if isinstance(value, list): return [redact_payload(item) for item in value]
-    if not isinstance(value, dict): return value
-    redacted = {}
-    for key, item in value.items():
-        lowered = key.lower()
-        if any(word in lowered for word in ("password", "token", "code", "secret", "authorization")):
-            redacted[key] = "******"
-        elif "phone" in lowered or "mobile" in lowered:
-            text = str(item or "")
-            redacted[key] = "*******" + text[-4:] if text else "******"
-        else:
-            redacted[key] = redact_payload(item)
-    return redacted
+    """Keep the exact test URL so a copied command can be replayed as-is."""
+    return url
 
 
 def safe_curl(request) -> str:
-    """Build a reproducible but credential-safe cURL command for failure reports."""
+    """Build a reproducible cURL command from the test request payload."""
     endpoint = diagnostic_url(request.url)
     command = f"curl -X {request.method} '{endpoint}'"
     content_type = request.headers.get("content-type", "")
@@ -87,9 +69,9 @@ def safe_curl(request) -> str:
     payload = request.post_data
     if payload:
         try:
-            payload = json.dumps(redact_payload(json.loads(payload)), ensure_ascii=False, separators=(",", ":"))
+            payload = json.dumps(json.loads(payload), ensure_ascii=False, separators=(",", ":"))
         except Exception:
-            payload = "******"
+            payload = request.post_data
         command += f" --data '{payload}'"
     return command
 
