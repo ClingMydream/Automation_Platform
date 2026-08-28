@@ -53,6 +53,22 @@ const HOTEL_PROJECT_PATH = '/hotel-project';
 const UI_AUTOMATION_PATH = '/emote-ui-automation';
 const MOBILE_PREVIEW_PATH = '/emote-mobile-preview';
 
+function currentBundlePath() {
+  return document.querySelector('script[type="module"][src]')?.getAttribute('src') || '';
+}
+
+async function reloadWhenDeploymentChanges() {
+  try {
+    const response = await fetch(`/?version_check=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) return;
+    const html = await response.text();
+    const nextBundle = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/)?.[1] || '';
+    if (nextBundle && currentBundlePath() && nextBundle !== currentBundlePath()) window.location.reload();
+  } catch {
+    // A temporary network failure must not interrupt the page the user is using.
+  }
+}
+
 const MENU_SECTIONS = [
   {
     key: 'testing',
@@ -151,6 +167,17 @@ function ToolboxApp() {
   }
 
   useEffect(() => { reload(); }, [token]);
+  useEffect(() => {
+    const check = () => { if (document.visibilityState === 'visible') reloadWhenDeploymentChanges(); };
+    const timer = window.setInterval(check, 60_000);
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, []);
   useEffect(() => {
     const navigate = (event) => setTab(event.detail);
     window.addEventListener('cling:navigate', navigate);
