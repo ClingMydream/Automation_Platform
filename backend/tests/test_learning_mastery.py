@@ -63,12 +63,17 @@ def test_four_mastery_gates_are_enforced_and_unlock_next_lesson(db):
 def test_reset_creates_recoverable_backup_and_clean_route(db, tmp_path, monkeypatch):
     ensure_mastery_seed(db)
     db.add(LearningNote(title="旧学习笔记", content_markdown="需要备份", tags=[])); db.commit()
+    attachment_dir = tmp_path / "learning-data" / "attachments"
+    attachment_dir.mkdir(parents=True)
+    (attachment_dir / "old.txt").write_text("旧附件", encoding="utf-8")
     monkeypatch.setattr("app.modules.learning.mastery_service.get_settings",
         lambda: SimpleNamespace(learning_data_dir=str(tmp_path / "learning-data")))
 
     backup_path = backup_and_clear_learning(db)
     assert (tmp_path / "learning-data" / "backups").exists()
     assert (Path(backup_path) / "learning-data.json").exists()
+    assert (Path(backup_path) / "attachments" / "old.txt").exists()
+    assert list(attachment_dir.iterdir()) == []
     assert db.query(LearningNote).count() == 0
     assert db.query(LearningMasteryLesson).count() == len(LESSONS)
     progress = db.scalars(select(LearningMasteryProgress).order_by(LearningMasteryProgress.id)).all()

@@ -129,6 +129,8 @@ def backup_and_clear_learning(db: Session):
     source = Path(settings.learning_data_dir) / "attachments"
     if source.exists():
         shutil.copytree(source, backup_root / "attachments")
+        shutil.rmtree(source)
+    source.mkdir(parents=True, exist_ok=True)
     for model in (*MASTERY_MODELS, *OLD_MODELS):
         db.execute(delete(model))
     db.commit()
