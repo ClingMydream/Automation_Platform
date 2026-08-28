@@ -1,13 +1,14 @@
 from calendar import monthrange
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models.entities import (LearningCheckin, LearningPlan, LearningProfile,
-    LearningScheduleShift, LearningTask)
+from app.models.entities import (LearningAttachment, LearningCheckin, LearningImport, LearningNote,
+    LearningNoteFolder, LearningPlan, LearningProfile, LearningScheduleShift, LearningStudyTimer, LearningTask)
 
 SEED = "learning_seed_v1"
 TOPICS = [
@@ -144,6 +145,19 @@ def restart_learning(db: Session, start_date: date, title: str):
             original_planned_date=planned, planned_date=planned, sort_order=2))
     db.commit(); db.refresh(plan)
     return plan
+
+
+def reset_learning_space(db: Session, start_date: date, title: str):
+    """Remove only personal learning records, retain the profile, then create a clean plan."""
+    settings = get_settings()
+    for attachment in db.scalars(select(LearningAttachment)).all():
+        (Path(settings.learning_data_dir) / "attachments" / attachment.stored_name).unlink(missing_ok=True)
+    # Explicit child deletion also supports databases created before foreign-key cascades existed.
+    for model in (LearningAttachment, LearningNote, LearningNoteFolder, LearningCheckin, LearningStudyTimer,
+                  LearningScheduleShift, LearningTask, LearningPlan, LearningImport):
+        db.execute(delete(model))
+    db.commit()
+    return restart_learning(db, start_date, title)
 
 
 def reconcile(db: Session):

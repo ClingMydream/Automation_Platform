@@ -14,7 +14,7 @@ from app.db import get_db
 from app.models.entities import (LearningAttachment, LearningCheckin, LearningNote, LearningNoteFolder,
     LearningPlan, LearningProfile, LearningScheduleShift, LearningStudyTimer, LearningTask)
 from app.modules.learning.schemas import CheckinInput, FolderInput, NoteInput, ProfileUpdate, RestartLearningInput, TaskInput
-from app.modules.learning.service import ensure_seed, local_today, reconcile, restart_learning, stats
+from app.modules.learning.service import ensure_seed, local_today, reconcile, reset_learning_space, restart_learning, stats
 from app.modules.learning.importer import import_zip
 
 router = APIRouter(prefix="/v1/learning", tags=["learning"], dependencies=[Depends(require_menu("learning"))])
@@ -102,6 +102,14 @@ def restart(payload: RestartLearningInput, db: Session = Depends(get_db)):
         raise HTTPException(400, "请确认重新开始学习")
     plan = restart_learning(db, payload.start_date or local_today(), payload.title)
     return {"ok": True, "plan": data(plan), "message": "旧计划已归档，笔记和打卡记录均已保留"}
+
+
+@router.post("/reset")
+def reset(payload: RestartLearningInput, db: Session = Depends(get_db)):
+    if not payload.confirm:
+        raise HTTPException(400, "请确认清空学习空间")
+    plan = reset_learning_space(db, payload.start_date or local_today(), payload.title or "第一期 · 零基础文档训练营")
+    return {"ok": True, "plan": data(plan), "message": "学习空间已清空，并已从第 1 天创建新的学习计划"}
 
 
 @router.get("/overview")
