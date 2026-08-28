@@ -32,7 +32,14 @@ pipeline {
         cp assets/activitys/item/card-bg-full.JPG assets/activitys/item/card-bg-full.jpg
       fi''' }
     }
-    stage('构建预览页面') { steps { sh 'pnpm build -- --mode production' } }
+    stage('构建预览页面') {
+      steps {
+        // The preview runs on this cloud server, so it must never inherit a
+        // developer LAN address from a checked-out branch. This only injects
+        // the test backend into the generated preview files; source code stays read-only.
+        sh 'VITE_API_BASE=https://www.inxpiration.cn/emote-test/api pnpm build -- --mode production'
+      }
+    }
     stage('适配预览子路径') {
       steps {
         sh '''# emote 源码中的 Logo 使用站点根路径；在线预览部署在 /emote-preview/ 下。
