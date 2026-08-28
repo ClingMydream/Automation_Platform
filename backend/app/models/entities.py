@@ -243,6 +243,52 @@ class LearningImport(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class LearningMasteryStage(Base, TimestampMixin):
+    """Group zero-basics lessons into a visible capability route."""
+
+    __tablename__ = "learning_mastery_stages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    seed_version: Mapped[str] = mapped_column(String(40), index=True, nullable=False)
+    key: Mapped[str] = mapped_column(String(60), unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    objective: Mapped[str] = mapped_column(Text, nullable=False)
+    icon: Mapped[str] = mapped_column(String(20), default="📘", nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class LearningMasteryLesson(Base, TimestampMixin):
+    """Persist one structured lesson instead of hard-coding content by day in React."""
+
+    __tablename__ = "learning_mastery_lessons"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stage_id: Mapped[int] = mapped_column(ForeignKey("learning_mastery_stages.id", ondelete="CASCADE"), index=True, nullable=False)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    outcome: Mapped[str] = mapped_column(Text, nullable=False)
+    estimated_minutes: Mapped[int] = mapped_column(Integer, default=75, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class LearningMasteryProgress(Base, TimestampMixin):
+    """Store mastery gates, evidence, timer state, and learner blockers for one lesson."""
+
+    __tablename__ = "learning_mastery_progress"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("learning_mastery_lessons.id", ondelete="CASCADE"), unique=True, index=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="locked", index=True, nullable=False)
+    current_step: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    evidence: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    blockers: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    elapsed_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    timer_status: Mapped[str] = mapped_column(String(20), default="stopped", nullable=False)
+    timer_started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    mastered_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class ApiRecord(Base, TimestampMixin):
     """Store personal API references with flexible user-defined fields."""
 

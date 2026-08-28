@@ -7,7 +7,7 @@
 - `06-json-tools`：JSON 对比与格式化。
 - `07-codec-tools`：文本转码。
 - `06-integrations`：Webhook 集成。
-- `08-learning`：学习计划、打卡、计时和笔记。
+- `08-learning`：Python、HTTP 与接口自动化能力路线、关卡证据、计时、卡点和自动笔记。
 - `09-api-workspace`：接口记录、调试和酒店练习项目。
 - `10-user-management`：用户与权限。
 - `11-test-packages`：测试包上传、二维码和下载页。

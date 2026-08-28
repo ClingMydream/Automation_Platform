@@ -61,3 +61,27 @@ class NoteInput(BaseModel):
     tags: list[str] = []
     is_pinned: bool = False
     restore: bool = False
+
+
+class MasteryProgressInput(BaseModel):
+    current_step: int = Field(default=0, ge=0, le=8)
+    prediction: str = Field(default="", max_length=10000)
+    run_confirmed: bool = False
+    run_output: str = Field(default="", max_length=20000)
+    modified_code: str = Field(default="", max_length=30000)
+    exercise_answer: str = Field(default="", max_length=20000)
+    quiz_answers: list[int] = []
+    explanation: str = Field(default="", max_length=10000)
+    complete: bool = False
+
+
+class MasteryBlockerInput(BaseModel):
+    content: str = Field(min_length=2, max_length=1000)
+
+
+class MasteryTimerInput(BaseModel):
+    action: str
+
+
+class MasteryResetInput(BaseModel):
+    confirm_text: str

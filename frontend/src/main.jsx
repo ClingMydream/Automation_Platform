@@ -27,7 +27,7 @@ import { DataGeneratorPanel } from './modules/05-data-generator/DataGeneratorPan
 import { IntegrationPanel } from './modules/06-integrations/IntegrationPanel.jsx';
 import { JsonToolsPanel } from './modules/06-json-tools/JsonToolsPanel.jsx';
 import { CodecPanel } from './modules/07-codec-tools/CodecPanel.jsx';
-import { LearningPanel } from './modules/08-learning/LearningPanel.jsx';
+import { MasteryLearningPanel } from './modules/08-learning/MasteryLearningPanel.jsx';
 import { ApiWorkspacePanel } from './modules/09-api-workspace/ApiWorkspacePanel.jsx';
 import { RestfulBookerPanel } from './modules/09-api-workspace/RestfulBookerPanel.jsx';
 import { UserPanel } from './modules/10-user-management/UserPanel.jsx';
@@ -243,7 +243,7 @@ function ToolboxApp() {
             {tab === 'images' && <ImageToolPanel token={token} />}
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
-            {tab === 'learning' && <LearningPanel client={client} />}
+            {tab === 'learning' && <MasteryLearningPanel client={client} isAdmin={user?.is_admin} />}
             {tab === 'command_library' && <CommandLibraryPanel client={client} />}
             {tab === 'effects' && <EffectStudio />}
             {tab === 'jenkins' && <JenkinsPanel client={client} />}
