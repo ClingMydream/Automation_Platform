@@ -102,5 +102,15 @@ export function OnlinePreviewPanel({ client }) {
         <BranchRevisionStatus client={client} branch={branch} buildStatus={status} label="远程代码状态" />
       </Space>
     </Card>
+    <Card title="使用说明" className="online-preview-guide">
+      <Steps direction="vertical" size="small" items={[
+        { title: '选择要预览的分支', description: '从下拉框选择 Emote 远程分支。切换分支只是在选择目标，不会改动任何代码。' },
+        { title: '同步最新代码', description: '点击后进入 Jenkins 队列，按“读取远程代码 → 安装依赖 → 生成网页预览 → 发布”执行。构建期间旧预览仍可使用。' },
+        { title: '等待构建成功', description: '构建进度会显示正在执行的阶段；如果失败，线上预览会继续保留上一次成功发布的版本。' },
+        { title: '核验线上版本', description: '成功后系统自动比对远程最新提交和线上实际服务的提交；也可点击“比对线上版本”手动复查。显示“已与远程最新代码一致”才代表同步完成。' },
+        { title: '选择预览方式', description: '“手机应用预览”会另开 390×844 的设备边框窗口，适合验收手机页面；“网页调试模式”打开原始网页，适合电脑端排查。' },
+      ]} />
+      <Alert style={{ marginTop: 16 }} type="warning" showIcon title="如何理解版本状态" description="“有新代码”表示远程分支已更新但线上尚未发布；“线上预览属于其他分支”表示当前线上显示的是其他分支；构建失败后请查看 Jenkins 构建阶段，修复分支问题后重新同步。" />
+    </Card>
   </div>;
 }
