@@ -122,11 +122,47 @@ def _jenkins_job_status(job_name: str) -> dict:
                 branch = parameter.get("value")
     description = data.get("description") or ""
     sha_match = re.search(r"SHA[：:]\s*([0-9a-f]{40})", description, re.I)
+    stages: list[dict] = []
+    # Pipeline Stage View's compact API makes Jenkins progress understandable
+    # without granting users direct access to Jenkins or its console logs.
+    if data.get("number"):
+        try:
+            stage_response = httpx.get(
+                f"{settings.jenkins_url}/job/{job_name}/{data['number']}/wfapi/describe",
+                auth=_jenkins_auth(), timeout=8,
+            )
+            if stage_response.is_success:
+                for stage in stage_response.json().get("stages", []):
+                    stages.append({
+                        "name": stage.get("name") or "未命名阶段",
+                        "status": stage.get("status") or "NOT_EXECUTED",
+                        "start_time": stage.get("startTimeMillis"),
+                        "duration": stage.get("durationMillis"),
+                    })
+        except httpx.HTTPError:
+            # Stage View is optional in Jenkins. The regular build status remains usable.
+            pass
     return {
         "number": data.get("number"), "result": data.get("result"), "building": data.get("building", False),
         "branch": branch, "commit_sha": sha_match.group(1) if sha_match else action_sha,
         "timestamp": data.get("timestamp"), "duration": data.get("duration"), "description": description,
+        "stages": stages,
     }
+
+
+def _deployed_revision() -> dict | None:
+    """Read the immutable revision manifest published with the preview assets."""
+    try:
+        response = httpx.get("http://emote-preview/.cling-preview-revision.json", timeout=5)
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        data = response.json()
+        if not isinstance(data.get("sha"), str) or not isinstance(data.get("branch"), str):
+            return None
+        return data
+    except (httpx.HTTPError, ValueError):
+        return None
 
 
 @router.get("/branches", dependencies=[Depends(require_any_menu("online_preview", "jenkins", "emote_ui_automation"))])
@@ -155,7 +191,25 @@ def branch_revision(branch: str):
 
 @router.get("/status", dependencies=[Depends(require_any_menu("online_preview", "emote_ui_automation"))])
 def preview_status():
-    return _jenkins_job_status("emote-preview")
+    result = _jenkins_job_status("emote-preview")
+    result["deployed_revision"] = _deployed_revision()
+    return result
+
+
+@router.get("/comparison", dependencies=[Depends(require_any_menu("online_preview", "emote_ui_automation"))])
+def preview_comparison(branch: str):
+    """Compare Codeup's selected branch HEAD with the revision actually served online."""
+    remote = _remote_revision(_validate_branch(branch))
+    deployed = _deployed_revision()
+    same_branch = bool(deployed and deployed.get("branch") == remote["branch"])
+    same_revision = bool(same_branch and deployed and deployed.get("sha") == remote["sha"])
+    return {
+        "branch": remote["branch"], "remote": remote, "deployed": deployed,
+        "matches": same_revision,
+        "message": "线上预览已与远程最新代码一致" if same_revision else (
+            "线上预览属于其他分支" if deployed and not same_branch else "线上预览尚未同步到远程最新提交"
+        ),
+    }
 
 
 @router.get("/apk-status", dependencies=[Depends(require_menu("jenkins"))])
@@ -181,4 +235,5 @@ def synchronize_preview(payload: PreviewSyncRequest):
             response.raise_for_status()
     except httpx.HTTPError as exc:
         raise HTTPException(502, "触发 Jenkins 预览同步失败") from exc
-    return {"message": "已提交同步任务", "branch": branch}
+    queue_match = re.search(r"/queue/item/(\d+)/", response.headers.get("Location", ""))
+    return {"message": "已提交同步任务", "branch": branch, "queue_id": queue_match.group(1) if queue_match else None}

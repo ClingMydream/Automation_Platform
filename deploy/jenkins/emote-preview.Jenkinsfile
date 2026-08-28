@@ -22,6 +22,8 @@ pipeline {
           checkout([$class: 'GitSCM', branches: [[name: branchName]],
             userRemoteConfigs: [[url: env.REPOSITORY_URL, credentialsId: 'codeup-readonly']]])
           def commitSha = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+          env.PREVIEW_BRANCH = branchName
+          env.PREVIEW_SHA = commitSha
           currentBuild.description = "预览分支：${branchName} | SHA：${commitSha}"
         }
       }
@@ -52,6 +54,10 @@ pipeline {
     stage('发布在线预览') {
       steps {
         sh '''set -eu
+          # This manifest is deployed with the static site. It is the source of truth
+          # for the revision actually being served, even if a later Jenkins build fails.
+          printf '{"branch":"%s","sha":"%s","build_number":"%s","published_at":"%s"}\n' \\
+            "$PREVIEW_BRANCH" "$PREVIEW_SHA" "$BUILD_NUMBER" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist/.cling-preview-revision.json
           rm -rf /srv/emote-preview/next
           mkdir -p /srv/emote-preview/next
           cp -a dist/. /srv/emote-preview/next/
