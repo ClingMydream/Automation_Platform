@@ -37,6 +37,7 @@ import { CommandLibraryPanel } from './modules/12-command-library/CommandLibrary
 import { EffectStudio, PublicEffectPage, HAPPY_ZHAO_PATH } from './modules/13-effects/EffectStudio.jsx';
 import { JenkinsPanel } from './modules/14-jenkins/JenkinsPanel.jsx';
 import { OnlinePreviewPanel } from './modules/15-online-preview/OnlinePreviewPanel.jsx';
+import { MobilePreviewPage } from './modules/15-online-preview/MobilePreviewPage.jsx';
 import { UiAutomationPage } from './modules/16-ui-automation/UiAutomationPage.jsx';
 import { UiAutomationRunViewer } from './modules/16-ui-automation/UiAutomationRunViewer.jsx';
 import { apiClient } from './shared/apiClient.js';
@@ -50,6 +51,7 @@ const { Header, Sider, Content } = Layout;
 const { Text, Title } = Typography;
 const HOTEL_PROJECT_PATH = '/hotel-project';
 const UI_AUTOMATION_PATH = '/emote-ui-automation';
+const MOBILE_PREVIEW_PATH = '/emote-mobile-preview';
 
 const MENU_SECTIONS = [
   {
@@ -109,6 +111,7 @@ function ToolboxApp() {
   const isHotelProject = window.location.pathname === HOTEL_PROJECT_PATH;
   const uiAutomationRunMatch = window.location.pathname.match(/^\/emote-ui-automation\/run\/([^/]+)$/);
   const isPublicEffect = window.location.pathname === HAPPY_ZHAO_PATH;
+  const isMobilePreview = window.location.pathname === MOBILE_PREVIEW_PATH;
   const transferToken = params.get('transferToken');
   const testPackage = params.get('testPackage');
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -172,6 +175,7 @@ function ToolboxApp() {
       <RestfulBookerPanel client={client} />
     </main>;
   }
+  if (isMobilePreview && (user?.is_admin || user?.menu_permissions?.includes('online_preview'))) return <MobilePreviewPage />;
   if (uiAutomationRunMatch && (user?.is_admin || user?.menu_permissions?.includes('emote_ui_automation'))) {
     return <UiAutomationRunViewer client={client} runId={uiAutomationRunMatch[1]} />;
   }

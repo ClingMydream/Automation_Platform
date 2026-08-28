@@ -1,8 +1,8 @@
-.emote-mobile-preview-modal .ant-modal-content{padding:16px 16px 20px;background:linear-gradient(145deg,#f7fbff,#e9eff8)}
-.emote-mobile-preview-modal .ant-modal-header{background:transparent;padding-right:28px}
+.emote-mobile-preview-page{min-height:100vh;background:radial-gradient(circle at 50% 0,#e8f1ff,#f7f9fc 55%,#eef2f7);padding:20px}
+.emote-mobile-preview-page__header{max-width:900px;margin:0 auto 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}.emote-mobile-preview-page__header h4{margin:3px 0 0}.emote-mobile-preview-page__body{display:flex;min-height:calc(100vh - 100px);align-items:center;justify-content:center;flex-direction:column}
 .emote-mobile-preview__hint{text-align:center;font-size:12px;font-weight:700;color:#667085;margin:0 0 12px}
 .emote-mobile-frame{box-sizing:content-box;width:390px;height:844px;margin:0 auto;position:relative;overflow:hidden;border:10px solid #151c2a;border-radius:42px;background:#151c2a;box-shadow:0 22px 50px rgba(15,23,42,.3),inset 0 0 0 1px rgba(255,255,255,.18)}
 .emote-mobile-frame__speaker{position:absolute;z-index:2;top:8px;left:50%;width:106px;height:24px;transform:translateX(-50%);border-radius:0 0 16px 16px;background:#151c2a;pointer-events:none}
 .emote-mobile-frame__screen{display:block;width:390px;height:844px;border:0;border-radius:31px;background:#fff;transform-origin:top left}
 .emote-mobile-preview__actions{display:flex;justify-content:center;width:100%;margin-top:14px}
-@media(max-width:520px){.emote-mobile-preview-modal{max-width:100vw;margin:0}.emote-mobile-preview-modal .ant-modal-content{border-radius:0;overflow:auto;max-height:100vh}.emote-mobile-frame{transform:scale(.8);transform-origin:top center;margin-bottom:-170px}.emote-mobile-frame__speaker{top:6px}}
+@media(max-width:620px){.emote-mobile-preview-page{padding:12px}.emote-mobile-preview-page__header{align-items:flex-start;flex-direction:column}.emote-mobile-frame{transform:scale(.8);transform-origin:top center;margin-bottom:-170px}.emote-mobile-frame__speaker{top:6px}}

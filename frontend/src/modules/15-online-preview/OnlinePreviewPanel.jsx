@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Card, Descriptions, Modal, Select, Space, Steps, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Descriptions, Select, Space, Steps, Tag, Typography, message } from 'antd';
 import { CheckCircleOutlined, ExportOutlined, MobileOutlined, ReloadOutlined, SafetyCertificateOutlined, SyncOutlined } from '@ant-design/icons';
 import { BranchRevisionStatus } from './BranchRevisionStatus.jsx';
-import './online-preview.css';
 
 const { Paragraph, Text, Title } = Typography;
 const PREVIEW_URL = '/emote-preview/';
@@ -25,7 +24,6 @@ export function OnlinePreviewPanel({ client }) {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   const loadStatus = async () => {
     const nextStatus = await client.get('/v1/online-preview/status');
@@ -90,7 +88,7 @@ export function OnlinePreviewPanel({ client }) {
           <Select showSearch value={branch} style={{ width: 360, maxWidth: '100%' }} placeholder="选择远程分支" options={branches.map((value) => ({ label: value, value }))} onChange={setBranch} optionFilterProp="label" loading={loading} />
           <Button type="primary" icon={<SyncOutlined spin={syncing || status?.building} />} loading={syncing || status?.building} onClick={synchronize}>同步最新代码</Button>
           <Button icon={<SafetyCertificateOutlined />} loading={checking} onClick={() => compare(true)}>比对线上版本</Button>
-          <Button icon={<MobileOutlined />} onClick={() => setMobilePreviewOpen(true)}>手机应用预览</Button>
+          <Button icon={<MobileOutlined />} onClick={() => window.open('/emote-mobile-preview', 'cling-emote-mobile-preview', 'noopener,noreferrer')}>手机应用预览</Button>
           <Button icon={<ExportOutlined />} onClick={() => window.open(PREVIEW_URL, 'cling-emote-preview', 'noopener,noreferrer')}>网页调试模式</Button>
         </Space>
         <Descriptions bordered size="small" column={{ xs: 1, md: 2 }}>
@@ -104,16 +102,5 @@ export function OnlinePreviewPanel({ client }) {
         <BranchRevisionStatus client={client} branch={branch} buildStatus={status} label="远程代码状态" />
       </Space>
     </Card>
-    <Modal className="emote-mobile-preview-modal" open={mobilePreviewOpen} onCancel={() => setMobilePreviewOpen(false)} footer={null} width={470} centered destroyOnHidden title="Emote · 手机应用预览">
-      <div className="emote-mobile-preview__hint">390 × 844 · 与测试手机一致的应用视口</div>
-      <div className="emote-mobile-frame">
-        <div className="emote-mobile-frame__speaker" />
-        <iframe title="Emote 手机预览" src={PREVIEW_URL} className="emote-mobile-frame__screen" />
-      </div>
-      <Space className="emote-mobile-preview__actions" wrap>
-        <Button icon={<ReloadOutlined />} onClick={() => document.querySelector('.emote-mobile-frame__screen')?.contentWindow?.location.reload()}>刷新应用</Button>
-        <Button icon={<ExportOutlined />} onClick={() => window.open(PREVIEW_URL, 'cling-emote-preview', 'noopener,noreferrer')}>网页调试模式</Button>
-      </Space>
-    </Modal>
   </div>;
 }
