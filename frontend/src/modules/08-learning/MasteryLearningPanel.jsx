@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Button, Card, Checkbox, Col, Collapse, Input, Modal, Progress, Radio,
+  Alert, Button, Card, Checkbox, Col, Collapse, Drawer, Empty, Input, List, Modal, Progress, Radio,
   Row, Space, Steps, Tag, Typography, message,
 } from 'antd';
 import {
-  CheckCircleFilled, ClockCircleOutlined, LockOutlined, PauseCircleOutlined,
+  CheckCircleFilled, ClockCircleOutlined, FileTextOutlined, LockOutlined, PauseCircleOutlined,
   PlayCircleOutlined, RedoOutlined, SaveOutlined, StopOutlined,
 } from '@ant-design/icons';
 import './mastery-learning.css';
@@ -54,6 +54,9 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetText, setResetText] = useState('');
   const [timer, setTimer] = useState({ timer_status: 'stopped', elapsed_seconds: 0 });
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [selectedNote, setSelectedNote] = useState(null);
   const hydrated = useRef(false);
   const saveTimer = useRef(null);
 
@@ -62,6 +65,15 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
     setOverview(data);
     const target = preferredLessonId || lessonId || data.current_lesson_id;
     await openLesson(target, false);
+  }
+
+  async function openNotes() {
+    setNotesOpen(true);
+    try {
+      const rows = await client.get('/v1/learning/notes');
+      setNotes(rows);
+      setSelectedNote((current) => current || rows[0] || null);
+    } catch (error) { message.error(error.message); }
   }
 
   async function openLesson(id, saveCurrent = true) {
@@ -164,7 +176,7 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
   ];
 
   return <div className="mastery-learning">
-    <header className="mastery-header"><div><Text>个人成长 · 零代码基础</Text><Title level={2}>🐍 Python、HTTP 与接口自动化</Title><Paragraph>{overview.principle}</Paragraph></div><Space wrap><Tag color="blue">已掌握 {overview.mastered}/{overview.total}</Tag><Tag>{duration(overview.total_seconds)}</Tag>{isAdmin && <Button danger icon={<RedoOutlined />} onClick={() => setResetOpen(true)}>备份并彻底重置</Button>}</Space></header>
+    <header className="mastery-header"><div><Text>个人成长 · 零代码基础</Text><Title level={2}>🐍 Python、HTTP 与接口自动化</Title><Paragraph>{overview.principle}</Paragraph></div><Space wrap><Button icon={<FileTextOutlined />} onClick={openNotes}>查看关卡笔记</Button><Tag color="blue">已掌握 {overview.mastered}/{overview.total}</Tag><Tag>{duration(overview.total_seconds)}</Tag>{isAdmin && <Button danger icon={<RedoOutlined />} onClick={() => setResetOpen(true)}>备份并彻底重置</Button>}</Space></header>
     <Progress percent={Math.round(overview.mastered / overview.total * 100)} showInfo={false} />
     <div className="mastery-shell">
       <aside className="mastery-route"><div className="route-title"><b>能力路线</b><Text type="secondary">可回到已解锁关卡复习</Text></div>{overview.stages.map((stage) => <section key={stage.id}><div className="stage-title"><span>{stage.icon}</span><div><b>{stage.title}</b><small>{stage.objective}</small></div></div>{stage.lessons.map((item) => { const meta = statusMeta(item.progress.status); return <button key={item.id} disabled={item.progress.status === 'locked'} className={lessonId === item.id ? 'active' : ''} onClick={() => openLesson(item.id)}><span>{meta.icon}</span><div><b>{item.title}</b><small>{meta.label}</small></div></button>; })}</section>)}</aside>
@@ -173,6 +185,10 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
         <div className="lesson-workbench document-workbench"><Steps className="mastery-phase-nav" current={step} responsive items={LEARNING_PHASES.map((phase) => ({ title: phase.title, description: phase.description }))} onChange={changePhase} /><Card loading={loading} className="lesson-content lesson-document"><article className="learning-document">{PHASE_STEP_GROUPS[step].map((contentIndex) => <section key={contentIndex}>{stepBody[contentIndex]}</section>)}</article><div className="lesson-nav"><Button disabled={step === 0} onClick={() => changePhase(step - 1)}>上一阶段</Button><Space wrap><Button icon={<SaveOutlined />} loading={saving} onClick={() => saveDraft(true)}>保存当前内容</Button>{step < LEARNING_PHASES.length - 1 ? <Button type="primary" loading={saving} onClick={() => changePhase(step + 1)}>进入下一阶段</Button> : <Button type="primary" loading={saving} onClick={completeLesson}>完成本关并解锁下一关</Button>}</Space></div></Card></div>
       </main>
     </div>
+    <Drawer title="📒 关卡笔记" open={notesOpen} onClose={() => setNotesOpen(false)} width={760}>
+      <Paragraph type="secondary">每次保存学习内容后，系统都会自动同步一篇关卡笔记。点击左侧笔记即可查看。</Paragraph>
+      <div className="mastery-notes-drawer"><List className="mastery-note-list" dataSource={notes} locale={{ emptyText: <Empty description="还没有已同步的关卡笔记" /> }} renderItem={(item) => <List.Item className={selectedNote?.id === item.id ? 'selected' : ''} onClick={() => setSelectedNote(item)}><List.Item.Meta title={item.title} description={(item.content_markdown || '空白笔记').replace(/\n/g, ' ').slice(0, 58)} /></List.Item>} /><section className="mastery-note-content">{selectedNote ? <><Title level={4}>{selectedNote.title}</Title><pre>{selectedNote.content_markdown || '这篇笔记暂时没有内容。'}</pre></> : <Empty description="选择一篇笔记查看" />}</section></div>
+    </Drawer>
     <Modal open={resetOpen} title="备份并彻底重置学习空间" okText="确认备份并重置" okButtonProps={{ danger: true, disabled: resetText !== '彻底重置学习空间' }} onOk={resetLearning} onCancel={() => { setResetOpen(false); setResetText(''); }}><Alert type="warning" showIcon title="旧课程、进度、笔记和附件会先备份，再从页面清空。其他平台模块不受影响。" /><Paragraph style={{ marginTop: 16 }}>请输入：<Text code>彻底重置学习空间</Text></Paragraph><Input value={resetText} onChange={(event) => setResetText(event.target.value)} /></Modal>
   </div>;
 }
