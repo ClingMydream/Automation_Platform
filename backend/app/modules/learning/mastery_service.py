@@ -95,12 +95,7 @@ def mastery_gates(lesson: LearningMasteryLesson, evidence: dict):
 def save_mastery_note(db: Session, lesson: LearningMasteryLesson, evidence: dict):
     fingerprint = f"mastery:{lesson.slug}"
     note = db.scalar(select(LearningNote).where(LearningNote.import_fingerprint == fingerprint))
-    content = (
-        f"# {lesson.title}\n\n## 我的解释\n{evidence.get('explanation') or '待补充'}\n\n"
-        f"## 运行结果\n```text\n{evidence.get('run_output') or '待补充'}\n```\n\n"
-        f"## 我的改写\n```python\n{evidence.get('modified_code') or '待补充'}\n```\n\n"
-        f"## 独立小题\n{evidence.get('exercise_answer') or '待补充'}\n"
-    )
+    content = evidence.get("explanation") or "待补充"
     if note:
         note.content_markdown = content
     else:

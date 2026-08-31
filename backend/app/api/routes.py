@@ -10,6 +10,7 @@ from app.modules.health.router import router as health_router
 from app.modules.image_tools.router import router as image_tools_router
 from app.modules.integrations.router import router as integrations_router
 from app.modules.learning.mastery_router import router as learning_mastery_router
+from app.modules.learning.router import router as learning_router
 from app.modules.users.router import router as users_router
 from app.modules.test_packages.router import router as test_packages_router
 from app.modules.command_library.router import router as command_library_router
@@ -31,6 +32,7 @@ for module_router in [
     test_packages_router,
     image_tools_router,
     integrations_router,
+    learning_router,
     learning_mastery_router,
     command_library_router,
     hotel_practice_router,
