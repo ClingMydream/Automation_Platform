@@ -4,7 +4,7 @@ import {
   Row, Space, Steps, Tag, Typography, message,
 } from 'antd';
 import {
-  CheckCircleFilled, ClockCircleOutlined, DeleteOutlined, FileTextOutlined, LockOutlined, PauseCircleOutlined,
+  CheckCircleFilled, ClockCircleOutlined, DeleteOutlined, FileTextOutlined, LockOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PauseCircleOutlined,
   PlayCircleOutlined, PlusOutlined, RedoOutlined, SaveOutlined, StopOutlined,
 } from '@ant-design/icons';
 import './mastery-learning.css';
@@ -57,6 +57,7 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState([]);
   const [selectedNote, setSelectedNote] = useState(null);
+  const [notesListCollapsed, setNotesListCollapsed] = useState(false);
   const hydrated = useRef(false);
   const saveTimer = useRef(null);
 
@@ -219,9 +220,9 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
         <div className="lesson-workbench document-workbench"><Steps className="mastery-phase-nav" current={step} responsive items={LEARNING_PHASES.map((phase) => ({ title: phase.title, description: phase.description }))} onChange={changePhase} /><Card loading={loading} className="lesson-content lesson-document"><article className="learning-document">{PHASE_STEP_GROUPS[step].map((contentIndex) => <section key={contentIndex}>{stepBody[contentIndex]}</section>)}</article><div className="lesson-nav"><Button disabled={step === 0} onClick={() => changePhase(step - 1)}>上一阶段</Button><Space wrap><Button icon={<SaveOutlined />} loading={saving} onClick={() => saveDraft(true)}>保存当前内容</Button>{step < LEARNING_PHASES.length - 1 ? <Button type="primary" loading={saving} onClick={() => changePhase(step + 1)}>进入下一阶段</Button> : <Button type="primary" loading={saving} onClick={completeLesson}>完成本关并解锁下一关</Button>}</Space></div></Card></div>
       </main>
     </div>
-    <Drawer title="📒 关卡笔记" open={notesOpen} onClose={() => setNotesOpen(false)} width={760} extra={<Button type="primary" icon={<PlusOutlined />} onClick={createNote}>新建笔记</Button>}>
+    <Drawer title="📒 关卡笔记" open={notesOpen} onClose={() => setNotesOpen(false)} width={760} extra={<Space><Button icon={notesListCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setNotesListCollapsed((value) => !value)}>{notesListCollapsed ? '展开目录' : '收起目录'}</Button><Button type="primary" icon={<PlusOutlined />} onClick={createNote}>新建笔记</Button></Space>}>
       <Paragraph type="secondary">每次保存学习内容后，系统都会自动同步一篇关卡笔记，也可在这里新建、编辑或删除。</Paragraph>
-      <div className="mastery-notes-drawer"><List className="mastery-note-list" dataSource={notes} locale={{ emptyText: <Empty description="还没有笔记" /> }} renderItem={(item) => <List.Item className={selectedNote?.id === item.id ? 'selected' : ''} onClick={() => setSelectedNote(item)}><List.Item.Meta title={item.title} description={(item.content_markdown || '空白笔记').replace(/\n/g, ' ').slice(0, 58)} /></List.Item>} /><section className="mastery-note-content">{selectedNote ? <><Space className="mastery-note-actions"><Button type="primary" icon={<SaveOutlined />} onClick={saveSelectedNote}>保存</Button><Button danger icon={<DeleteOutlined />} onClick={deleteSelectedNote}>删除</Button></Space><Input className="mastery-note-title" value={selectedNote.title} onChange={(event) => editNote({ title: event.target.value })} placeholder="笔记标题" /><Input.TextArea value={selectedNote.content_markdown} onChange={(event) => editNote({ content_markdown: event.target.value })} placeholder="记录你的学习笔记" autoSize={{ minRows: 18 }} /></> : <Empty description="选择或新建一篇笔记" />}</section></div>
+      <div className={`mastery-notes-drawer ${notesListCollapsed ? 'notes-list-collapsed' : ''}`}><List className="mastery-note-list" dataSource={notes} locale={{ emptyText: <Empty description="还没有笔记" /> }} renderItem={(item) => <List.Item className={selectedNote?.id === item.id ? 'selected' : ''} onClick={() => setSelectedNote(item)}><List.Item.Meta title={item.title} description={(item.content_markdown || '空白笔记').replace(/\n/g, ' ').slice(0, 58)} /></List.Item>} /><section className="mastery-note-content">{selectedNote ? <><Space className="mastery-note-actions"><Button type="primary" icon={<SaveOutlined />} onClick={saveSelectedNote}>保存</Button><Button danger icon={<DeleteOutlined />} onClick={deleteSelectedNote}>删除</Button></Space><Input className="mastery-note-title" value={selectedNote.title} onChange={(event) => editNote({ title: event.target.value })} placeholder="笔记标题" /><Input.TextArea value={selectedNote.content_markdown} onChange={(event) => editNote({ content_markdown: event.target.value })} placeholder="记录你的学习笔记" autoSize={{ minRows: 18 }} /></> : <Empty description="选择或新建一篇笔记" />}</section></div>
     </Drawer>
     <Modal open={resetOpen} title="备份并彻底重置学习空间" okText="确认备份并重置" okButtonProps={{ danger: true, disabled: resetText !== '彻底重置学习空间' }} onOk={resetLearning} onCancel={() => { setResetOpen(false); setResetText(''); }}><Alert type="warning" showIcon title="旧课程、进度、笔记和附件会先备份，再从页面清空。其他平台模块不受影响。" /><Paragraph style={{ marginTop: 16 }}>请输入：<Text code>彻底重置学习空间</Text></Paragraph><Input value={resetText} onChange={(event) => setResetText(event.target.value)} /></Modal>
   </div>;
