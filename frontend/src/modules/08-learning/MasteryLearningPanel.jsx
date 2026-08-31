@@ -4,8 +4,8 @@ import {
   Row, Space, Steps, Tag, Typography, message,
 } from 'antd';
 import {
-  CheckCircleFilled, ClockCircleOutlined, FileTextOutlined, LockOutlined, PauseCircleOutlined,
-  PlayCircleOutlined, RedoOutlined, SaveOutlined, StopOutlined,
+  CheckCircleFilled, ClockCircleOutlined, DeleteOutlined, FileTextOutlined, LockOutlined, PauseCircleOutlined,
+  PlayCircleOutlined, PlusOutlined, RedoOutlined, SaveOutlined, StopOutlined,
 } from '@ant-design/icons';
 import './mastery-learning.css';
 
@@ -74,6 +74,40 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
       setNotes(rows);
       setSelectedNote((current) => current || rows[0] || null);
     } catch (error) { message.error(error.message); }
+  }
+
+  function editNote(patch) {
+    setSelectedNote((current) => current ? { ...current, ...patch } : current);
+  }
+
+  async function createNote() {
+    try {
+      const created = await client.post('/v1/learning/notes', { title: '未命名笔记', content_markdown: '', tags: [], is_pinned: false });
+      setNotes((rows) => [created, ...rows]); setSelectedNote(created);
+    } catch (error) { message.error(error.message); }
+  }
+
+  async function saveSelectedNote() {
+    if (!selectedNote) return;
+    try {
+      const saved = await client.put(`/v1/learning/notes/${selectedNote.id}`, {
+        folder_id: selectedNote.folder_id, linked_task_id: selectedNote.linked_task_id,
+        title: selectedNote.title.trim() || '未命名笔记', content_markdown: selectedNote.content_markdown,
+        tags: selectedNote.tags || [], is_pinned: selectedNote.is_pinned || false,
+      });
+      setNotes((rows) => rows.map((row) => row.id === saved.id ? saved : row)); setSelectedNote(saved); message.success('笔记已保存');
+    } catch (error) { message.error(error.message); }
+  }
+
+  function deleteSelectedNote() {
+    if (!selectedNote) return;
+    Modal.confirm({ title: `删除笔记「${selectedNote.title}」？`, content: '删除后可在回收站恢复。', okText: '删除', okButtonProps: { danger: true }, onOk: async () => {
+      try {
+        await client.delete(`/v1/learning/notes/${selectedNote.id}`);
+        setNotes((rows) => { const next = rows.filter((row) => row.id !== selectedNote.id); setSelectedNote(next[0] || null); return next; });
+        message.success('笔记已移至回收站');
+      } catch (error) { message.error(error.message); }
+    }});
   }
 
   async function openLesson(id, saveCurrent = true) {
@@ -185,9 +219,9 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
         <div className="lesson-workbench document-workbench"><Steps className="mastery-phase-nav" current={step} responsive items={LEARNING_PHASES.map((phase) => ({ title: phase.title, description: phase.description }))} onChange={changePhase} /><Card loading={loading} className="lesson-content lesson-document"><article className="learning-document">{PHASE_STEP_GROUPS[step].map((contentIndex) => <section key={contentIndex}>{stepBody[contentIndex]}</section>)}</article><div className="lesson-nav"><Button disabled={step === 0} onClick={() => changePhase(step - 1)}>上一阶段</Button><Space wrap><Button icon={<SaveOutlined />} loading={saving} onClick={() => saveDraft(true)}>保存当前内容</Button>{step < LEARNING_PHASES.length - 1 ? <Button type="primary" loading={saving} onClick={() => changePhase(step + 1)}>进入下一阶段</Button> : <Button type="primary" loading={saving} onClick={completeLesson}>完成本关并解锁下一关</Button>}</Space></div></Card></div>
       </main>
     </div>
-    <Drawer title="📒 关卡笔记" open={notesOpen} onClose={() => setNotesOpen(false)} width={760}>
-      <Paragraph type="secondary">每次保存学习内容后，系统都会自动同步一篇关卡笔记。点击左侧笔记即可查看。</Paragraph>
-      <div className="mastery-notes-drawer"><List className="mastery-note-list" dataSource={notes} locale={{ emptyText: <Empty description="还没有已同步的关卡笔记" /> }} renderItem={(item) => <List.Item className={selectedNote?.id === item.id ? 'selected' : ''} onClick={() => setSelectedNote(item)}><List.Item.Meta title={item.title} description={(item.content_markdown || '空白笔记').replace(/\n/g, ' ').slice(0, 58)} /></List.Item>} /><section className="mastery-note-content">{selectedNote ? <><Title level={4}>{selectedNote.title}</Title><pre>{selectedNote.content_markdown || '这篇笔记暂时没有内容。'}</pre></> : <Empty description="选择一篇笔记查看" />}</section></div>
+    <Drawer title="📒 关卡笔记" open={notesOpen} onClose={() => setNotesOpen(false)} width={760} extra={<Button type="primary" icon={<PlusOutlined />} onClick={createNote}>新建笔记</Button>}>
+      <Paragraph type="secondary">每次保存学习内容后，系统都会自动同步一篇关卡笔记，也可在这里新建、编辑或删除。</Paragraph>
+      <div className="mastery-notes-drawer"><List className="mastery-note-list" dataSource={notes} locale={{ emptyText: <Empty description="还没有笔记" /> }} renderItem={(item) => <List.Item className={selectedNote?.id === item.id ? 'selected' : ''} onClick={() => setSelectedNote(item)}><List.Item.Meta title={item.title} description={(item.content_markdown || '空白笔记').replace(/\n/g, ' ').slice(0, 58)} /></List.Item>} /><section className="mastery-note-content">{selectedNote ? <><Space className="mastery-note-actions"><Button type="primary" icon={<SaveOutlined />} onClick={saveSelectedNote}>保存</Button><Button danger icon={<DeleteOutlined />} onClick={deleteSelectedNote}>删除</Button></Space><Input className="mastery-note-title" value={selectedNote.title} onChange={(event) => editNote({ title: event.target.value })} placeholder="笔记标题" /><Input.TextArea value={selectedNote.content_markdown} onChange={(event) => editNote({ content_markdown: event.target.value })} placeholder="记录你的学习笔记" autoSize={{ minRows: 18 }} /></> : <Empty description="选择或新建一篇笔记" />}</section></div>
     </Drawer>
     <Modal open={resetOpen} title="备份并彻底重置学习空间" okText="确认备份并重置" okButtonProps={{ danger: true, disabled: resetText !== '彻底重置学习空间' }} onOk={resetLearning} onCancel={() => { setResetOpen(false); setResetText(''); }}><Alert type="warning" showIcon title="旧课程、进度、笔记和附件会先备份，再从页面清空。其他平台模块不受影响。" /><Paragraph style={{ marginTop: 16 }}>请输入：<Text code>彻底重置学习空间</Text></Paragraph><Input value={resetText} onChange={(event) => setResetText(event.target.value)} /></Modal>
   </div>;
