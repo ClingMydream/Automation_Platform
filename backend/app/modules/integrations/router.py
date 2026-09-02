@@ -1,44 +1,17 @@
 """Integration routes for webhook configuration and future notifications."""
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.auth import AuthContext, require_menu
 from app.core.target_guard import validate_public_http_url
 from app.db import get_db
-from app.models.entities import IntegrationWebhook, UiAutomationRun
+from app.models.entities import IntegrationWebhook
 from app.modules.integrations.schemas import IntegrationWebhookCreate, IntegrationWebhookRead
 from app.modules.integrations.service import send_webhook_event
-from app.modules.integrations.jira import JiraCloudAdapter, jira_ready, redact_text, sync_failed_run
-from app.core.config import get_settings
 
 
 router = APIRouter(tags=["集成开放"])
-
-
-@router.get("/v1/integrations/jira/status", summary="查询 Jira Cloud 状态")
-def jira_status(_: AuthContext = Depends(require_menu("integrations"))):
-    settings = get_settings()
-    return {"provider": "jira", "enabled": settings.jira_enabled, "auto_create_on_failure": settings.jira_auto_create_on_failure,
-            "configured": jira_ready(settings), "project_key": settings.jira_project_key or "", "issue_type": settings.jira_issue_type}
-
-
-@router.post("/v1/integrations/jira/test-connection", summary="测试 Jira Cloud 连接")
-def test_jira_connection(_: AuthContext = Depends(require_menu("integrations"))):
-    settings = get_settings()
-    if not jira_ready(settings): raise HTTPException(400, "Jira 未启用或服务器环境变量未配置完整")
-    try: return {"status": "ok", **JiraCloudAdapter(settings).test_connection()}
-    except Exception as exc: raise HTTPException(400, redact_text(exc)) from exc
-
-
-@router.post("/v1/test-tasks/{task_id}/jira-sync", summary="补偿同步失败测试批次到 Jira")
-def sync_run_to_jira(task_id: int, background_tasks: BackgroundTasks, _: AuthContext = Depends(require_menu("emote_ui_automation")), db: Session = Depends(get_db)):
-    run = db.get(UiAutomationRun, task_id)
-    if run is None: raise HTTPException(404, "测试批次不存在")
-    if run.status != "failed": raise HTTPException(409, "只有失败测试批次可同步 Jira")
-    if not jira_ready(get_settings()): raise HTTPException(400, "Jira 未启用或服务器环境变量未配置完整")
-    background_tasks.add_task(sync_failed_run, run.id)
-    return {"status": "queued", "run_id": run.id, "message": "Jira 同步已在后台执行，不影响测试结果"}
 
 
 @router.get("/v1/integrations/webhooks", response_model=list[IntegrationWebhookRead], summary="查询 Webhook 集成")

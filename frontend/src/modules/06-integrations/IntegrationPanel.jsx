@@ -1,7 +1,7 @@
 // File purpose: Integration page. Maintain webhook configurations for notifications and external systems.
 
-import React, { useEffect, useState } from 'react';
-import { Alert, App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Switch, Table, Tag } from 'antd';
+import React, { useState } from 'react';
+import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Switch, Table, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { buildWebhookFormValues, deleteWebhook, saveWebhook, testWebhook, WEBHOOK_EVENT_OPTIONS } from './integrationFeature.js';
 
@@ -11,18 +11,7 @@ export function IntegrationPanel({ client, integrations, reload }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [jira, setJira] = useState(null);
   const { message, modal } = AntApp.useApp();
-
-  async function loadJiraStatus() {
-    try { setJira(await client.get('/v1/integrations/jira/status')); } catch (err) { message.error(err.message); }
-  }
-  useEffect(() => { loadJiraStatus(); }, []);
-
-  async function testJira() {
-    try { const result = await client.post('/v1/integrations/jira/test-connection', {}); message.success(`Jira 已连接：${result.project}`); await loadJiraStatus(); }
-    catch (err) { message.error(err.message); }
-  }
 
   function resetForm() {
     setEditingId(null);
@@ -74,13 +63,6 @@ export function IntegrationPanel({ client, integrations, reload }) {
 
   return (
     <Row gutter={[16, 16]}>
-      <Col span={24}>
-        <Card title="Jira Cloud 缺陷闭环" extra={<Button onClick={testJira} disabled={!jira?.configured}>测试连接</Button>}>
-          {!jira ? <Alert type="info" message="正在读取 Jira 配置状态" /> : <Alert showIcon type={jira.configured ? (jira.enabled ? 'success' : 'warning') : 'info'}
-            message={jira.configured ? (jira.enabled ? 'Jira Cloud 已配置' : 'Jira Cloud 已配置但功能开关关闭') : 'Jira Cloud 尚未配置'}
-            description={jira.configured ? <Space wrap><Tag>项目：{jira.project_key}</Tag><Tag>类型：{jira.issue_type}</Tag><Tag color={jira.auto_create_on_failure ? 'green' : 'default'}>{jira.auto_create_on_failure ? '失败自动建单已开启' : '失败自动建单已关闭'}</Tag></Space> : '请仅在服务器 .env 中配置 JIRA_BASE_URL、JIRA_USER_EMAIL、JIRA_API_TOKEN 和 JIRA_PROJECT_KEY；凭据不会显示或保存到平台数据库。'} />}
-        </Card>
-      </Col>
       <Col xs={24} xl={9}>
         <Card title={editingId ? '修改集成配置' : '新建集成配置'} extra={editingId && <Button onClick={resetForm}>取消编辑</Button>}>
           <Form form={form} layout="vertical" initialValues={{ integration_type: 'webhook', events: [], is_active: true }} onFinish={submit}>

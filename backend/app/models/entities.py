@@ -402,23 +402,3 @@ class UiAutomationArtifact(Base, TimestampMixin):
     stored_name: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     content_type: Mapped[str] = mapped_column(String(120), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
-
-
-class ExternalIssueLink(Base, TimestampMixin):
-    """One deduplicated external defect linked to a failed automation run."""
-
-    __tablename__ = "external_issue_links"
-    __table_args__ = (UniqueConstraint("provider", "failure_fingerprint", name="uq_external_issue_fingerprint"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    provider: Mapped[str] = mapped_column(String(40), default="jira", nullable=False)
-    project_key: Mapped[str] = mapped_column(String(40), nullable=False)
-    run_id: Mapped[int] = mapped_column(ForeignKey("ui_automation_runs.id", ondelete="CASCADE"), index=True, nullable=False)
-    failure_fingerprint: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
-    issue_key: Mapped[str | None] = mapped_column(String(80))
-    issue_url: Mapped[str | None] = mapped_column(String(1000))
-    sync_status: Mapped[str] = mapped_column(String(30), default="pending", nullable=False)
-    retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    last_error_summary: Mapped[str] = mapped_column(String(1000), default="", nullable=False)
-    first_synced_at: Mapped[datetime | None] = mapped_column(DateTime)
-    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime)

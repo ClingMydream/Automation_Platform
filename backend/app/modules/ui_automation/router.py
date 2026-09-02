@@ -12,7 +12,7 @@ import zipfile
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -602,7 +602,7 @@ def _internal_auth(token: str | None):
 
 
 @router.put("/internal/runs/{run_id}")
-def runner_update(run_id: int, payload: RunnerUpdate, background_tasks: BackgroundTasks, x_runner_token: str | None = Header(None), db: Session = Depends(get_db)):
+def runner_update(run_id: int, payload: RunnerUpdate, x_runner_token: str | None = Header(None), db: Session = Depends(get_db)):
     _internal_auth(x_runner_token)
     run = db.get(UiAutomationRun, run_id)
     if not run: raise HTTPException(404, "执行记录不存在")
@@ -616,7 +616,4 @@ def runner_update(run_id: int, payload: RunnerUpdate, background_tasks: Backgrou
                                         stored_name=artifact["stored_name"], content_type=artifact["content_type"],
                                         size_bytes=artifact.get("size_bytes", 0)))
     db.commit()
-    if run.status == "failed":
-        from app.modules.integrations.jira import sync_failed_run
-        background_tasks.add_task(sync_failed_run, run.id)
     return {"status": "ok"}
