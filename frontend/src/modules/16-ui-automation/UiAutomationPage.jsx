@@ -121,6 +121,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [runBusy, setRunBusy] = useState(false);
+  const [jiraSyncBusy, setJiraSyncBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [runRequest, setRunRequest] = useState(null);
   const [credentialOpen, setCredentialOpen] = useState(false);
@@ -200,6 +201,14 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     if (mode === 'selected' && !caseIds.length) return message.warning('请先勾选要执行的用例');
     setRunRequest({ mode, case_ids: mode === 'selected' ? caseIds : [] });
     credentialForm.setFieldsValue({ data_set_id: dataSets.find((item) => item.is_default)?.id || dataSets[0]?.id }); setCredentialOpen(true);
+  };
+
+  const syncJira = async () => {
+    if (!selectedRun) return;
+    setJiraSyncBusy(true);
+    try { const result = await client.post(`/v1/test-tasks/${selectedRun.id}/jira-sync`, {}); message.success(result.message); }
+    catch (error) { message.error(error.message); }
+    finally { setJiraSyncBusy(false); }
   };
 
   const startRun = async () => {
@@ -301,7 +310,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
         <Button icon={<SyncOutlined spin={syncBusy} />} loading={syncBusy} onClick={synchronizeBranch}>同步当前分支</Button>
         <Select value={viewport} onChange={setViewport} options={[{ value: 'mobile', label: '手机视口 390×844' }, { value: 'desktop', label: '桌面视口 1440×900' }]} />
         <Checkbox checked={syncFirst} onChange={(event) => setSyncFirst(event.target.checked)}>同步最新预览后执行</Checkbox>
-        {!embedded && <Button icon={<ArrowLeftOutlined />} onClick={onClose}>返回私人空间</Button>}
+        {!embedded && <Button icon={<ArrowLeftOutlined />} onClick={onClose}>返回 Cling 自动化平台</Button>}
       </Space>
     </header>
     <section className="ui-auto-actions">
@@ -336,7 +345,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
         <Button block type="dashed" icon={<FileAddOutlined />} onClick={() => openCase(null)}>新建结构化用例</Button>
       </aside>
       <section className="ui-auto-right">
-        <Card className="ui-auto-run-card" title={selectedRun ? `执行 #${selectedRun.id}` : '执行过程'} extra={selectedRun && <Badge status={(STATUS[selectedRun.status] || STATUS.queued)[1]} text={(STATUS[selectedRun.status] || STATUS.queued)[0]} />}>
+        <Card className="ui-auto-run-card" title={selectedRun ? `执行 #${selectedRun.id}` : '执行过程'} extra={selectedRun && <Space><Badge status={(STATUS[selectedRun.status] || STATUS.queued)[1]} text={(STATUS[selectedRun.status] || STATUS.queued)[0]} />{selectedRun.status === 'failed' && <Button size="small" loading={jiraSyncBusy} onClick={syncJira}>同步 Jira</Button>}</Space>}>
           {!selectedRun ? <Empty description="选择上方执行方式开始回归" /> : <>
             <div className="ui-auto-evidence-tabs">
               <Text type="secondary">用例证据</Text>

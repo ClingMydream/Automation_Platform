@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     ui_runner_url: str = "http://ui-runner:8090"
     ui_runner_token: str | None = None
     ui_automation_data_dir: str = "/var/lib/cling-ui-automation"
+    # Jira Cloud credentials stay in the server environment only. The feature is opt-in.
+    jira_enabled: bool = False
+    jira_auto_create_on_failure: bool = False
+    jira_base_url: str | None = None
+    jira_user_email: str | None = None
+    jira_api_token: str | None = None
+    jira_project_key: str | None = None
+    jira_issue_type: str = "Bug"
     app_timezone: str = "Asia/Shanghai"
     learning_data_dir: str = "/var/lib/cling-learning"
     learning_attachment_max_mb: int = 20
