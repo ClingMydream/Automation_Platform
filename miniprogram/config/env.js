@@ -7,8 +7,8 @@ const ENV = 'development';
 const configs = {
   development: {
     // 在微信开发者工具中可临时勾选“不校验合法域名”进行本地联调。
-    // docker-compose 将主站的 /api 请求反向代理到 FastAPI 后端。
-    apiBaseUrl: 'http://127.0.0.1/api',
+    // 开发环境：已部署的 Cling 自动化平台（HTTP 仅用于开发者工具联调）。
+    apiBaseUrl: 'http://111.229.178.141/api',
   },
   production: {
     // 发布前替换为已部署平台的 HTTPS 地址，例如 https://platform.example.com/api
