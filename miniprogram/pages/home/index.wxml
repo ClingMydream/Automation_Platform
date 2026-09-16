@@ -1,0 +1,21 @@
+<view class="page">
+  <view class="welcome">
+    <view class="welcome-title">你好，{{profile.display_name || profile.username || '同学'}}</view>
+    <view class="welcome-text">随时查看平台状态和常用功能</view>
+  </view>
+  <view class="card status-card">
+    <view class="status-dot {{healthOk ? 'ok' : 'bad'}}"></view>
+    <view>
+      <view class="status-title">{{healthText}}</view>
+      <view class="muted">当前 API 服务状态</view>
+    </view>
+  </view>
+  <view class="section-title">常用功能</view>
+  <view class="feature-grid">
+    <view class="feature card" data-name="学习进度" bindtap="openFeature"><view class="feature-icon">学</view><view>学习进度</view><view class="muted small">记录目标和打卡</view></view>
+    <view class="feature card" data-name="文件快传" bindtap="openFeature"><view class="feature-icon">传</view><view>文件快传</view><view class="muted small">手机收取文件</view></view>
+    <view class="feature card" data-name="测试工具" bindtap="openFeature"><view class="feature-icon">测</view><view>测试工具</view><view class="muted small">查看常用工具</view></view>
+    <view class="feature card" data-name="消息中心" bindtap="openFeature"><view class="feature-icon">信</view><view>消息中心</view><view class="muted small">接收任务提醒</view></view>
+  </view>
+  <view wx:if="{{profile.is_admin}}" class="card admin-note">当前账号具有管理权限。管理配置仍在 Web 管理端完成。</view>
+</view>

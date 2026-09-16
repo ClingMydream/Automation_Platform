@@ -1,0 +1,10 @@
+.login-page { padding-top: 132rpx; }
+.brand { display: flex; align-items: center; gap: 24rpx; margin: 0 20rpx 72rpx; }
+.brand-mark { width: 92rpx; height: 92rpx; line-height: 92rpx; text-align: center; color: #fff; background: #1565c0; border-radius: 24rpx; font-size: 52rpx; font-weight: bold; }
+.brand-title { font-size: 42rpx; font-weight: 700; }
+.brand-subtitle { color: #687385; margin-top: 8rpx; }
+.form-card { padding: 42rpx 32rpx; }
+.field-label { color: #455166; margin: 14rpx 0; }
+.field { height: 88rpx; background: #f4f7fb; border-radius: 12rpx; padding: 0 24rpx; box-sizing: border-box; margin-bottom: 28rpx; }
+.error { color: #d93025; margin: -8rpx 0 22rpx; }
+.tip { color: #7d8798; font-size: 24rpx; line-height: 1.7; margin: 34rpx 20rpx; }

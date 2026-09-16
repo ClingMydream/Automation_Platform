@@ -1,0 +1,6 @@
+{
+  "name": "cling-wechat-miniprogram",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": { "check": "node scripts/check-project.mjs" }
+}

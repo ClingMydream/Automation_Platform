@@ -1,0 +1,9 @@
+<view class="page">
+  <view class="card user-card">
+    <view class="avatar">{{avatarText}}</view>
+    <view><view class="name">{{profile.display_name || profile.username}}</view><view class="muted">{{profile.is_admin ? '管理员' : '普通成员'}}</view></view>
+  </view>
+  <view class="card row"><view>账号</view><view class="muted">{{profile.username}}</view></view>
+  <view class="card row"><view>已授权菜单</view><view class="muted">{{profile.menu_permissions.length}} 项</view></view>
+  <button class="logout" bindtap="logout">退出登录</button>
+</view>

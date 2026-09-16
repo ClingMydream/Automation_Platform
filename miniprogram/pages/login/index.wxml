@@ -1,0 +1,18 @@
+<view class="page login-page">
+  <view class="brand">
+    <view class="brand-mark">C</view>
+    <view>
+      <view class="brand-title">Cling 工作台</view>
+      <view class="brand-subtitle">用手机查看你的工作与学习</view>
+    </view>
+  </view>
+  <view class="card form-card">
+    <view class="field-label">用户名</view>
+    <input class="field" placeholder="请输入平台用户名" value="{{username}}" data-field="username" bindinput="onInput" />
+    <view class="field-label">密码</view>
+    <input class="field" placeholder="请输入密码" password value="{{password}}" data-field="password" bindinput="onInput" />
+    <view wx:if="{{error}}" class="error">{{error}}</view>
+    <button class="primary-button" loading="{{loading}}" bindtap="submit">登录</button>
+  </view>
+  <view class="tip">首次联调请在 config/env.js 配置 API 地址。正式上线请改为微信授权登录，避免在小程序中长期使用管理后台账户。</view>
+</view>

@@ -1,0 +1,25 @@
+{
+  "pages": [
+    "pages/login/index",
+    "pages/home/index",
+    "pages/profile/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "Cling 工作台",
+    "navigationBarBackgroundColor": "#1565c0",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f6f8fc",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#687385",
+    "selectedColor": "#1565c0",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "工作台" },
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
+  },
+  "sitemapLocation": "sitemap.json"
+}

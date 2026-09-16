@@ -1,0 +1,5 @@
+.user-card { display: flex; align-items: center; gap: 24rpx; margin-top: 22rpx; }
+.avatar { width: 92rpx; height: 92rpx; line-height: 92rpx; border-radius: 50%; background: #1565c0; color: #fff; text-align: center; font-size: 40rpx; font-weight: 700; }
+.name { font-size: 34rpx; font-weight: 700; margin-bottom: 10rpx; }
+.row { display: flex; justify-content: space-between; }
+.logout { margin-top: 46rpx; color: #d93025; border: 1rpx solid #f3b3ad; background: #fff; border-radius: 12rpx; }
