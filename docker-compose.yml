@@ -51,6 +51,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/automation-platform/letsencrypt:/etc/letsencrypt:ro
+      - /opt/automation-platform/certbot-www:/var/www/certbot:ro
     depends_on:
       backend:
         condition: service_healthy
