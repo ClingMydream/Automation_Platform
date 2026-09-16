@@ -20,9 +20,9 @@
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/home/index", "text": "首页" },
-      { "pagePath": "pages/approvals/index", "text": "审批" },
-      { "pagePath": "pages/profile/index", "text": "我的" }
+      { "pagePath": "pages/home/index", "text": "首页", "iconPath": "assets/tabbar/home-default.png", "selectedIconPath": "assets/tabbar/home-active.png" },
+      { "pagePath": "pages/approvals/index", "text": "审批", "iconPath": "assets/tabbar/approval-default.png", "selectedIconPath": "assets/tabbar/approval-active.png" },
+      { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "assets/tabbar/profile-default.png", "selectedIconPath": "assets/tabbar/profile-active.png" }
     ]
   },
   "sitemapLocation": "sitemap.json"
