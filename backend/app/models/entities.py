@@ -42,6 +42,17 @@ class MiniProgramAccount(Base, TimestampMixin):
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
+class OaAccountReviewer(Base, TimestampMixin):
+    """Store the reviewers selected for each individual Mini Program account."""
+
+    __tablename__ = "oa_account_reviewers"
+    __table_args__ = (UniqueConstraint("account_id", "reviewer_account_id", name="uq_oa_account_reviewer"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("mini_program_accounts.id", ondelete="CASCADE"), index=True, nullable=False)
+    reviewer_account_id: Mapped[int] = mapped_column(ForeignKey("mini_program_accounts.id", ondelete="CASCADE"), index=True, nullable=False)
+
+
 class OaApprovalTemplate(Base, TimestampMixin):
     """Store an administrator-managed approval form definition for the Mini Program."""
 

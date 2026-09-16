@@ -9,7 +9,7 @@
   <view class="card form-card">
     <view class="flower">🎀</view>
     <view class="login-title">登录莓好审批</view>
-    <view class="muted login-copy">首次登录会自动建立小程序账号，由管理员统一安排审核人。</view>
+    <view class="muted login-copy">把每一份小小的心意，认真送达。</view>
     <view wx:if="{{error}}" class="error">{{error}}</view>
     <input class="field" placeholder="账号" value="{{username}}" data-field="username" bindinput="onInput" />
     <input class="field" password placeholder="密码" value="{{password}}" data-field="password" bindinput="onInput" />
@@ -17,5 +17,5 @@
     <view class="dev-divider">或</view>
     <button class="dev-button" loading="{{loading}}" bindtap="wechatSignIn">微信一键登录</button>
   </view>
-  <view class="tip">使用平台账号或微信均可登录；首次成功登录后会自动出现在后台人员管理中。</view>
+  <view class="tip">登录后即可发起申请、查看记录和处理待办。</view>
 </view>
