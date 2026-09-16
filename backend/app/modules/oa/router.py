@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.auth import AuthContext, create_access_token, get_current_user, hash_password, verify_admin
+from app.core.auth import AuthContext, create_access_token, get_current_user, hash_password, verify_admin, verify_password
 from app.core.config import get_settings
 from app.db import get_db
 from app.models.entities import AppUser, MiniProgramAccount, OaApprovalAction, OaApprovalRequest, OaApprovalTemplate
@@ -29,6 +29,11 @@ class DevLogin(BaseModel):
     display_name: str = Field(default="体验同事", min_length=1, max_length=80)
 
 
+class AccountLogin(BaseModel):
+    username: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=1, max_length=160)
+
+
 class CreateRequest(BaseModel):
     template_key: str = Field(min_length=1, max_length=60)
     form_data: dict = Field(default_factory=dict)
@@ -40,7 +45,10 @@ class DecideRequest(BaseModel):
 
 class AccountUpdate(BaseModel):
     is_enabled: bool
-    is_reviewer: bool
+
+
+class ReviewerUpdate(BaseModel):
+    account_id: int | None = None
 
 class ProfileUpdate(BaseModel):
     display_name: str = Field(min_length=1, max_length=80)
@@ -67,6 +75,20 @@ def _get_or_create_wechat_user(db: Session, openid: str, display_name: str = "�
     return user
 
 
+def _ensure_account_login_record(db: Session, user: AppUser) -> AppUser:
+    """Register a platform-account sign-in as a Mini Program OA user on first use."""
+    account = db.query(MiniProgramAccount).filter(MiniProgramAccount.app_user_id == user.id).first()
+    if account is None:
+        # `openid` predates account sign-in and is non-null in existing installations.
+        # A namespaced internal identity keeps the one-account-per-user constraint intact.
+        account = MiniProgramAccount(app_user_id=user.id, openid=f"account:{user.id}", is_enabled=True)
+        db.add(account)
+        db.commit()
+    if not account.is_enabled:
+        raise HTTPException(status_code=403, detail="该小程序账号已停用，请联系管理员")
+    return user
+
+
 @router.post("/auth/wechat-login", summary="微信 code 换取 OA 小程序会话")
 def wechat_login(payload: WeChatCode, db: Session = Depends(get_db)):
     settings = get_settings()
@@ -81,6 +103,14 @@ def wechat_login(payload: WeChatCode, db: Session = Depends(get_db)):
     if not result.get("openid"):
         raise HTTPException(status_code=401, detail=result.get("errmsg", "微信授权失败"))
     return _account_token(_get_or_create_wechat_user(db, result["openid"]))
+
+
+@router.post("/auth/account-login", summary="账号密码登录 OA 小程序")
+def account_login(payload: AccountLogin, db: Session = Depends(get_db)):
+    user = db.query(AppUser).filter(AppUser.username == payload.username.strip()).first()
+    if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="账号或密码错误")
+    return _account_token(_ensure_account_login_record(db, user))
 
 
 @router.post("/auth/dev-login", summary="开发者工具体验登录")
@@ -133,7 +163,7 @@ def create_request(payload: CreateRequest, current_user: AuthContext = Depends(g
 def list_requests(scope: str = "mine", current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(AppUser).filter(AppUser.username == current_user.username).first()
     query = db.query(OaApprovalRequest)
-    if scope == "pending" and current_user.is_admin:
+    if scope == "pending" and (current_user.is_admin or "oa_reviewer" in current_user.menu_permissions):
         query = query.filter(OaApprovalRequest.status == "pending")
     else:
         query = query.filter(OaApprovalRequest.requester_user_id == user.id)
@@ -168,17 +198,34 @@ def decide_request(request_id: int, payload: DecideRequest, current_user: AuthCo
 def list_mini_accounts(_: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
     accounts = db.query(MiniProgramAccount).order_by(MiniProgramAccount.created_at.desc()).all()
     users = {item.id: item for item in db.query(AppUser).all()}
-    return [{"id": item.id, "name": (users[item.app_user_id].display_name or users[item.app_user_id].username), "department": item.department, "is_enabled": item.is_enabled, "is_reviewer": users[item.app_user_id].is_admin or "oa_reviewer" in (users[item.app_user_id].menu_permissions or []), "created_at": item.created_at.isoformat()} for item in accounts if item.app_user_id in users]
+    rows = [{"id": item.id, "name": (users[item.app_user_id].display_name or users[item.app_user_id].username), "username": users[item.app_user_id].username, "login_method": "账号登录" if item.openid.startswith("account:") else "微信一键登录", "department": item.department, "is_enabled": item.is_enabled, "is_reviewer": users[item.app_user_id].is_admin or "oa_reviewer" in (users[item.app_user_id].menu_permissions or []), "created_at": item.created_at.isoformat()} for item in accounts if item.app_user_id in users]
+    reviewer = next((item["id"] for item in rows if item["is_reviewer"]), None)
+    return {"accounts": rows, "reviewer_account_id": reviewer}
 
-@router.put("/admin/accounts/{account_id}", summary="设置小程序账号和审核人权限")
+@router.put("/admin/accounts/{account_id}", summary="设置小程序账号状态")
 def update_mini_account(account_id: int, payload: AccountUpdate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
     account = db.get(MiniProgramAccount, account_id)
     if not account: raise HTTPException(status_code=404, detail="小程序账号不存在")
     user = db.get(AppUser, account.app_user_id)
     account.is_enabled = payload.is_enabled
-    permissions = set(user.menu_permissions or [])
-    if payload.is_reviewer: permissions.add("oa_reviewer")
-    else: permissions.discard("oa_reviewer")
-    user.menu_permissions = list(permissions)
     db.commit()
     return {"status": "ok"}
+
+
+@router.put("/admin/reviewer", summary="从小程序用户中指定审核人")
+def update_reviewer(payload: ReviewerUpdate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    accounts = db.query(MiniProgramAccount).all()
+    selected = next((item for item in accounts if item.id == payload.account_id), None) if payload.account_id else None
+    if payload.account_id and (selected is None or not selected.is_enabled):
+        raise HTTPException(status_code=422, detail="请选择已启用的小程序用户")
+    users = {item.id: item for item in db.query(AppUser).filter(AppUser.id.in_([account.app_user_id for account in accounts] or [-1])).all()}
+    for account in accounts:
+        user = users.get(account.app_user_id)
+        if user and not user.is_admin:
+            permissions = set(user.menu_permissions or [])
+            permissions.discard("oa_reviewer")
+            if selected and account.id == selected.id:
+                permissions.add("oa_reviewer")
+            user.menu_permissions = list(permissions)
+    db.commit()
+    return {"status": "ok", "reviewer_account_id": selected.id if selected else None}
