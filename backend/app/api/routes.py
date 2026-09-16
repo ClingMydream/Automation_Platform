@@ -18,6 +18,7 @@ from app.modules.hotel_practice.router import router as hotel_practice_router
 from app.modules.online_preview.router import router as online_preview_router
 from app.modules.oa.router import router as oa_router
 from app.modules.ui_automation.router import router as ui_automation_router
+from app.modules.circle_stats.router import router as circle_stats_router
 
 
 router = APIRouter()
@@ -40,5 +41,6 @@ for module_router in [
     online_preview_router,
     oa_router,
     ui_automation_router,
+    circle_stats_router,
 ]:
     router.include_router(module_router)
