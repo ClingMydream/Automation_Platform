@@ -1,9 +1,9 @@
 <view class="page">
   <view class="card user-card">
     <view class="avatar">{{avatarText}}</view>
-    <view><view class="name">{{profile.display_name || profile.username}}</view><view class="muted">{{profile.is_admin ? '管理员' : '普通成员'}}</view></view>
+    <view><view class="name">{{profile.name}}</view><view class="muted">{{profile.is_reviewer ? '审核人' : '家庭成员'}}</view></view>
   </view>
-  <view class="card row"><view>账号</view><view class="muted">{{profile.username}}</view></view>
-  <view class="card row"><view>已授权菜单</view><view class="muted">{{profile.menu_permissions.length}} 项</view></view>
+  <view class="card"><view class="row"><view>我的昵称</view><view wx:if="{{!editing}}" class="muted">{{profile.name}}</view></view><input wx:if="{{editing}}" class="name-input" value="{{displayName}}" bindinput="input" /><button wx:if="{{editing}}" class="primary-button save" bindtap="save">保存资料</button><button wx:else class="edit" bindtap="edit">修改个人资料</button></view>
+  <view class="card row"><view>家庭角色</view><view class="muted">{{profile.is_reviewer ? '审核人' : '被审核人'}}</view></view>
   <button class="logout" bindtap="logout">退出登录</button>
 </view>

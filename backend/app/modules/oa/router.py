@@ -42,6 +42,9 @@ class AccountUpdate(BaseModel):
     is_enabled: bool
     is_reviewer: bool
 
+class ProfileUpdate(BaseModel):
+    display_name: str = Field(min_length=1, max_length=80)
+
 
 def _account_token(user: AppUser) -> dict:
     return {"access_token": create_access_token(user.username, is_admin=user.is_admin), "user": {"name": user.display_name or user.username, "is_admin": user.is_admin, "is_reviewer": user.is_admin or "oa_reviewer" in (user.menu_permissions or [])}}
@@ -92,6 +95,19 @@ def list_templates(_: AuthContext = Depends(get_current_user), db: Session = Dep
     seed_templates(db)
     templates = db.query(OaApprovalTemplate).filter(OaApprovalTemplate.is_active.is_(True)).order_by(OaApprovalTemplate.sort_order).all()
     return [template_response(item) for item in templates]
+
+@router.get("/profile", summary="读取小程序个人资料")
+def get_profile(current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.query(AppUser).filter(AppUser.username == current_user.username).first()
+    account = db.query(MiniProgramAccount).filter(MiniProgramAccount.app_user_id == user.id).first()
+    return {"name": user.display_name or user.username, "department": account.department if account else "", "is_reviewer": user.is_admin or "oa_reviewer" in (user.menu_permissions or [])}
+
+@router.put("/profile", summary="修改小程序个人资料")
+def update_profile(payload: ProfileUpdate, current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.query(AppUser).filter(AppUser.username == current_user.username).first()
+    user.display_name = payload.display_name.strip()
+    db.commit()
+    return _account_token(user)
 
 
 @router.post("/requests", summary="提交审批申请")
