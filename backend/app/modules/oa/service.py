@@ -10,7 +10,7 @@ from app.models.entities import AppUser, OaApprovalAction, OaApprovalRequest, Oa
 DEFAULT_TEMPLATES = [
     {
         "key": "leave", "name": "游戏 / 出行申请", "description": "提交玩游戏或出行的小申请", "icon": "🌸", "color": "#f69ab7", "sort_order": 10,
-        "fields": [{"key": "plan_type", "label": "申请类型", "type": "select", "options": ["游戏时间", "约会出行", "旅行计划", "其他"], "required": True}, {"key": "game_name", "label": "游戏名称", "placeholder": "例如：双人成行", "type": "text", "required": False}, {"key": "start_date", "label": "开始日期", "type": "date", "required": True}, {"key": "end_date", "label": "结束日期", "type": "date", "required": True}, {"key": "reason", "label": "计划说明", "type": "textarea", "required": True}],
+        "fields": [{"key": "plan_type", "label": "申请类型", "type": "select", "options": ["游戏时间", "约会出行", "旅行计划", "其他"], "required": True}, {"key": "game_name", "label": "游戏名称", "placeholder": "例如：双人成行", "type": "textarea", "required": False}, {"key": "start_date", "label": "开始日期", "type": "date", "required": True}, {"key": "end_date", "label": "结束日期", "type": "date", "required": True}, {"key": "reason", "label": "计划说明", "type": "textarea", "required": True}],
     },
     {
         "key": "expense", "name": "费用报销", "description": "已停用", "icon": "🎀", "color": "#c996e8", "sort_order": 20,
@@ -18,7 +18,7 @@ DEFAULT_TEMPLATES = [
     },
     {
         "key": "purchase", "name": "家庭采购", "description": "申请一起添置喜欢的生活小物", "icon": "🍓", "color": "#f4b455", "sort_order": 30,
-        "fields": [{"key": "item_name", "label": "", "placeholder": "想买的东西", "type": "text", "required": True}, {"key": "amount", "label": "", "placeholder": "预计金额（元）", "type": "number", "required": True}, {"key": "reason", "label": "想买它的理由", "type": "textarea", "required": True}],
+        "fields": [{"key": "item_name", "label": "", "placeholder": "想买的东西", "type": "textarea", "required": True}, {"key": "amount", "label": "", "placeholder": "预计金额（元）", "type": "textarea", "required": True}, {"key": "reason", "label": "想买它的理由", "type": "textarea", "required": True}],
     },
 ]
 
