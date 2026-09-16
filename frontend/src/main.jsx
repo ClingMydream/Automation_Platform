@@ -40,6 +40,7 @@ import { OnlinePreviewPanel } from './modules/15-online-preview/OnlinePreviewPan
 import { MobilePreviewPage } from './modules/15-online-preview/MobilePreviewPage.jsx';
 import { UiAutomationPage } from './modules/16-ui-automation/UiAutomationPage.jsx';
 import { UiAutomationRunViewer } from './modules/16-ui-automation/UiAutomationRunViewer.jsx';
+import { OaManagementPanel } from './modules/19-oa-management/OaManagementPanel.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -108,6 +109,7 @@ const MENU_SECTIONS = [
     children: [
       { key: 'integrations', label: '集成配置', icon: <CuteIcon emoji="🔌" tone="rose" /> },
       { key: 'users', label: '用户管理', icon: <CuteIcon emoji="👥" tone="cyan" />, adminOnly: true },
+      { key: 'oa_management', label: '小程序 OA 管理', icon: <CuteIcon emoji="🌸" tone="rose" />, adminOnly: true },
     ],
   },
 ];
@@ -279,6 +281,7 @@ function ToolboxApp() {
             {tab === 'api_workspace' && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
+            {tab === 'oa_management' && user?.is_admin && <OaManagementPanel client={client} />}
           </div>
         </Content>
       </Layout>

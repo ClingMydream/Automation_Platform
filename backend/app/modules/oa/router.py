@@ -38,9 +38,13 @@ class DecideRequest(BaseModel):
     action: str = Field(pattern="^(approved|rejected)$")
     comment: str = Field(default="", max_length=500)
 
+class AccountUpdate(BaseModel):
+    is_enabled: bool
+    is_reviewer: bool
+
 
 def _account_token(user: AppUser) -> dict:
-    return {"access_token": create_access_token(user.username, is_admin=user.is_admin), "user": {"name": user.display_name or user.username, "is_admin": user.is_admin}}
+    return {"access_token": create_access_token(user.username, is_admin=user.is_admin), "user": {"name": user.display_name or user.username, "is_admin": user.is_admin, "is_reviewer": user.is_admin or "oa_reviewer" in (user.menu_permissions or [])}}
 
 
 def _get_or_create_wechat_user(db: Session, openid: str, display_name: str = "微信同事") -> AppUser:
@@ -100,7 +104,7 @@ def create_request(payload: CreateRequest, current_user: AuthContext = Depends(g
     if missing:
         raise HTTPException(status_code=422, detail=f"请填写：{'、'.join(missing)}")
     requester = db.query(AppUser).filter(AppUser.username == current_user.username).first()
-    approver = db.query(AppUser).filter(AppUser.is_admin.is_(True), AppUser.is_active.is_(True)).order_by(AppUser.id).first()
+    approver = next((item for item in db.query(AppUser).filter(AppUser.is_active.is_(True)).order_by(AppUser.id).all() if item.is_admin or "oa_reviewer" in (item.menu_permissions or [])), None)
     request = OaApprovalRequest(template_id=template.id, requester_user_id=requester.id, request_no=request_number(), title=template.name, form_data=payload.form_data, current_approver_user_id=approver.id if approver else None)
     db.add(request)
     db.flush()
@@ -126,14 +130,16 @@ def list_requests(scope: str = "mine", current_user: AuthContext = Depends(get_c
     return [request_response(item, templates[item.template_id], users[item.requester_user_id], grouped[item.id], users) for item in rows]
 
 
-@router.post("/requests/{request_id}/decision", summary="管理员审批申请")
-def decide_request(request_id: int, payload: DecideRequest, current_user: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+@router.post("/requests/{request_id}/decision", summary="审核人审批申请")
+def decide_request(request_id: int, payload: DecideRequest, current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     request = db.get(OaApprovalRequest, request_id)
     if not request:
         raise HTTPException(status_code=404, detail="申请单不存在")
     if request.status != "pending":
         raise HTTPException(status_code=409, detail="该申请已处理")
     actor = db.query(AppUser).filter(AppUser.username == current_user.username).first()
+    if not actor.is_admin and "oa_reviewer" not in (actor.menu_permissions or []):
+        raise HTTPException(status_code=403, detail="需要审核人权限")
     request.status = payload.action
     request.current_approver_user_id = actor.id
     request.completed_at = datetime.utcnow()
@@ -146,4 +152,17 @@ def decide_request(request_id: int, payload: DecideRequest, current_user: AuthCo
 def list_mini_accounts(_: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
     accounts = db.query(MiniProgramAccount).order_by(MiniProgramAccount.created_at.desc()).all()
     users = {item.id: item for item in db.query(AppUser).all()}
-    return [{"id": item.id, "name": (users[item.app_user_id].display_name or users[item.app_user_id].username), "department": item.department, "is_enabled": item.is_enabled, "created_at": item.created_at.isoformat()} for item in accounts if item.app_user_id in users]
+    return [{"id": item.id, "name": (users[item.app_user_id].display_name or users[item.app_user_id].username), "department": item.department, "is_enabled": item.is_enabled, "is_reviewer": users[item.app_user_id].is_admin or "oa_reviewer" in (users[item.app_user_id].menu_permissions or []), "created_at": item.created_at.isoformat()} for item in accounts if item.app_user_id in users]
+
+@router.put("/admin/accounts/{account_id}", summary="设置小程序账号和审核人权限")
+def update_mini_account(account_id: int, payload: AccountUpdate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    account = db.get(MiniProgramAccount, account_id)
+    if not account: raise HTTPException(status_code=404, detail="小程序账号不存在")
+    user = db.get(AppUser, account.app_user_id)
+    account.is_enabled = payload.is_enabled
+    permissions = set(user.menu_permissions or [])
+    if payload.is_reviewer: permissions.add("oa_reviewer")
+    else: permissions.discard("oa_reviewer")
+    user.menu_permissions = list(permissions)
+    db.commit()
+    return {"status": "ok"}
