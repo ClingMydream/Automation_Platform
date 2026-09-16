@@ -4,10 +4,13 @@ import hashlib
 import json
 import secrets
 from datetime import datetime
+from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import urlopen
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -49,6 +52,7 @@ class AccountUpdate(BaseModel):
 
 class ProfileUpdate(BaseModel):
     display_name: str = Field(min_length=1, max_length=80)
+    family_role: str = Field(default="家庭成员", min_length=1, max_length=40)
 
 
 def _is_reviewer(db: Session, user: AppUser) -> bool:
@@ -56,8 +60,25 @@ def _is_reviewer(db: Session, user: AppUser) -> bool:
     return bool(user.is_admin or (account and db.query(OaAccountReviewer).filter(OaAccountReviewer.reviewer_account_id == account.id).first()))
 
 
-def _account_token(user: AppUser, is_reviewer: bool = False) -> dict:
-    return {"access_token": create_access_token(user.username, is_admin=user.is_admin), "user": {"name": user.display_name or user.username, "is_admin": user.is_admin, "is_reviewer": is_reviewer}}
+def _profile_data(db: Session, user: AppUser, is_reviewer: bool | None = None) -> dict:
+    account = db.query(MiniProgramAccount).filter(MiniProgramAccount.app_user_id == user.id).first()
+    return {
+        "name": user.display_name or user.username,
+        "avatar_url": account.avatar_url if account else "",
+        "family_role": (account.department or "家庭成员") if account else "家庭成员",
+        "is_admin": user.is_admin,
+        "is_reviewer": _is_reviewer(db, user) if is_reviewer is None else is_reviewer,
+    }
+
+
+def _account_token(db: Session, user: AppUser, is_reviewer: bool = False) -> dict:
+    return {"access_token": create_access_token(user.username, is_admin=user.is_admin), "user": _profile_data(db, user, is_reviewer)}
+
+
+def _avatar_directory() -> Path:
+    directory = Path(get_settings().file_transfer_dir) / "oa-avatars"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
 
 
 def _get_or_create_wechat_user(db: Session, openid: str, display_name: str = "微信同事") -> AppUser:
@@ -105,7 +126,7 @@ def wechat_login(payload: WeChatCode, db: Session = Depends(get_db)):
     if not result.get("openid"):
         raise HTTPException(status_code=401, detail=result.get("errmsg", "微信授权失败"))
     user = _get_or_create_wechat_user(db, result["openid"])
-    return _account_token(user, _is_reviewer(db, user))
+    return _account_token(db, user, _is_reviewer(db, user))
 
 
 @router.post("/auth/account-login", summary="账号密码登录 OA 小程序")
@@ -114,7 +135,7 @@ def account_login(payload: AccountLogin, db: Session = Depends(get_db)):
     if user is None or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="账号或密码错误")
     user = _ensure_account_login_record(db, user)
-    return _account_token(user, _is_reviewer(db, user))
+    return _account_token(db, user, _is_reviewer(db, user))
 
 
 @router.post("/auth/dev-login", summary="开发者工具体验登录")
@@ -122,7 +143,7 @@ def dev_login(payload: DevLogin, db: Session = Depends(get_db)):
     if get_settings().app_env == "production":
         raise HTTPException(status_code=404, detail="体验登录仅在开发环境可用")
     user = _get_or_create_wechat_user(db, f"dev:{payload.display_name.strip()}", payload.display_name.strip())
-    return _account_token(user, _is_reviewer(db, user))
+    return _account_token(db, user, _is_reviewer(db, user))
 
 
 @router.get("/templates", summary="读取可发起的审批模板")
@@ -134,15 +155,49 @@ def list_templates(_: AuthContext = Depends(get_current_user), db: Session = Dep
 @router.get("/profile", summary="读取小程序个人资料")
 def get_profile(current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(AppUser).filter(AppUser.username == current_user.username).first()
-    account = db.query(MiniProgramAccount).filter(MiniProgramAccount.app_user_id == user.id).first()
-    return {"name": user.display_name or user.username, "department": account.department if account else "", "is_reviewer": _is_reviewer(db, user)}
+    return _profile_data(db, user)
 
 @router.put("/profile", summary="修改小程序个人资料")
 def update_profile(payload: ProfileUpdate, current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(AppUser).filter(AppUser.username == current_user.username).first()
+    account = db.query(MiniProgramAccount).filter(MiniProgramAccount.app_user_id == user.id).first()
     user.display_name = payload.display_name.strip()
+    if account:
+        account.department = payload.family_role.strip()
     db.commit()
-    return _account_token(user, _is_reviewer(db, user))
+    return _account_token(db, user, _is_reviewer(db, user))
+
+
+@router.post("/profile/avatar", summary="上传小程序头像")
+async def upload_profile_avatar(file: UploadFile = File(...), current_user: AuthContext = Depends(get_current_user), db: Session = Depends(get_db)):
+    if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(status_code=415, detail="头像仅支持 JPG、PNG 或 WebP 图片")
+    content = await file.read(2 * 1024 * 1024 + 1)
+    if not content or len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="头像图片不能超过 2MB")
+    user = db.query(AppUser).filter(AppUser.username == current_user.username).first()
+    account = db.query(MiniProgramAccount).filter(MiniProgramAccount.app_user_id == user.id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="小程序账号不存在")
+    extension = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[file.content_type]
+    filename = f"{account.id}-{uuid4().hex}.{extension}"
+    (_avatar_directory() / filename).write_bytes(content)
+    account.avatar_url = f"{get_settings().public_base_url.rstrip('/')}/api/oa/avatars/{filename}"
+    db.commit()
+    return {"avatar_url": account.avatar_url}
+
+
+@router.get("/avatars/{filename}", summary="读取小程序头像")
+def get_profile_avatar(filename: str):
+    if Path(filename).name != filename:
+        raise HTTPException(status_code=404, detail="头像不存在")
+    path = _avatar_directory() / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="头像不存在")
+    media_type = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}.get(path.suffix.lower())
+    if not media_type:
+        raise HTTPException(status_code=404, detail="头像不存在")
+    return FileResponse(path, media_type=media_type, content_disposition_type="inline")
 
 
 @router.post("/requests", summary="提交审批申请")
