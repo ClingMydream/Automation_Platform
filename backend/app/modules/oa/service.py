@@ -9,7 +9,7 @@ from app.models.entities import AppUser, OaApprovalAction, OaApprovalRequest, Oa
 
 DEFAULT_TEMPLATES = [
     {
-        "key": "leave", "name": "游戏 / 出行申请", "description": "提交一起玩游戏或出行的小申请", "icon": "🌸", "color": "#f69ab7", "sort_order": 10,
+        "key": "leave", "name": "游戏 / 出行申请", "description": "提交玩游戏或出行的小申请", "icon": "🌸", "color": "#f69ab7", "sort_order": 10,
         "fields": [{"key": "plan_type", "label": "申请类型", "type": "select", "options": ["游戏时间", "约会出行", "旅行计划", "其他"], "required": True}, {"key": "start_date", "label": "开始日期", "type": "date", "required": True}, {"key": "end_date", "label": "结束日期", "type": "date", "required": True}, {"key": "reason", "label": "计划说明", "type": "textarea", "required": True}],
     },
     {
