@@ -1,18 +1,20 @@
 <view class="page login-page">
   <view class="brand">
-    <view class="brand-mark">C</view>
+    <view class="brand-mark">♡</view>
     <view>
-      <view class="brand-title">Cling 工作台</view>
-      <view class="brand-subtitle">用手机查看你的工作与学习</view>
+      <view class="brand-title">莓好审批</view>
+      <view class="brand-subtitle">把每一份申请，轻轻送到你手边</view>
     </view>
   </view>
   <view class="card form-card">
-    <view class="field-label">用户名</view>
-    <input class="field" placeholder="请输入平台用户名" value="{{username}}" data-field="username" bindinput="onInput" />
-    <view class="field-label">密码</view>
-    <input class="field" placeholder="请输入密码" password value="{{password}}" data-field="password" bindinput="onInput" />
+    <view class="flower">🎀</view>
+    <view class="login-title">微信授权登录</view>
+    <view class="muted login-copy">首次进入会自动创建小程序账号，由平台管理员统一管理权限。</view>
     <view wx:if="{{error}}" class="error">{{error}}</view>
-    <button class="primary-button" loading="{{loading}}" bindtap="submit">登录</button>
+    <button class="primary-button" loading="{{loading}}" bindtap="wechatSignIn">微信一键登录</button>
+    <view class="dev-divider">开发者工具体验</view>
+    <input class="field" placeholder="体验昵称" value="{{displayName}}" bindinput="onInput" />
+    <button class="dev-button" loading="{{loading}}" bindtap="devSignIn">进入体验模式</button>
   </view>
-  <view class="tip">首次联调请在 config/env.js 配置 API 地址。正式上线请改为微信授权登录，避免在小程序中长期使用管理后台账户。</view>
+  <view class="tip">正式版本仅支持微信授权登录。体验模式只在开发环境开放。</view>
 </view>

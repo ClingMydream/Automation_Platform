@@ -1,10 +1,14 @@
 .login-page { padding-top: 132rpx; }
 .brand { display: flex; align-items: center; gap: 24rpx; margin: 0 20rpx 72rpx; }
-.brand-mark { width: 92rpx; height: 92rpx; line-height: 92rpx; text-align: center; color: #fff; background: #1565c0; border-radius: 24rpx; font-size: 52rpx; font-weight: bold; }
+.brand-mark { width: 92rpx; height: 92rpx; line-height: 92rpx; text-align: center; color: #fff; background: #ef7fa4; border-radius: 24rpx; font-size: 52rpx; font-weight: bold; }
 .brand-title { font-size: 42rpx; font-weight: 700; }
-.brand-subtitle { color: #687385; margin-top: 8rpx; }
+.brand-subtitle { color: #a28691; margin-top: 8rpx; }
 .form-card { padding: 42rpx 32rpx; }
-.field-label { color: #455166; margin: 14rpx 0; }
-.field { height: 88rpx; background: #f4f7fb; border-radius: 12rpx; padding: 0 24rpx; box-sizing: border-box; margin-bottom: 28rpx; }
+.flower { text-align: center; font-size: 66rpx; margin-bottom: 12rpx; }
+.login-title { text-align: center; font-size: 34rpx; font-weight: 700; }
+.login-copy { text-align: center; font-size: 24rpx; line-height: 1.7; margin: 12rpx 0 30rpx; }
+.field { height: 88rpx; background: #fff1f6; border-radius: 16rpx; padding: 0 24rpx; box-sizing: border-box; margin-bottom: 20rpx; }
 .error { color: #d93025; margin: -8rpx 0 22rpx; }
-.tip { color: #7d8798; font-size: 24rpx; line-height: 1.7; margin: 34rpx 20rpx; }
+.tip { color: #a28691; font-size: 24rpx; line-height: 1.7; margin: 34rpx 20rpx; }
+.dev-divider { color: #c8a4b1; font-size: 23rpx; text-align: center; margin: 38rpx 0 20rpx; }
+.dev-button { color: #c95b80; border: 1rpx solid #f3b3c7; background: #fff; border-radius: 48rpx; }

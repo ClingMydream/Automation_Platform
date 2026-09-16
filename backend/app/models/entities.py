@@ -29,6 +29,63 @@ class AppUser(Base, TimestampMixin):
     menu_permissions: Mapped[list] = mapped_column(JSON, default=list)
 
 
+class MiniProgramAccount(Base, TimestampMixin):
+    """Link one WeChat OpenID to an app user that administrators can enable or disable."""
+
+    __tablename__ = "mini_program_accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    app_user_id: Mapped[int] = mapped_column(ForeignKey("app_users.id", ondelete="CASCADE"), unique=True, index=True, nullable=False)
+    openid: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
+    avatar_url: Mapped[str | None] = mapped_column(String(1000))
+    department: Mapped[str | None] = mapped_column(String(120))
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class OaApprovalTemplate(Base, TimestampMixin):
+    """Store an administrator-managed approval form definition for the Mini Program."""
+
+    __tablename__ = "oa_approval_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(60), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(String(300), default="", nullable=False)
+    icon: Mapped[str] = mapped_column(String(12), default="📝", nullable=False)
+    color: Mapped[str] = mapped_column(String(20), default="#f8a7be", nullable=False)
+    fields: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class OaApprovalRequest(Base, TimestampMixin):
+    """Persist a submitted OA application and its immutable form payload."""
+
+    __tablename__ = "oa_approval_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    template_id: Mapped[int] = mapped_column(ForeignKey("oa_approval_templates.id"), index=True, nullable=False)
+    requester_user_id: Mapped[int] = mapped_column(ForeignKey("app_users.id"), index=True, nullable=False)
+    request_no: Mapped[str] = mapped_column(String(40), unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    form_data: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True, nullable=False)
+    current_approver_user_id: Mapped[int | None] = mapped_column(ForeignKey("app_users.id"), index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class OaApprovalAction(Base, TimestampMixin):
+    """Keep an auditable approval timeline rather than overwriting an application decision."""
+
+    __tablename__ = "oa_approval_actions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("oa_approval_requests.id", ondelete="CASCADE"), index=True, nullable=False)
+    actor_user_id: Mapped[int] = mapped_column(ForeignKey("app_users.id"), index=True, nullable=False)
+    action: Mapped[str] = mapped_column(String(20), nullable=False)
+    comment: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+
+
 class IntegrationWebhook(Base, TimestampMixin):
     """Store reusable outbound webhook configuration."""
 

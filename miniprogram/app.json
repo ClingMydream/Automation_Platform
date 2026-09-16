@@ -2,22 +2,26 @@
   "pages": [
     "pages/login/index",
     "pages/home/index",
+    "pages/approvals/index",
+    "pages/apply/index",
+    "pages/detail/index",
     "pages/profile/index"
   ],
   "window": {
-    "navigationBarTitleText": "Cling 工作台",
-    "navigationBarBackgroundColor": "#1565c0",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#f6f8fc",
+    "navigationBarTitleText": "莓好审批",
+    "navigationBarBackgroundColor": "#f8a7be",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fff8fb",
     "backgroundTextStyle": "light"
   },
   "tabBar": {
-    "color": "#687385",
-    "selectedColor": "#1565c0",
+    "color": "#a28691",
+    "selectedColor": "#e86990",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/home/index", "text": "工作台" },
+      { "pagePath": "pages/home/index", "text": "首页" },
+      { "pagePath": "pages/approvals/index", "text": "审批" },
       { "pagePath": "pages/profile/index", "text": "我的" }
     ]
   },

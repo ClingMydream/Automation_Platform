@@ -1,21 +1,9 @@
 <view class="page">
-  <view class="welcome">
-    <view class="welcome-title">你好，{{profile.display_name || profile.username || '同学'}}</view>
-    <view class="welcome-text">随时查看平台状态和常用功能</view>
-  </view>
-  <view class="card status-card">
-    <view class="status-dot {{healthOk ? 'ok' : 'bad'}}"></view>
-    <view>
-      <view class="status-title">{{healthText}}</view>
-      <view class="muted">当前 API 服务状态</view>
-    </view>
-  </view>
-  <view class="section-title">常用功能</view>
+  <view class="welcome"><view class="welcome-title">早安，{{profile.name || '同事'}} ♡</view><view class="welcome-text">今天也要轻轻松松完成工作呀</view></view>
+  <view class="card status-card" bindtap="openApprovals"><view class="status-dot"></view><view><view class="status-title">待处理的申请</view><view class="muted">你有 {{pendingCount}} 条申请正在流转</view></view><view class="arrow">›</view></view>
+  <view class="section-title">发起审批</view>
   <view class="feature-grid">
-    <view class="feature card" data-name="学习进度" bindtap="openFeature"><view class="feature-icon">学</view><view>学习进度</view><view class="muted small">记录目标和打卡</view></view>
-    <view class="feature card" data-name="文件快传" bindtap="openFeature"><view class="feature-icon">传</view><view>文件快传</view><view class="muted small">手机收取文件</view></view>
-    <view class="feature card" data-name="测试工具" bindtap="openFeature"><view class="feature-icon">测</view><view>测试工具</view><view class="muted small">查看常用工具</view></view>
-    <view class="feature card" data-name="消息中心" bindtap="openFeature"><view class="feature-icon">信</view><view>消息中心</view><view class="muted small">接收任务提醒</view></view>
+    <view wx:for="{{templates}}" wx:key="key" class="feature card" data-key="{{item.key}}" bindtap="apply"><view class="feature-icon" style="background: {{item.color}}22; color: {{item.color}}">{{item.icon}}</view><view>{{item.name}}</view><view class="muted small">{{item.description}}</view></view>
   </view>
-  <view wx:if="{{profile.is_admin}}" class="card admin-note">当前账号具有管理权限。管理配置仍在 Web 管理端完成。</view>
+  <view class="card admin-note">🎀 审批账号和权限由平台管理端统一维护。</view>
 </view>

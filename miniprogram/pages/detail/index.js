@@ -1,0 +1,2 @@
+const { getRequests, decideRequest } = require('../../services/platform');
+Page({ data:{item:null,comment:''}, async onLoad(q){const list=await getRequests(q.scope || 'mine');this.setData({item:list.find(x=>x.id===Number(q.id))});}, input(e){this.setData({comment:e.detail.value});}, async decide(e){try{await decideRequest(this.data.item.id,e.currentTarget.dataset.action,this.data.comment);wx.showToast({title:'已处理'});setTimeout(()=>wx.navigateBack(),500);}catch(err){wx.showToast({title:err.message,icon:'none'});}}});
