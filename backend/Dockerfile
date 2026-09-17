@@ -10,9 +10,9 @@ RUN sed -i 's|deb.debian.org/debian|mirrors.cloud.tencent.com/debian|g; s|securi
     && apt-get update \
     && apt-get install -y --no-install-recommends fontconfig fonts-noto-cjk git \
     && rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /tmp/automation-platform-transfers /var/lib/cling-learning /var/lib/cling-test-packages \
-    && chown -R app:app /tmp/automation-platform-transfers /var/lib/cling-learning /var/lib/cling-test-packages \
-    && chmod 700 /tmp/automation-platform-transfers /var/lib/cling-learning /var/lib/cling-test-packages
+RUN mkdir -p /tmp/automation-platform-transfers /var/lib/cling-learning /var/lib/cling-test-packages /var/lib/cling-temp-effects \
+    && chown -R app:app /tmp/automation-platform-transfers /var/lib/cling-learning /var/lib/cling-test-packages /var/lib/cling-temp-effects \
+    && chmod 700 /tmp/automation-platform-transfers /var/lib/cling-learning /var/lib/cling-test-packages /var/lib/cling-temp-effects
 
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir \

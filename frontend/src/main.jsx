@@ -272,7 +272,7 @@ function ToolboxApp() {
             {tab === 'codec' && <CodecPanel />}
             {tab === 'learning' && <MasteryLearningPanel client={client} isAdmin={user?.is_admin} />}
             {tab === 'command_library' && <CommandLibraryPanel client={client} />}
-            {tab === 'effects' && <EffectStudio />}
+            {tab === 'effects' && <EffectStudio client={client} isAdmin={user?.is_admin} />}
             {tab === 'jenkins' && <JenkinsPanel client={client} />}
             {tab === 'online_preview' && <OnlinePreviewPanel client={client} />}
             {tab === 'emote_ui_automation' && <UiAutomationPage client={client} embedded />}

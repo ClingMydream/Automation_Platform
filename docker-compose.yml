@@ -31,6 +31,7 @@ services:
       - learning-data:/var/lib/cling-learning
       - test-package-data:/var/lib/cling-test-packages
       - ui-automation-data:/var/lib/cling-ui-automation
+      - temp-effects-data:/var/lib/cling-temp-effects
     depends_on:
       mysql:
         condition: service_healthy
@@ -159,3 +160,4 @@ volumes:
   jenkins-data:
   emote-preview-data:
   ui-automation-data:
+  temp-effects-data:

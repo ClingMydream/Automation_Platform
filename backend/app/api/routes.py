@@ -17,6 +17,7 @@ from app.modules.command_library.router import router as command_library_router
 from app.modules.hotel_practice.router import router as hotel_practice_router
 from app.modules.online_preview.router import router as online_preview_router
 from app.modules.ui_automation.router import router as ui_automation_router
+from app.modules.effects.router import router as effects_router
 
 
 router = APIRouter()
@@ -38,5 +39,6 @@ for module_router in [
     hotel_practice_router,
     online_preview_router,
     ui_automation_router,
+    effects_router,
 ]:
     router.include_router(module_router)

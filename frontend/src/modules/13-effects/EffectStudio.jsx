@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Card, Empty, Popconfirm, Space, Typography, message } from 'antd';
-import { CopyOutlined, DeleteOutlined, ExportOutlined, UndoOutlined } from '@ant-design/icons';
+import { Button, Card, Empty, Modal, Popconfirm, Space, Typography, Upload, message } from 'antd';
+import { CopyOutlined, DeleteOutlined, ExportOutlined, UploadOutlined } from '@ant-design/icons';
 import './effects.css';
 
 const { Paragraph, Title } = Typography;
 export const HAPPY_ZHAO_PATH = '/effect/xiaozhao-happy';
-const EFFECT_LIST_CLEARED_KEY = 'cling:effect-list-cleared';
 
 function createRoseParticles(width, height) {
   const points = [];
@@ -581,30 +580,49 @@ export function PublicEffectPage() {
   </main>;
 }
 
-export function EffectStudio() {
-  const [cleared, setCleared] = useState(() => localStorage.getItem(EFFECT_LIST_CLEARED_KEY) === '1');
+export function EffectStudio({ client, isAdmin }) {
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState(null);
   const url = `${window.location.origin}${HAPPY_ZHAO_PATH}`;
   const copy = async () => { await navigator.clipboard.writeText(url); message.success('公开链接已复制'); };
-  const clearEffects = () => {
-    localStorage.setItem(EFFECT_LIST_CLEARED_KEY, '1');
-    setCleared(true);
-    message.success('临时效果列表已清空');
+  const refresh = async () => {
+    try { setItems(await client.get('/effects/workspace')); }
+    catch (error) { message.error(error.message); }
   };
-  const restoreEffects = () => {
-    localStorage.removeItem(EFFECT_LIST_CLEARED_KEY);
-    setCleared(false);
-    message.success('默认效果已恢复');
+  useEffect(() => { refresh(); }, [client]);
+  const upload = async (file) => {
+    setBusy(true);
+    try {
+      const data = new FormData();
+      data.append('file', file);
+      await client.post('/effects/workspace', data);
+      await refresh();
+      message.success('临时效果已上传');
+    } catch (error) { message.error(error.message); }
+    finally { setBusy(false); }
+    return false;
+  };
+  const clearEffects = async () => {
+    setBusy(true);
+    try { await client.delete('/effects/workspace'); await refresh(); message.success('临时效果文件已清空'); }
+    catch (error) { message.error(error.message); }
+    finally { setBusy(false); }
+  };
+  const remove = async (id) => {
+    try { await client.delete(`/effects/workspace/${id}`); await refresh(); message.success('已删除'); }
+    catch (error) { message.error(error.message); }
   };
   return <div className="effect-studio">
-    <section className="effect-studio__hero"><div><span>临时创作 · 仅链接可见</span><Title level={2}>🎀 临时效果</Title><Paragraph>生成可独立分享的效果页面，访问者不会看到私人空间和其他内容。</Paragraph></div><div>✨</div></section>
+    <section className="effect-studio__hero"><div><span>独立工作空间 · 随时清空</span><Title level={2}>🎀 临时效果</Title><Paragraph>上传构建后的网页 ZIP，在这里独立预览；清空将删除服务器上的临时文件，不影响其他项目或分支。</Paragraph></div><div>✨</div></section>
     <Card
-      title="已生成效果"
+      title="临时效果工作空间"
       className="effect-studio__card"
-      extra={!cleared && <Popconfirm title="确认清空临时效果列表？" description="清空后可通过恢复按钮重新显示。" okText="确认清空" cancelText="取消" onConfirm={clearEffects}><Button danger icon={<DeleteOutlined />}>清空</Button></Popconfirm>}
+      extra={isAdmin && <Space><Upload accept=".zip" showUploadList={false} beforeUpload={upload}><Button loading={busy} icon={<UploadOutlined />}>上传网页 ZIP</Button></Upload><Popconfirm title="确认清空全部临时效果？" description="会永久删除此工作空间内的所有文件，不影响其他项目。" okText="确认清空" cancelText="取消" onConfirm={clearEffects}><Button danger disabled={!items.length} loading={busy} icon={<DeleteOutlined />}>清空</Button></Popconfirm></Space>}
     >
-      {cleared
-        ? <Empty description="临时效果列表已清空"><Button icon={<UndoOutlined />} onClick={restoreEffects}>恢复默认效果</Button></Empty>
-        : <div className="effect-row"><div><b>可交互粒子玫瑰 · 小赵天天开心</b><p>约 28000 粒子、12 秒 360° 自动旋转；每个角度保持正面饱满轮廓，支持手指滑动、鼠标拖动和惯性</p><code>{url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={copy}>复制链接</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => window.open(HAPPY_ZHAO_PATH, '_blank', 'noopener,noreferrer')}>预览效果</Button></Space></div>}
+      {!items.length ? <Empty description="还没有上传临时效果" /> : items.map(item => <div className="effect-row" key={item.id}><div><b>{item.name}</b><p>独立临时文件，可随时删除</p><code>{window.location.origin}{item.url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={async () => { await navigator.clipboard.writeText(`${window.location.origin}${item.url}`); message.success('链接已复制'); }}>复制链接</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => setPreview(item)}>平台内预览</Button>{isAdmin && <Popconfirm title="删除这个临时效果？" onConfirm={() => remove(item.id)}><Button danger icon={<DeleteOutlined />}>删除</Button></Popconfirm>}</Space></div>)}
     </Card>
+    <Modal title={preview?.name || '临时效果预览'} open={!!preview} onCancel={() => setPreview(null)} footer={<Button onClick={() => window.open(preview?.url, '_blank', 'noopener,noreferrer')}>新窗口打开</Button>} width="min(96vw, 1200px)" destroyOnHidden><iframe className="effect-preview-frame" title={preview?.name || '临时效果'} src={preview?.url} /></Modal>
+    <Card title="平台自带效果" className="effect-studio__card"><div className="effect-row"><div><b>可交互粒子玫瑰 · 小赵天天开心</b><p>平台内置效果，不属于可清空工作空间。</p><code>{url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={copy}>复制链接</Button><Button icon={<ExportOutlined />} onClick={() => window.open(HAPPY_ZHAO_PATH, '_blank', 'noopener,noreferrer')}>预览效果</Button></Space></div></Card>
   </div>;
 }
