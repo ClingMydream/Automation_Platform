@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {gradePaper} from './examEngine.js';
+const qs=[{id:'a',type:'choice',answer:'B'},{id:'b',type:'short'},{id:'c',type:'material'}];
+assert.equal(gradePaper(qs,{a:'B',b:'viewed',c:'viewed'},{b:7,c:15}).total,24);
+assert.equal(gradePaper(qs,{a:'A',b:'viewed'},{b:0}).pending,1);
+assert.equal(gradePaper(qs,{a:'B',b:'viewed',c:'viewed'},{b:8,c:-1}).total,2);
+assert.equal(gradePaper(qs).total,0);
+assert.equal(gradePaper(qs).pending,2);
+const full=[...Array.from({length:25},(_,i)=>({id:'a'+i,type:'choice',answer:'A'})),...Array.from({length:5},(_,i)=>({id:'s'+i,type:'short'})),{id:'m',type:'material'}];
+assert.equal(gradePaper(full).max,100);
+console.log('PASS: original paper points, partial scores, zero, pending, invalid score bounds, unanswered.');

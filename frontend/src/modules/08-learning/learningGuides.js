@@ -43,5 +43,16 @@ const guides = [
 
 export function getLearningGuide(dayNumber) {
   const row = guides[Number(dayNumber) - 1] || guides[0];
-  return { topic: row[0], outcome: row[1], actions: row[2], commands: row[3], acceptance: row[4] };
+  const [topic, outcome, actions, commands, acceptance] = row;
+  return {
+    topic,
+    outcome,
+    actions,
+    commands,
+    acceptance,
+    thoughtAnswer: `第一个准备步骤“${actions[0]}”是后续操作的前提。删除后，最可能在“${actions[1] || actions[0]}”时因为环境、数据或依赖未准备好而失败。改变输入或参数后，应先预测受影响的结果，再执行并对比实际结果；本章最终要验证的是：${acceptance}。`,
+    exerciseAnswer: `参考做法：按“${actions.join(' → ')}”完成一次核心流程，并保存结果。然后从示例中选择一个可安全修改的输入或参数（例如 ${commands[0]}），只改这一处后再次执行；对比两次输入、实际结果和差异原因，最终确认：${acceptance}。`,
+  };
 }
+
+export const LEARNING_GUIDE_COUNT = guides.length;

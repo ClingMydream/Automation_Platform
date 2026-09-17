@@ -15,6 +15,7 @@ from app.models.entities import (
     LearningPlan, LearningProfile, LearningScheduleShift, LearningStudyTimer, LearningTask,
 )
 from app.modules.learning.mastery_course import LESSONS, SEED_VERSION, STAGES
+from app.modules.learning.mastery_answers import REFERENCE_CODE
 
 
 OLD_MODELS = (LearningAttachment, LearningNote, LearningNoteFolder, LearningCheckin,
@@ -60,10 +61,37 @@ def progress_data(progress: LearningMasteryProgress):
 
 def public_content(lesson: LearningMasteryLesson, evidence: dict):
     content = dict(lesson.content or {})
+    reference_code = REFERENCE_CODE.get(lesson.slug)
+    if not reference_code:
+        raise ValueError(f"Missing reviewed reference code for lesson: {lesson.slug}")
+    exercise = dict(content.get("exercise") or {})
+    actions = content.get("follow_steps") or []
+    action_path = " → ".join(actions)
+    exercise["reference_answer"] = (
+        f"参考思路：按“{action_path}”完成并保存实际结果。"
+        f"针对题目“{exercise.get('prompt', '')}”，先复用本关示例的输入、处理和输出结构，"
+        "再只修改一个条件运行第二次，对比两次结果并解释原因。"
+    )
+    exercise["reference_code"] = reference_code["exercise"]
+    content["exercise"] = exercise
+    content["rewrite_reference_answer"] = (
+        f"参考改写：{content.get('rewrite_task', '')}"
+        "保留原示例的核心执行顺序，只替换题目要求的变量、参数或业务内容；"
+        "运行后记录改了哪里、结果是什么，以及为什么其余部分不需要修改。"
+    )
+    content["rewrite_reference_code"] = reference_code["rewrite"]
+    content["explanation_reference_answer"] = (
+        f"参考表达：这一关要解决的是“{lesson.outcome}”。"
+        f"我把它理解为：{content.get('mental_model', '')}"
+        "实际操作时，先准备题目要求的输入，按示例完成处理，再通过输出或断言确认结果是否符合预期。"
+    )
     answered = evidence.get("quiz_answers") or []
     quiz = []
     for index, question in enumerate(content.get("quiz", [])):
         row = {key: value for key, value in question.items() if key not in {"answer", "explanation"}}
+        answer_index = question["answer"]
+        row["reference_answer"] = question["options"][answer_index]
+        row["reference_explanation"] = question["explanation"]
         if index < len(answered):
             row["is_correct"] = answered[index] == question["answer"]
             row["explanation"] = question["explanation"]

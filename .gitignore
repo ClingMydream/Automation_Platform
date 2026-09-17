@@ -23,5 +23,12 @@ screenshots/
 id_rsa*
 mysql-data/
 redis-data/
+/emote-app-1.9.1-test/
+/temp-preview-emote-5/
+/.worktrees/
+/.playwright-cli/
+/.pnpm-store/
+/output/
+/report_build/
 docs/*.pdf
 outputs/

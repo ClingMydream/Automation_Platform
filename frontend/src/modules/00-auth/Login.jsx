@@ -37,19 +37,19 @@ export function Login({ onLogin, notice }) {
           <div className="login-brand">
             <CuteIcon emoji="✨" tone="blue" size={48} />
             <div>
-              <Title level={3}>cling</Title>
-              <Text type="secondary">只属于 cling 的私人空间</Text>
+              <Title level={3}>Cling 自动化平台</Title>
+              <Text type="secondary">测试、学习与效率工具</Text>
             </div>
           </div>
           {notice && <Alert type="warning" showIcon title={notice} />}
           <Form layout="vertical" initialValues={{ username: 'admin', password: '' }} onFinish={submit}>
             <Form.Item label="登录账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
-              <Input size="large" />
+              <Input size="large" autoComplete="username" />
             </Form.Item>
             <Form.Item label="登录密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
-              <Input.Password size="large" autoFocus />
+              <Input.Password size="large" autoFocus autoComplete="current-password" />
             </Form.Item>
-            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<span className="inline-emoji">👋</span>}>进入私人空间</Button>
+            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<span className="inline-emoji">👋</span>}>进入自动化平台</Button>
           </Form>
         </Space>
       </Card>

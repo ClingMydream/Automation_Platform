@@ -61,6 +61,8 @@ services:
         condition: service_healthy
       ui-runner:
         condition: service_healthy
+      circle-runner:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 15s
@@ -120,6 +122,27 @@ services:
         limits:
           memory: 768M
 
+  circle-runner:
+    build:
+      context: .
+      dockerfile: deploy/circle-runner/Dockerfile
+    restart: unless-stopped
+    environment:
+      CIRCLE_RUNNER_TOKEN: ${UI_RUNNER_TOKEN}
+      CIRCLE_DATA_DIR: /data
+      TZ: Asia/Shanghai
+    volumes:
+      - circle-stats-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
   jenkins:
     build:
       context: .
@@ -160,4 +183,5 @@ volumes:
   jenkins-data:
   emote-preview-data:
   ui-automation-data:
+  circle-stats-data:
   temp-effects-data:

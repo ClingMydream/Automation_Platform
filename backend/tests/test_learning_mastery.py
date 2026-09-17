@@ -11,8 +11,9 @@ from app.models.entities import (
     LearningMasteryLesson, LearningMasteryProgress, LearningMasteryStage, LearningNote,
 )
 from app.modules.learning.mastery_course import LESSONS, STAGES
+from app.modules.learning.mastery_answers import REFERENCE_CODE
 from app.modules.learning.mastery_router import save_progress
-from app.modules.learning.mastery_service import backup_and_clear_learning, ensure_mastery_seed
+from app.modules.learning.mastery_service import backup_and_clear_learning, ensure_mastery_seed, public_content
 from app.modules.learning.schemas import MasteryProgressInput
 
 
@@ -58,6 +59,34 @@ def test_four_mastery_gates_are_enforced_and_unlock_next_lesson(db):
     next_progress = db.scalar(select(LearningMasteryProgress).where(LearningMasteryProgress.lesson_id == next_lesson.id))
     assert next_progress.status == "available"
     assert db.scalar(select(LearningNote).where(LearningNote.import_fingerprint == f"mastery:{lesson.slug}")) is not None
+
+
+def test_every_lesson_exposes_collapsible_reference_answers():
+    assert set(REFERENCE_CODE) == {lesson["slug"] for lesson in LESSONS}
+    for lesson in LESSONS:
+        content = public_content(SimpleNamespace(content=lesson["content"], outcome=lesson["outcome"], slug=lesson["slug"]), {})
+        assert content["exercise"]["reference_answer"].startswith("参考思路：")
+        assert content["exercise"]["prompt"] in content["exercise"]["reference_answer"]
+        assert content["rewrite_reference_answer"].startswith("参考改写：")
+        assert lesson["content"]["rewrite_task"] in content["rewrite_reference_answer"]
+        assert content["rewrite_reference_code"] == REFERENCE_CODE[lesson["slug"]]["rewrite"]
+        assert content["exercise"]["reference_code"] == REFERENCE_CODE[lesson["slug"]]["exercise"]
+        assert content["rewrite_reference_code"].strip()
+        assert content["exercise"]["reference_code"].strip()
+        assert content["explanation_reference_answer"].startswith("参考表达：")
+        assert lesson["outcome"] in content["explanation_reference_answer"]
+        assert content["quiz"]
+        for source, question in zip(lesson["content"]["quiz"], content["quiz"]):
+            assert question["reference_answer"] == source["options"][source["answer"]]
+            assert question["reference_explanation"] == source["explanation"]
+            assert "answer" not in question
+
+
+def test_build_headers_exercise_code_is_executable_and_matches_question():
+    namespace = {}
+    exec(REFERENCE_CODE["functions"]["exercise"], namespace)
+    assert namespace["build_headers"]("abc") == {"Authorization": "Bearer abc"}
+    assert namespace["build_headers"](None) == {}
 
 
 def test_reset_creates_recoverable_backup_and_clean_route(db, tmp_path, monkeypatch):

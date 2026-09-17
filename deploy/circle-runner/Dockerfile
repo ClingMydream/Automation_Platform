@@ -1,0 +1,9 @@
+FROM python:3.12-slim
+WORKDIR /app
+RUN sed -i 's|deb.debian.org/debian|mirrors.cloud.tencent.com/debian|g' /etc/apt/sources.list.d/debian.sources \
+ && apt-get update && apt-get install -y --no-install-recommends chromium fonts-noto-cjk \
+ && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir -i https://mirrors.cloud.tencent.com/pypi/simple fastapi==0.115.6 uvicorn==0.34.0 playwright==1.55.0 Pillow==12.2.0
+COPY deploy/circle-runner/runner.py deploy/circle-runner/dingtalk_circle_sync.py /app/
+EXPOSE 8091
+CMD ["uvicorn", "runner:app", "--host", "0.0.0.0", "--port", "8091"]

@@ -63,6 +63,10 @@ function BeginnerCode({code}) {
   return <pre className="guide-code inline-comment-code"><code>{commented}</code></pre>;
 }
 
+function HiddenAnswer({children,title='查看参考答案'}) {
+  return <details className="hidden-answer"><summary>{title}</summary><div className="hidden-answer__content">{children}</div></details>;
+}
+
 const PRACTICE_PROJECTS = [
   ['酒店预约前台', 'cling:hotel', '像普通用户一样浏览房间、填写资料并完成预约'],
   ['酒店管理后台', 'cling:hotel', '查看前台创建的预约，并练习房间和订单管理'],
@@ -76,6 +80,8 @@ const DOCUMENT_LESSONS = {
     expected: '能说清楚自己输入了哪些数据、点击了什么按钮、页面最后返回了什么。',
     fill: '我选择的房间是____；入住日期是____；提交后页面显示____。',
     exercise: '故意漏填一个必填项再提交，记录页面如何提示，并判断这个校验发生在前端还是后端。',
+    fillAnswer: '我选择的房间是 101；入住日期是 2026-09-10；提交后页面显示预约成功并返回预约信息。',
+    exerciseAnswer: '参考：漏填必填项后，如果页面没有发出接口请求就直接提示“请填写此字段”，属于前端校验；如果已经发出请求，再由响应返回缺少字段，则属于后端校验。可在 Network 中观察是否出现请求来确认。',
   },
   2: {
     idea: '前端是你看到和操作的页面，后端处理业务，数据库保存房间和预约数据。',
@@ -83,6 +89,8 @@ const DOCUMENT_LESSONS = {
     expected: '能够不用术语堆砌，用订房例子解释前端、后端和数据库。',
     fill: '用户在____输入资料，____接收请求并处理，最后把数据保存到____。',
     exercise: '假设页面显示成功但数据库没有预约，分别列出前端、接口和数据库可能出现的问题。',
+    fillAnswer: '用户在前端页面输入资料，后端接口接收请求并处理，最后把数据保存到数据库。',
+    exerciseAnswer: '前端可能误把失败响应显示为成功；接口可能只返回成功但没有调用保存逻辑；数据库可能连接失败、事务回滚或写入了错误的库。应沿“页面提示 → Network 响应 → 后端日志 → 数据库记录”逐层确认。',
   },
   3: {
     idea: 'API 可以理解为前端和后端约定好的“办事窗口”：前端按格式提交，后端按格式回答。',
@@ -90,6 +98,8 @@ const DOCUMENT_LESSONS = {
     expected: '能解释请求、响应、接口地址和 JSON 分别是什么。',
     fill: '浏览器向____发送请求，服务器返回____，其中 bookingid 表示____。',
     exercise: '把接口地址最后加上一个真实 bookingid，预测结果后再打开验证。',
+    fillAnswer: '浏览器向接口地址发送请求，服务器返回 JSON 响应，其中 bookingid 表示一条预约记录的唯一编号。',
+    exerciseAnswer: '参考：先从 GET /booking 返回的列表取一个真实 bookingid，再访问 GET /booking/{bookingid}。预期状态码为 200，响应中包含 firstname、lastname、totalprice 和 bookingdates 等预约详情。',
   },
   4: {
     idea: '请求方法表示想对数据做什么：GET 查询、POST 新增、PUT 修改、DELETE 删除。',
@@ -97,6 +107,8 @@ const DOCUMENT_LESSONS = {
     expected: '看到业务动作时，能选择大致正确的 HTTP 请求方法。',
     fill: '查询使用____；新增使用____；整体修改使用____；删除使用____。',
     exercise: '为“查询房间、创建预约、修改姓名、取消预约”分别选择请求方法。',
+    fillAnswer: '查询使用 GET；新增使用 POST；整体修改使用 PUT；删除使用 DELETE。',
+    exerciseAnswer: '查询房间用 GET，创建预约用 POST，完整修改预约姓名用 PUT，取消预约用 DELETE。如果只修改姓名而保留其他字段，也可以用 PATCH，前提是接口支持。',
   },
   5: {
     idea: 'Network 是浏览器的请求记录本，可以看到点击按钮后页面实际调用了什么接口。',
@@ -104,6 +116,8 @@ const DOCUMENT_LESSONS = {
     expected: '能在 Network 中找到请求地址、方法、状态码和响应内容。',
     fill: '我观察的请求方法是____，地址是____，状态码是____。',
     exercise: '提交 Contact 表单，找到对应请求并截图标出 Request URL 和 Status Code。',
+    fillAnswer: '示例：我观察的请求方法是 POST，地址是 /contact，状态码是 200。实际答案应以 Network 中本次请求为准。',
+    exerciseAnswer: '参考：打开 Network 并筛选 Fetch/XHR，提交 Contact 表单，点击新出现的请求；在 Headers 中找到 Request URL 和 Request Method，在 General 或响应区域找到 Status Code。截图应同时保留请求名称和这两个字段。',
   },
 };
 
@@ -115,14 +129,16 @@ function DocumentLesson({task}) {
     expected:task.acceptance_criteria,
     fill:'今天要解决的问题是____；我的输入是____；得到的结果是____。',
     exercise:`不看示例重新完成“${task.title}”，再主动改变一个条件并解释结果。`,
+    fillAnswer:`今天要解决的问题是“${task.title}”；我的输入是练习步骤要求的数据或命令；得到的结果应满足“${task.acceptance_criteria}”。`,
+    exerciseAnswer:`参考：先按本章步骤独立完成“${task.title}”，保存输入和输出；再只改变一个条件重新执行，对比两次结果，并说明变化是否符合“${task.acceptance_criteria}”。`,
   };
   const pages=[
     ['先理解',<><Tag color="green">今天不要求背诵</Tag><Title level={4}>{task.title}</Title><Paragraph>{lesson.idea}</Paragraph><Alert type="info" showIcon title="先理解业务，再学习工具，最后才写自动化代码。"/></>],
     ['打开练习项目',<Row gutter={[12,12]}>{PRACTICE_PROJECTS.map(([name,url,note])=><Col xs={24} md={8} key={name}><Card size="small" title={name}><Paragraph>{note}</Paragraph>{url==='cling:hotel'?<Button type="primary" onClick={()=>window.open('/hotel-project','cling-hotel-practice','noopener,noreferrer')}>新窗口打开中文项目 ↗</Button>:<Button type="primary" href={url} target="_blank">打开文档 ↗</Button>}</Card></Col>)}</Row>],
     ['跟着操作',<ol className="daily-actions">{lesson.steps.map((item,index)=><li key={item}><span>{index+1}</span><div><b>{item}</b><small>只完成当前一步，完成后再继续；结果与说明不同也要截图保存。</small></div></li>)}</ol>],
     ['对照结果',<><div className="acceptance-box"><b>预期结果</b><Paragraph>{lesson.expected}</Paragraph></div><Paragraph>不要只看“成功还是失败”，还要写下输入、操作、实际结果三部分。</Paragraph></>],
-    ['填空练习',<><Paragraph>先不看前面的文字，补全下面的学习记录：</Paragraph><pre className="guide-code"><code>{lesson.fill}</code></pre><Paragraph type="secondary">不会时允许返回上一页查找，找到答案后再用自己的话重写。</Paragraph></>],
-    ['独立小题',<><div className="practice-level"><Tag color="orange">现在关闭答案</Tag><Paragraph>{lesson.exercise}</Paragraph></div><Alert type="warning" showIcon title="卡住 15 分钟后再看提示；报错内容本身也是学习材料。"/></>],
+    ['填空练习',<><Paragraph>先不看前面的文字，补全下面的学习记录：</Paragraph><pre className="guide-code"><code>{lesson.fill}</code></pre><Paragraph type="secondary">不会时允许返回上一页查找，找到答案后再用自己的话重写。</Paragraph><HiddenAnswer><Paragraph>{lesson.fillAnswer}</Paragraph></HiddenAnswer></>],
+    ['独立小题',<><div className="practice-level"><Tag color="orange">先独立完成</Tag><Paragraph>{lesson.exercise}</Paragraph></div><Alert type="warning" showIcon title="卡住 15 分钟后再查看答案；报错内容本身也是学习材料。"/><HiddenAnswer><Paragraph>{lesson.exerciseAnswer}</Paragraph></HiddenAnswer></>],
     ['验收与复盘',<><div className="acceptance-box"><b>完成标准</b><Paragraph>{task.acceptance_criteria}</Paragraph></div><Paragraph>保存一个操作结果、一张关键截图和一段自己的解释，然后勾选今日任务并完成打卡。</Paragraph></>],
   ];
   return <Card className="guide-card" title={`📖 第 ${task.day_number} 天文档课 · ${task.title}`}><div className="guide-steps">{pages.map((item,index)=><button key={item[0]} className={step===index?'active':''} onClick={()=>setStep(index)}><span>{index+1}</span>{item[0]}</button>)}</div><div className="guide-content">{pages[step][1]}<Space><Button disabled={!step} onClick={()=>setStep(step-1)}>上一步</Button><Button type="primary" disabled={step===pages.length-1} onClick={()=>setStep(step+1)}>下一步</Button></Space></div></Card>;
@@ -134,7 +150,7 @@ function DayOneGuide() {
     { title: '确认练习接口', body: <><Paragraph>这里练习的是部署在你自己服务器上的 Restful Booker，数据由你自己控制。</Paragraph><a href={`${SELF_HOSTED_BOOKER_BASE}/apidoc/index.html`} target="_blank" rel="noreferrer">打开自建 API 文档 ↗</a><div className="endpoint-box"><code>GET {SELF_HOSTED_BOOKER_BASE}/booking</code></div><Paragraph type="secondary">先访问这个地址；看到 bookingid 列表就说明自建接口可用。</Paragraph></> },
     { title: '配置 Python', body: <><Paragraph>安装 Python 3.11 或 3.12，并勾选 Add Python to PATH。打开 PowerShell，逐行执行并对照右侧说明：</Paragraph><BeginnerCode code={`python --version\nmkdir restful-booker-tests\ncd restful-booker-tests\npython -m venv .venv\n.\\.venv\\Scripts\\Activate.ps1\npython -m pip install pytest requests`}/><Paragraph type="secondary">若 PowerShell 阻止激活，先执行：<code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code></Paragraph></> },
     { title: '配置 Postman', body: <><Paragraph><Tag color="orange">使用英文界面</Tag>Postman 官方目前没有简体中文，不需要安装第三方汉化包。按照下面的英文按钮操作即可：</Paragraph><ol className="postman-steps"><li>点击 <b>New（新建）</b></li><li>选择 <b>HTTP Request（HTTP 请求）</b></li><li>请求方法选择 <b>GET（查询）</b></li><li>在地址栏粘贴下面的自建接口 URL</li><li>点击 <b>Send（发送）</b></li></ol><div className="endpoint-box"><code>{SELF_HOSTED_BOOKER_BASE}/booking/1</code></div><Paragraph><b>验收：</b>在下方 <b>Response（响应）</b>区域看到 <b>Status: 200 OK（状态码成功）</b>，Body 中包含 firstname、lastname 和 bookingdates。若 ID 1 不存在，先请求 <code>/booking</code> 列表并换一个 ID。</Paragraph><div className="postman-glossary"><Tag>Params 参数</Tag><Tag>Authorization 认证</Tag><Tag>Headers 请求头</Tag><Tag>Body 请求体</Tag><Tag>Tests 测试脚本</Tag><Tag>Save 保存</Tag></div></> },
-    { title: '首个 pytest 用例', body: <><Paragraph>在项目目录创建 <code>test_booking.py</code>，逐行输入并理解右侧说明：</Paragraph><BeginnerCode code={`import requests\n\nBASE_URL = "${SELF_HOSTED_BOOKER_BASE}"\n\ndef test_get_booking_list():\n    response = requests.get(f"{BASE_URL}/booking", timeout=10)\n    assert response.status_code == 200\n    bookings = response.json()\n    assert isinstance(bookings, list)\n    assert len(bookings) > 0\n    assert "bookingid" in bookings[0]`}/><Paragraph>执行 <code>pytest -v</code>。看到 <Tag color="green">1 passed</Tag> 即完成，并把结果与三个断言的含义写进学习笔记。</Paragraph></> },
+    { title: '首个 pytest 用例', body: <><Paragraph>在项目目录创建 <code>test_booking.py</code>，逐行输入并理解右侧说明：</Paragraph><BeginnerCode code={`import requests\n\nBASE_URL = "${SELF_HOSTED_BOOKER_BASE}"\n\ndef test_get_booking_list():\n    response = requests.get(f"{BASE_URL}/booking", timeout=10)\n    assert response.status_code == 200\n    bookings = response.json()\n    assert isinstance(bookings, list)\n    assert len(bookings) > 0\n    assert "bookingid" in bookings[0]`}/><Paragraph>执行 <code>pytest -v</code>。看到 <Tag color="green">1 passed</Tag> 即完成，并把结果与断言的含义写进学习笔记。</Paragraph><HiddenAnswer title="查看断言的参考解释"><ul><li><code>status_code == 200</code>：接口请求成功。</li><li><code>isinstance(bookings, list)</code>：JSON 已转换为 Python 列表。</li><li><code>len(bookings) &gt; 0</code>：列表不是空的。</li><li><code>"bookingid" in bookings[0]</code>：第一条数据包含预约编号字段。</li></ul></HiddenAnswer></> },
   ];
   const item = steps[step];
   return <Card className="guide-card" title="🧭 第 1 天执行引导" extra={<Text type="secondary">60–90 分钟</Text>}><div className="guide-steps">{steps.map((x,i)=><button key={x.title} className={i===step?'active':''} onClick={()=>setStep(i)}><span>{i+1}</span>{x.title}</button>)}</div><div className="guide-content"><Title level={4}>{step+1}. {item.title}</Title>{item.body}<Space><Button disabled={!step} onClick={()=>setStep(step-1)}>上一步</Button><Button type="primary" disabled={step===steps.length-1} onClick={()=>setStep(step+1)}>下一步</Button></Space></div></Card>;
@@ -280,7 +296,7 @@ class BookerClient:
 
     def close(self):
         self.session.close()`}/><Paragraph type="secondary">注意：Python 使用缩进表示代码属于哪个方法。类里面的方法缩进 4 个空格，方法里的内容再缩进 4 个空格。</Paragraph></>},
-    {title:'模仿、思考和小题',body:<><div className="practice-level"><Tag color="green">第 1 轮：照着模仿</Tag><Paragraph>不要改代码，逐行输入完整客户端，然后运行原有查询用例。目标是熟悉文件位置、缩进和调用方式。</Paragraph></div><div className="practice-level"><Tag color="blue">第 2 轮：带着思考改</Tag><Paragraph>把默认 <code>timeout=10</code> 改成 <code>timeout=15</code>。思考：为什么测试用例不需要跟着修改？再添加公共请求头 <code>X-Student: cling</code>，观察它应该写在哪一处。</Paragraph></div><div className="practice-level"><Tag color="orange">第 3 轮：自己完成小题</Tag><Paragraph>不看上面的答案，自己添加一个 <code>patch</code> 方法，并添加业务方法 <code>partial_update_booking</code>。要求测试文件里不能出现 <code>requests.patch</code> 和完整 Base URL。</Paragraph><div className="acceptance-box"><b>参考验收</b><Paragraph><code>patch</code> 方法调用 <code>self.request("PATCH", path, **kwargs)</code>；业务方法调用 <code>self.patch(...)</code>，测试仍然只负责准备数据和断言。</Paragraph></div></div></>},
+    {title:'模仿、思考和小题',body:<><div className="practice-level"><Tag color="green">第 1 轮：照着模仿</Tag><Paragraph>不要改代码，逐行输入完整客户端，然后运行原有查询用例。目标是熟悉文件位置、缩进和调用方式。</Paragraph></div><div className="practice-level"><Tag color="blue">第 2 轮：带着思考改</Tag><Paragraph>把默认 <code>timeout=10</code> 改成 <code>timeout=15</code>。思考：为什么测试用例不需要跟着修改？再添加公共请求头 <code>X-Student: cling</code>，观察它应该写在哪一处。</Paragraph><HiddenAnswer title="查看思考题答案"><Paragraph>测试用例调用客户端方法，默认超时封装在客户端内部，因此只改客户端就能让所有用例生效。公共请求头应加入构造方法里的 <code>default_headers</code>，再由 Session 统一保存。</Paragraph></HiddenAnswer></div><div className="practice-level"><Tag color="orange">第 3 轮：自己完成小题</Tag><Paragraph>不看上面的答案，自己添加一个 <code>patch</code> 方法，并添加业务方法 <code>partial_update_booking</code>。要求测试文件里不能出现 <code>requests.patch</code> 和完整 Base URL。</Paragraph><HiddenAnswer><Paragraph><code>patch</code> 方法调用 <code>self.request("PATCH", path, **kwargs)</code>；业务方法调用 <code>self.patch(...)</code> 并在客户端内处理路径、数据和鉴权；测试只准备数据、调用业务方法并断言响应。</Paragraph></HiddenAnswer></div></>},
     {title:'Fixture 与运行验收',body:<><Paragraph>手动创建和关闭客户端仍会重复，因此在 <code>tests/conftest.py</code> 中使用 Fixture：</Paragraph><pre className="guide-code"><code>{`import pytest
 from api.booker_client import BookerClient
 
@@ -320,7 +336,7 @@ function DailyExecutionGuide({task}) {
     {title:'4. 带注释完整示例',body:<><Paragraph>注释已经直接写进代码块，可以连同代码一起复制。Python 和命令使用 <code>#</code>，SQL 使用 <code>--</code>：</Paragraph><BeginnerCode code={guide.commands.join('\n')}/><Paragraph type="secondary">注释不会改变程序运行结果。第一次保留注释练习，熟练后再尝试删掉注释独立完成。</Paragraph></>},
     {title:'5. 拆开理解和改写',body:<><div className="explain-box"><b>逐步拆解</b><ol>{guide.actions.map((action,index)=><li key={action}><b>第 {index+1} 步：</b>{action}。思考它接收什么输入、产生什么输出，以及下一步为什么需要它。</li>)}</ol></div><Paragraph><b>改写要求：</b>用自己的变量名、文件名或业务例子重新写一遍，但保持执行顺序和核心逻辑不变。改完后与原示例对比，不要只看是否报错。</Paragraph></>},
     {title:'6. 第一轮照着模仿',body:<><div className="practice-level"><Tag color="green">允许看答案</Tag><Paragraph>完整照着示例输入并运行。不要整段无脑粘贴：每输入一行，先读它的注释，再说出这一行大概做什么。</Paragraph></div><div className="acceptance-box"><b>本轮目标</b><Paragraph>得到与示例一致的结果，并在笔记中保存完整操作过程。失败也要记录，因为排错过程也是学习成果。</Paragraph></div></>},
-    {title:'7. 思考和独立小题',body:<><div className="practice-level"><Tag color="blue">思考题</Tag><Paragraph>如果删除第一个准备步骤，后续可能在哪里失败？如果改变一个输入或参数，结果可能怎样变化？先写预测，再运行验证。</Paragraph></div><div className="practice-level"><Tag color="orange">独立小题</Tag><Paragraph>关闭当前示例，不看答案重新完成核心流程；然后主动修改一个变量、筛选条件、请求参数或命令选项，形成第二个不同结果。</Paragraph></div></>},
+    {title:'7. 思考和独立小题',body:<><div className="practice-level"><Tag color="blue">思考题</Tag><Paragraph>如果删除第一个准备步骤，后续可能在哪里失败？如果改变一个输入或参数，结果可能怎样变化？先写预测，再运行验证。</Paragraph><HiddenAnswer title="查看思考题答案"><Paragraph>{guide.thoughtAnswer}</Paragraph></HiddenAnswer></div><div className="practice-level"><Tag color="orange">独立小题</Tag><Paragraph>关闭当前示例，不看答案重新完成核心流程；然后主动修改一个变量、筛选条件、请求参数或命令选项，形成第二个不同结果。</Paragraph><HiddenAnswer><Paragraph>{guide.exerciseAnswer}</Paragraph></HiddenAnswer></div></>},
     {title:'8. 验收和复盘',body:<><div className="acceptance-box"><b>完成标准</b><Paragraph>{guide.acceptance}</Paragraph></div><Paragraph><b>必须留下：</b>可运行文件或操作结果、关键截图、错误与解决办法、一篇用自己的话写的复盘。完成后勾选任务并填写学习分钟、收获和问题。</Paragraph></>},
   ];
   const page=pages[step];
