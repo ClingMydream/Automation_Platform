@@ -1,0 +1,9 @@
+.welcome { padding: 28rpx 6rpx 42rpx; }
+.welcome-title { font-size: 44rpx; font-weight: 700; }.welcome-text { color: #a28691; margin-top: 12rpx; }
+.status-card { display: flex; align-items: center; gap: 20rpx; }.status-dot { width: 20rpx; height: 20rpx; border-radius: 50%; background: #ef7fa4; box-shadow: 0 0 0 8rpx #fff0f5; }.arrow { margin-left:auto; font-size:50rpx;color:#e9a0b8; }
+.status-title { font-weight: 600; margin-bottom: 8rpx; }
+.feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
+.feature { margin: 0; min-height: 190rpx; }
+.feature-icon { width: 58rpx; height: 58rpx; line-height: 58rpx; text-align: center; border-radius: 18rpx; margin-bottom: 18rpx; font-weight: 700; }
+.small { font-size: 24rpx; margin-top: 8rpx; }
+.admin-note { margin-top: 28rpx; color: #455166; font-size: 25rpx; line-height: 1.6; }

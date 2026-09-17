@@ -1,0 +1,21 @@
+<view class="page login-page">
+  <view class="brand">
+    <view class="brand-mark">♡</view>
+    <view>
+      <view class="brand-title">莓好审批</view>
+      <view class="brand-subtitle">把每一份申请，轻轻送到你手边</view>
+    </view>
+  </view>
+  <view class="card form-card">
+    <view class="flower">🎀</view>
+    <view class="login-title">登录莓好审批</view>
+    <view class="muted login-copy">把每一份小小的心意，认真送达。</view>
+    <view wx:if="{{error}}" class="error">{{error}}</view>
+    <input class="field" placeholder="账号" value="{{username}}" data-field="username" bindinput="onInput" />
+    <input class="field" password placeholder="密码" value="{{password}}" data-field="password" bindinput="onInput" />
+    <button class="primary-button" loading="{{loading}}" bindtap="accountSignIn">账号登录</button>
+    <view class="dev-divider">或</view>
+    <button class="dev-button" loading="{{loading}}" bindtap="wechatSignIn">微信一键登录</button>
+  </view>
+  <view class="tip">登录后即可发起申请、查看记录和处理待办。</view>
+</view>

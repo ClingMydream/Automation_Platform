@@ -1,0 +1,9 @@
+<view class="page">
+  <view class="card user-card">
+    <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" loading="{{uploading}}"><image wx:if="{{profile.avatar_url}}" class="avatar-image" src="{{profile.avatar_url}}" mode="aspectFill"/><view wx:else class="avatar">{{avatarText}}</view></button>
+    <view><view class="name">{{profile.name}}</view><view class="muted">{{profile.family_role || '家庭成员'}}</view></view>
+  </view>
+  <view class="card"><view class="row"><view>我的昵称</view><view wx:if="{{!editing}}" class="muted">{{profile.name}}</view></view><input wx:if="{{editing}}" class="name-input" value="{{displayName}}" data-field="displayName" bindinput="input" placeholder="请输入昵称" /><view class="row role-row"><view>家庭角色</view><view wx:if="{{!editing}}" class="muted">{{profile.family_role || '家庭成员'}}</view></view><input wx:if="{{editing}}" class="name-input" value="{{familyRole}}" data-field="familyRole" bindinput="input" placeholder="例如：宝宝、男朋友、女朋友" /><button wx:if="{{editing}}" class="primary-button save" bindtap="save">保存资料</button><button wx:else class="edit" bindtap="edit">修改个人资料</button></view>
+  <view class="avatar-tip">点击头像即可更换头像</view>
+  <button class="logout" bindtap="logout">退出登录</button>
+</view>

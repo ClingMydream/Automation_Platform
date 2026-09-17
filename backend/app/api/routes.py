@@ -16,6 +16,7 @@ from app.modules.test_packages.router import router as test_packages_router
 from app.modules.command_library.router import router as command_library_router
 from app.modules.hotel_practice.router import router as hotel_practice_router
 from app.modules.online_preview.router import router as online_preview_router
+from app.modules.oa.router import router as oa_router
 from app.modules.ui_automation.router import router as ui_automation_router
 from app.modules.circle_stats.router import router as circle_stats_router
 from app.modules.effects.router import router as effects_router
@@ -39,6 +40,7 @@ for module_router in [
     command_library_router,
     hotel_practice_router,
     online_preview_router,
+    oa_router,
     ui_automation_router,
     circle_stats_router,
     effects_router,

@@ -1,0 +1,6 @@
+.user-card { display: flex; align-items: center; gap: 24rpx; margin-top: 22rpx; }
+.avatar-button{padding:0;margin:0;background:transparent;line-height:normal}.avatar-button::after{border:none}.avatar,.avatar-image { width: 92rpx; height: 92rpx; line-height: 92rpx; border-radius: 50%; background: #1565c0; color: #fff; text-align: center; font-size: 40rpx; font-weight: 700; overflow:hidden; display:block; }
+.name { font-size: 34rpx; font-weight: 700; margin-bottom: 10rpx; }
+.row { display: flex; justify-content: space-between; }
+.name-input{height:80rpx;background:#fff1f6;border-radius:14rpx;padding:0 20rpx;box-sizing:border-box;margin:24rpx 0}.role-row{margin-top:28rpx}.save{margin-top:8rpx}.edit{margin-top:22rpx;color:#d25c7d;background:#fff;border:1rpx solid #f0b5c5;border-radius:40rpx}.avatar-tip{color:#a28691;font-size:24rpx;text-align:center;margin:18rpx 0 0}
+.logout { margin-top: 46rpx; color: #d93025; border: 1rpx solid #f3b3ad; background: #fff; border-radius: 12rpx; }

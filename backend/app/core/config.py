@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str = "admin123456"
     access_token_expire_minutes: int = 720
+    # Only the backend exchanges a temporary wx.login code with WeChat. Never expose this secret to the Mini Program.
+    wechat_miniprogram_app_id: str | None = None
+    wechat_miniprogram_app_secret: str | None = None
     # Service connection strings used by FastAPI routes and queue publishing.
     database_url: str = "mysql+pymysql://automation:automation@mysql:3306/automation_platform?charset=utf8mb4"
     public_base_url: str = "http://localhost"

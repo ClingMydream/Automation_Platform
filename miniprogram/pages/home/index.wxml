@@ -1,0 +1,8 @@
+<view class="page">
+  <view class="welcome"><view class="welcome-title">早安，宝宝 ♡</view><view class="welcome-text">今天也要轻轻松松完成我们的小计划呀</view></view>
+  <view class="card status-card" bindtap="openApprovals"><view class="status-dot"></view><view><view class="status-title">待处理的申请</view><view class="muted">你有 {{pendingCount}} 条申请正在流转</view></view><view class="arrow">›</view></view>
+  <view class="section-title">发起审批</view>
+  <view class="feature-grid">
+    <view wx:for="{{templates}}" wx:key="key" class="feature card" data-key="{{item.key}}" bindtap="apply"><view class="feature-icon" style="background: {{item.color}}22; color: {{item.color}}">{{item.icon}}</view><view>{{item.name}}</view><view class="muted small">{{item.description}}</view></view>
+  </view>
+</view>

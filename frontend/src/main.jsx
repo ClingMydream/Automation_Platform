@@ -46,6 +46,8 @@ const UiAutomationPage = lazy(() => import('./modules/16-ui-automation/UiAutomat
 const UiAutomationRunViewer = lazy(() => import('./modules/16-ui-automation/UiAutomationRunViewer.jsx').then(m => ({ default: m.UiAutomationRunViewer })));
 const CircleStatsPanel = lazy(() => import('./modules/17-circle-stats/CircleStatsPanel.jsx').then(m => ({ default: m.CircleStatsPanel })));
 const SelfStudyPanel = lazy(() => import('./modules/18-self-study/SelfStudyPanel.jsx').then(m => ({ default: m.SelfStudyPanel })));
+const OaManagementPanel = lazy(() => import('./modules/19-oa-management/OaManagementPanel.jsx').then(m => ({ default: m.OaManagementPanel })));
+const FamilyOaWebPage = lazy(() => import('./modules/19-oa-management/FamilyOaWebPage.jsx').then(m => ({ default: m.FamilyOaWebPage })));
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -60,6 +62,7 @@ const { Text, Title } = Typography;
 const HOTEL_PROJECT_PATH = '/hotel-project';
 const UI_AUTOMATION_PATH = '/emote-ui-automation';
 const MOBILE_PREVIEW_PATH = '/emote-mobile-preview';
+const FAMILY_OA_PATH = '/family-oa';
 
 function currentBundlePath() {
   return document.querySelector('script[type="module"][src]')?.getAttribute('src') || '';
@@ -110,6 +113,7 @@ const MENU_SECTIONS = [
       { key: 'images', label: '图片工具', icon: <CuteIcon emoji="🖼️" tone="peach" /> },
       { key: 'json_tools', label: 'JSON 工具', icon: <CuteIcon emoji="🧩" tone="violet" /> },
       { key: 'codec', label: '转码工具', icon: <CuteIcon emoji="🔄" tone="yellow" /> },
+      { key: 'family_oa_web', label: '莓好审批网页版', icon: <CuteIcon emoji="💗" tone="rose" /> },
     ],
   },
   {
@@ -118,6 +122,7 @@ const MENU_SECTIONS = [
     children: [
       { key: 'integrations', label: '集成配置', icon: <CuteIcon emoji="🔌" tone="rose" /> },
       { key: 'users', label: '用户管理', icon: <CuteIcon emoji="👥" tone="cyan" />, adminOnly: true },
+      { key: 'oa_management', label: '小程序 OA 管理', icon: <CuteIcon emoji="🌸" tone="rose" />, adminOnly: true },
     ],
   },
 ];
@@ -138,6 +143,7 @@ function ToolboxApp() {
   const uiAutomationRunMatch = window.location.pathname.match(/^\/emote-ui-automation\/run\/([^/]+)$/);
   const isPublicEffect = window.location.pathname === HAPPY_ZHAO_PATH;
   const isMobilePreview = window.location.pathname === MOBILE_PREVIEW_PATH;
+  const isFamilyOa = window.location.pathname === FAMILY_OA_PATH;
   const transferToken = params.get('transferToken');
   const testPackage = params.get('testPackage');
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -231,6 +237,7 @@ function ToolboxApp() {
   if (isPublicEffect) return <PublicEffectPage />;
   if (transferToken) return <PublicTransferPage token={transferToken} />;
   if (testPackage === 'latest') return <PublicPackageDownload />;
+  if (isFamilyOa) return <FamilyOaWebPage />;
   if (!token) return <Login notice={loginNotice} onLogin={(value) => { setLoginNotice(''); setToken(value); }} />;
   if (isHotelProject && (user?.is_admin || user?.menu_permissions?.includes('restful_booker'))) {
     return <main className="hotel-project-window">
@@ -329,6 +336,7 @@ function ToolboxApp() {
             {tab === 'images' && <ImageToolPanel token={token} />}
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
+            {tab === 'family_oa_web' && <FamilyOaWebPage embedded />}
             {tab === 'learning' && <MasteryLearningPanel client={client} isAdmin={user?.is_admin} />}
             {tab === 'command_library' && <CommandLibraryPanel client={client} />}
             {tab === 'effects' && <EffectStudio client={client} isAdmin={user?.is_admin} />}
@@ -340,6 +348,7 @@ function ToolboxApp() {
             {tab === 'api_workspace' && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
+            {tab === 'oa_management' && user?.is_admin && <OaManagementPanel client={client} />}
             </Suspense></ModuleBoundary>}
           </div>
         </Content>

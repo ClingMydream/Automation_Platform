@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db import Base, engine
 from app.models import entities  # noqa: F401
+from app.modules.oa.service import seed_templates
 
 
 # Swagger 分组元数据：这里的顺序会影响 /api/docs 页面左侧接口分组的展示顺序。
@@ -79,6 +80,8 @@ def on_startup() -> None:
     """Create database tables and ensure the default administrator account exists."""
     # SQLAlchemy creates missing tables at startup so a fresh Docker database can boot automatically.
     Base.metadata.create_all(bind=engine)
+    with Session(engine) as session:
+        seed_templates(session)
     # A runner keeps its queue only in memory. After a service restart, old queued/running
     # records must be explicit instead of looking as if they are still executing forever.
     with Session(engine) as session:
