@@ -21,6 +21,19 @@ MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
 MAX_UNPACKED_BYTES = 150 * 1024 * 1024
 MAX_FILES = 1000
 IDENTIFIER = re.compile(r"^[a-f0-9]{16}$")
+BUILTIN_DISABLED = ".builtin-disabled"
+
+
+@router.get("/effects/builtin")
+def builtin_effect():
+    return {"enabled": not (ROOT / BUILTIN_DISABLED).exists()}
+
+
+@router.delete("/effects/builtin")
+def delete_builtin_effect(_: AuthContext = Depends(verify_admin)):
+    ROOT.mkdir(parents=True, exist_ok=True)
+    (ROOT / BUILTIN_DISABLED).touch()
+    return {"status": "ok"}
 
 
 def _items():

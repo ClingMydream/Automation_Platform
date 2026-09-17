@@ -137,6 +137,18 @@ function menuForUser(user) {
     .filter((section) => section.children.length > 0);
 }
 
+function BuiltinEffectGate() {
+  const [enabled, setEnabled] = useState(null);
+  useEffect(() => {
+    fetch('/api/effects/builtin', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((state) => setEnabled(state.enabled === true))
+      .catch(() => setEnabled(false));
+  }, []);
+  if (enabled === null) return null;
+  return enabled ? <PublicEffectPage /> : <main className="effect-unavailable">此效果已下线</main>;
+}
+
 function ToolboxApp() {
   const params = new URLSearchParams(window.location.search);
   const isHotelProject = window.location.pathname === HOTEL_PROJECT_PATH;
@@ -234,7 +246,7 @@ function ToolboxApp() {
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
   }, []);
 
-  if (isPublicEffect) return <PublicEffectPage />;
+  if (isPublicEffect) return <BuiltinEffectGate />;
   if (transferToken) return <PublicTransferPage token={transferToken} />;
   if (testPackage === 'latest') return <PublicPackageDownload />;
   if (isFamilyOa) return <FamilyOaWebPage />;

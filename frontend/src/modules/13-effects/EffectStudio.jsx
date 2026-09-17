@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Card, Empty, Modal, Popconfirm, Space, Typography, Upload, message } from 'antd';
-import { CopyOutlined, DeleteOutlined, ExportOutlined, UploadOutlined } from '@ant-design/icons';
+import { CopyOutlined, DeleteOutlined, ExportOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
 import './effects.css';
 
 const { Paragraph, Title } = Typography;
@@ -584,6 +584,9 @@ export function EffectStudio({ client, isAdmin }) {
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [previewVersion, setPreviewVersion] = useState(0);
+  const [phoneScale, setPhoneScale] = useState(1);
+  const [builtinEnabled, setBuiltinEnabled] = useState(false);
   const url = `${window.location.origin}${HAPPY_ZHAO_PATH}`;
   const copy = async () => { await navigator.clipboard.writeText(url); message.success('公开链接已复制'); };
   const refresh = async () => {
@@ -591,6 +594,14 @@ export function EffectStudio({ client, isAdmin }) {
     catch (error) { message.error(error.message); }
   };
   useEffect(() => { refresh(); }, [client]);
+  useEffect(() => { client.get('/effects/builtin').then((state) => setBuiltinEnabled(state.enabled)).catch((error) => message.error(error.message)); }, [client]);
+  useEffect(() => {
+    if (!preview) return;
+    const resize = () => setPhoneScale(Math.max(0.3, Math.min(1, (window.innerWidth - 64) / 450, (window.innerHeight - 190) / 952)));
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [preview]);
   const upload = async (file) => {
     setBusy(true);
     try {
@@ -622,7 +633,17 @@ export function EffectStudio({ client, isAdmin }) {
     >
       {!items.length ? <Empty description="还没有上传临时效果" /> : items.map(item => <div className="effect-row" key={item.id}><div><b>{item.name}</b><p>独立临时文件，可随时删除</p><code>{window.location.origin}{item.url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={async () => { await navigator.clipboard.writeText(`${window.location.origin}${item.url}`); message.success('链接已复制'); }}>复制链接</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => setPreview(item)}>平台内预览</Button>{isAdmin && <Popconfirm title="删除这个临时效果？" onConfirm={() => remove(item.id)}><Button danger icon={<DeleteOutlined />}>删除</Button></Popconfirm>}</Space></div>)}
     </Card>
-    <Modal title={preview?.name || '临时效果预览'} open={!!preview} onCancel={() => setPreview(null)} footer={<Button onClick={() => window.open(preview?.url, '_blank', 'noopener,noreferrer')}>新窗口打开</Button>} width="min(96vw, 1200px)" destroyOnHidden><iframe className="effect-preview-frame" title={preview?.name || '临时效果'} src={preview?.url} /></Modal>
-    <Card title="平台自带效果" className="effect-studio__card"><div className="effect-row"><div><b>可交互粒子玫瑰 · 小赵天天开心</b><p>平台内置效果，不属于可清空工作空间。</p><code>{url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={copy}>复制链接</Button><Button icon={<ExportOutlined />} onClick={() => window.open(HAPPY_ZHAO_PATH, '_blank', 'noopener,noreferrer')}>预览效果</Button></Space></div></Card>
+    <Modal title={preview?.name || '临时效果预览'} open={!!preview} onCancel={() => setPreview(null)} footer={<Space><Button icon={<ReloadOutlined />} onClick={() => setPreviewVersion((value) => value + 1)}>刷新预览</Button><Button onClick={() => window.open(preview?.url, '_blank', 'noopener,noreferrer')}>新窗口打开</Button></Space>} width="min(96vw, 620px)" destroyOnHidden>
+      <div className="effect-phone-preview">
+        <p>430 × 932 · 手机样式预览</p>
+        <div className="effect-phone-preview__slot" style={{ width: 450 * phoneScale, height: 952 * phoneScale }}>
+          <div className="effect-phone-preview__device" style={{ transform: `scale(${phoneScale})` }}>
+            <div className="effect-phone-preview__speaker" />
+            <iframe key={`${preview?.id}-${previewVersion}`} className="effect-preview-frame" title={preview?.name || '临时效果'} src={preview?.url} />
+          </div>
+        </div>
+      </div>
+    </Modal>
+    {builtinEnabled && <Card title="平台自带效果" className="effect-studio__card"><div className="effect-row"><div><b>可交互粒子玫瑰 · 小赵天天开心</b><p>平台内置效果，可由管理员删除。</p><code>{url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={copy}>复制链接</Button><Button icon={<ExportOutlined />} onClick={() => setPreview({ id: 'builtin', name: '可交互粒子玫瑰 · 小赵天天开心', url: HAPPY_ZHAO_PATH })}>平台内预览</Button>{isAdmin && <Popconfirm title="删除这个平台自带效果？" description="删除后公开链接也将停止展示。" okText="删除" cancelText="取消" onConfirm={async () => { try { await client.delete('/effects/builtin'); setBuiltinEnabled(false); setPreview(null); message.success('已删除'); } catch (error) { message.error(error.message); } }}><Button danger icon={<DeleteOutlined />}>删除</Button></Popconfirm>}</Space></div></Card>}
   </div>;
 }

@@ -34,3 +34,12 @@ def test_rejects_zip_slip(tmp_path, monkeypatch):
     with pytest.raises(HTTPException) as error:
         asyncio.run(effects.upload_effect(archive({"index.html": "ok", "../escape": "bad"}), None))
     assert error.value.status_code == 400
+
+
+def test_builtin_effect_can_be_disabled_without_clearing_uploads(tmp_path, monkeypatch):
+    monkeypatch.setattr(effects, "ROOT", tmp_path)
+    assert effects.builtin_effect() == {"enabled": True}
+    effects.delete_builtin_effect(None)
+    assert effects.builtin_effect() == {"enabled": False}
+    effects.clear_effects(None)
+    assert effects.builtin_effect() == {"enabled": False}
