@@ -5,5 +5,4 @@
   <view class="feature-grid">
     <view wx:for="{{templates}}" wx:key="key" class="feature card" data-key="{{item.key}}" bindtap="apply"><view class="feature-icon" style="background: {{item.color}}22; color: {{item.color}}">{{item.icon}}</view><view>{{item.name}}</view><view class="muted small">{{item.description}}</view></view>
   </view>
-  <view class="card admin-note">🎀 审批账号和权限由平台管理端统一维护。</view>
 </view>

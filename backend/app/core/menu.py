@@ -21,6 +21,7 @@ MENU_OPTIONS = [
     {"key": "data_generator", "label": "数据生成"},
     {"key": "json_tools", "label": "JSON 工具"},
     {"key": "codec", "label": "转码工具"},
+    {"key": "family_oa_web", "label": "莓好审批网页版"},
     {"key": "integrations", "label": "集成配置"},
 ]
 

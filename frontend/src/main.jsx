@@ -41,6 +41,7 @@ import { MobilePreviewPage } from './modules/15-online-preview/MobilePreviewPage
 import { UiAutomationPage } from './modules/16-ui-automation/UiAutomationPage.jsx';
 import { UiAutomationRunViewer } from './modules/16-ui-automation/UiAutomationRunViewer.jsx';
 import { OaManagementPanel } from './modules/19-oa-management/OaManagementPanel.jsx';
+import { FamilyOaWebPage } from './modules/19-oa-management/FamilyOaWebPage.jsx';
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -53,6 +54,7 @@ const { Text, Title } = Typography;
 const HOTEL_PROJECT_PATH = '/hotel-project';
 const UI_AUTOMATION_PATH = '/emote-ui-automation';
 const MOBILE_PREVIEW_PATH = '/emote-mobile-preview';
+const FAMILY_OA_PATH = '/family-oa';
 
 function currentBundlePath() {
   return document.querySelector('script[type="module"][src]')?.getAttribute('src') || '';
@@ -101,6 +103,7 @@ const MENU_SECTIONS = [
       { key: 'images', label: '图片工具', icon: <CuteIcon emoji="🖼️" tone="peach" /> },
       { key: 'json_tools', label: 'JSON 工具', icon: <CuteIcon emoji="🧩" tone="violet" /> },
       { key: 'codec', label: '转码工具', icon: <CuteIcon emoji="🔄" tone="yellow" /> },
+      { key: 'family_oa_web', label: '莓好审批网页版', icon: <CuteIcon emoji="💗" tone="rose" /> },
     ],
   },
   {
@@ -130,6 +133,7 @@ function ToolboxApp() {
   const uiAutomationRunMatch = window.location.pathname.match(/^\/emote-ui-automation\/run\/([^/]+)$/);
   const isPublicEffect = window.location.pathname === HAPPY_ZHAO_PATH;
   const isMobilePreview = window.location.pathname === MOBILE_PREVIEW_PATH;
+  const isFamilyOa = window.location.pathname === FAMILY_OA_PATH;
   const transferToken = params.get('transferToken');
   const testPackage = params.get('testPackage');
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -194,6 +198,7 @@ function ToolboxApp() {
   if (isPublicEffect) return <PublicEffectPage />;
   if (transferToken) return <PublicTransferPage token={transferToken} />;
   if (testPackage === 'latest') return <PublicPackageDownload />;
+  if (isFamilyOa) return <FamilyOaWebPage />;
   if (!token) return <Login notice={loginNotice} onLogin={(value) => { setLoginNotice(''); setToken(value); }} />;
   if (isHotelProject && (user?.is_admin || user?.menu_permissions?.includes('restful_booker'))) {
     return <main className="hotel-project-window">
@@ -272,6 +277,7 @@ function ToolboxApp() {
             {tab === 'images' && <ImageToolPanel token={token} />}
             {tab === 'json_tools' && <JsonToolsPanel />}
             {tab === 'codec' && <CodecPanel />}
+            {tab === 'family_oa_web' && <FamilyOaWebPage embedded />}
             {tab === 'learning' && <MasteryLearningPanel client={client} isAdmin={user?.is_admin} />}
             {tab === 'command_library' && <CommandLibraryPanel client={client} />}
             {tab === 'effects' && <EffectStudio />}

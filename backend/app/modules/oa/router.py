@@ -46,7 +46,19 @@ class DecideRequest(BaseModel):
     action: str = Field(pattern="^(approved|rejected)$")
     comment: str = Field(default="", max_length=500)
 
+class AccountCreate(BaseModel):
+    username: str = Field(min_length=2, max_length=80)
+    password: str = Field(min_length=6, max_length=160)
+    display_name: str = Field(min_length=1, max_length=80)
+    family_role: str = Field(default="家庭成员", min_length=1, max_length=40)
+    is_enabled: bool = True
+    approver_account_ids: list[int] = Field(default_factory=list)
+
+
 class AccountUpdate(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=80)
+    family_role: str | None = Field(default=None, min_length=1, max_length=40)
+    password: str | None = Field(default=None, min_length=6, max_length=160)
     is_enabled: bool
     approver_account_ids: list[int] = Field(default_factory=list)
 
@@ -73,6 +85,24 @@ def _profile_data(db: Session, user: AppUser, is_reviewer: bool | None = None) -
 
 def _account_token(db: Session, user: AppUser, is_reviewer: bool = False) -> dict:
     return {"access_token": create_access_token(user.username, is_admin=user.is_admin), "user": _profile_data(db, user, is_reviewer)}
+
+
+def _validate_reviewer_accounts(db: Session, account_id: int, reviewer_account_ids: list[int]) -> list[int]:
+    """Validate a person's independently selected reviewer list."""
+    selected_ids = list(dict.fromkeys(reviewer_account_ids))
+    if account_id in selected_ids:
+        raise HTTPException(status_code=422, detail="不能将自己设为自己的审核人")
+    accounts = {item.id: item for item in db.query(MiniProgramAccount).all()}
+    if any(item not in accounts or not accounts[item].is_enabled for item in selected_ids):
+        raise HTTPException(status_code=422, detail="审核人必须是已启用的小程序用户")
+    return selected_ids
+
+
+def _replace_reviewers(db: Session, account_id: int, reviewer_account_ids: list[int]) -> None:
+    selected_ids = _validate_reviewer_accounts(db, account_id, reviewer_account_ids)
+    db.query(OaAccountReviewer).filter(OaAccountReviewer.account_id == account_id).delete(synchronize_session=False)
+    for reviewer_account_id in selected_ids:
+        db.add(OaAccountReviewer(account_id=account_id, reviewer_account_id=reviewer_account_id))
 
 
 def _avatar_directory() -> Path:
@@ -275,24 +305,58 @@ def list_mini_accounts(_: AuthContext = Depends(verify_admin), db: Session = Dep
     users = {item.id: item for item in db.query(AppUser).all()}
     reviewer_map: dict[int, list[int]] = {}
     for link in db.query(OaAccountReviewer).all(): reviewer_map.setdefault(link.account_id, []).append(link.reviewer_account_id)
-    return {"accounts": [{"id": item.id, "name": (users[item.app_user_id].display_name or users[item.app_user_id].username), "username": users[item.app_user_id].username, "login_method": "账号登录" if item.openid.startswith("account:") else "微信一键登录", "department": item.department, "is_enabled": item.is_enabled, "approver_account_ids": reviewer_map.get(item.id, []), "created_at": item.created_at.isoformat()} for item in accounts if item.app_user_id in users]}
+    return {"accounts": [{"id": item.id, "name": (users[item.app_user_id].display_name or users[item.app_user_id].username), "username": users[item.app_user_id].username, "login_method": "账号登录" if item.openid.startswith("account:") else "微信一键登录", "family_role": item.department or "家庭成员", "is_enabled": item.is_enabled, "approver_account_ids": reviewer_map.get(item.id, []), "created_at": item.created_at.isoformat()} for item in accounts if item.app_user_id in users]}
 
-@router.put("/admin/accounts/{account_id}", summary="设置小程序账号状态")
+
+@router.post("/admin/accounts", summary="管理员新增小程序账号")
+def create_mini_account(payload: AccountCreate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    username = payload.username.strip()
+    if db.query(AppUser).filter(AppUser.username == username).first():
+        raise HTTPException(status_code=409, detail="登录账号已存在")
+    user = AppUser(username=username, display_name=payload.display_name.strip(), password_hash=hash_password(payload.password), is_admin=False, is_active=True, menu_permissions=[])
+    db.add(user)
+    db.flush()
+    account = MiniProgramAccount(app_user_id=user.id, openid=f"account:{uuid4().hex}", department=payload.family_role.strip(), is_enabled=payload.is_enabled)
+    db.add(account)
+    db.flush()
+    _replace_reviewers(db, account.id, payload.approver_account_ids)
+    db.commit()
+    return {"id": account.id, "status": "created"}
+
+@router.put("/admin/accounts/{account_id}", summary="管理员修改小程序账号")
 def update_mini_account(account_id: int, payload: AccountUpdate, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
     account = db.get(MiniProgramAccount, account_id)
     if not account: raise HTTPException(status_code=404, detail="小程序账号不存在")
     user = db.get(AppUser, account.app_user_id)
+    if not user: raise HTTPException(status_code=404, detail="关联用户不存在")
+    if payload.display_name is not None:
+        user.display_name = payload.display_name.strip()
+    if payload.family_role is not None:
+        account.department = payload.family_role.strip()
+    if payload.password is not None:
+        if not account.openid.startswith("account:"):
+            raise HTTPException(status_code=422, detail="微信一键登录账号不支持设置密码")
+        user.password_hash = hash_password(payload.password)
     account.is_enabled = payload.is_enabled
-    accounts = {item.id: item for item in db.query(MiniProgramAccount).all()}
-    selected_ids = list(dict.fromkeys(payload.approver_account_ids))
-    if account.id in selected_ids:
-        raise HTTPException(status_code=422, detail="不能将自己设为自己的审核人")
-    if any(item not in accounts or not accounts[item].is_enabled for item in selected_ids):
-        raise HTTPException(status_code=422, detail="审核人必须是已启用的小程序用户")
-    db.query(OaAccountReviewer).filter(OaAccountReviewer.account_id == account.id).delete(synchronize_session=False)
-    for reviewer_account_id in selected_ids:
-        db.add(OaAccountReviewer(account_id=account.id, reviewer_account_id=reviewer_account_id))
+    _replace_reviewers(db, account.id, payload.approver_account_ids)
     if not payload.is_enabled:
         db.query(OaAccountReviewer).filter(OaAccountReviewer.reviewer_account_id == account.id).delete(synchronize_session=False)
     db.commit()
     return {"status": "ok"}
+
+
+@router.delete("/admin/accounts/{account_id}", summary="管理员删除小程序账号")
+def delete_mini_account(account_id: int, _: AuthContext = Depends(verify_admin), db: Session = Depends(get_db)):
+    account = db.get(MiniProgramAccount, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="小程序账号不存在")
+    user = db.get(AppUser, account.app_user_id)
+    if user and user.is_admin:
+        raise HTTPException(status_code=422, detail="系统管理员账号不能在这里删除")
+    # Preserve historical approval records while removing the OA identity and
+    # preventing either account or WeChat login from recreating it.
+    if user:
+        user.is_active = False
+    db.delete(account)
+    db.commit()
+    return {"status": "deleted"}
