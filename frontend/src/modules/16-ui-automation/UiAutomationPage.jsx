@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Badge, Button, Card, Checkbox, Col, Drawer, Empty, Form, Input, Modal,
+  Alert, Badge, Button, Card, Checkbox, Col, Drawer, Dropdown, Empty, Form, Input, Modal,
   Progress, Row, Select, Space, Spin, Tag, Timeline, Tooltip, Typography, message,
 } from 'antd';
 import {
   ArrowLeftOutlined, BranchesOutlined, CopyOutlined, DatabaseOutlined, DeleteOutlined, EditOutlined, ExperimentOutlined,
-  FileAddOutlined, PlayCircleOutlined, ReloadOutlined, SyncOutlined, VideoCameraOutlined,
+  FileAddOutlined, MoreOutlined, PlayCircleOutlined, ReloadOutlined, SyncOutlined, VideoCameraOutlined,
 } from '@ant-design/icons';
 import './ui-automation.css';
 import './ui-automation-timeline.css';
@@ -160,6 +160,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   }, [selectedRunId]);
 
   const visibleCases = useMemo(() => data.cases.filter((item) => item.name.toLowerCase().includes(search.toLowerCase())), [data.cases, search]);
+  const enabledCases = useMemo(() => data.cases.filter((item) => item.enabled), [data.cases]);
   const evidenceCases = (selectedRun?.case_ids || []).map((id) => data.cases.find((item) => item.id === id)).filter(Boolean);
   const caseArtifacts = (selectedRun?.artifacts || []).filter((item) => !evidenceCaseId || item.name.includes(`case-${evidenceCaseId}-`));
   const selectedArtifact = caseArtifacts.find((item) => item.id === selectedArtifactId)
@@ -295,37 +296,42 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
 
   return <main className={`ui-auto-page ${embedded ? 'ui-auto-page--embedded' : ''}`}>
     <header className="ui-auto-header">
-      <div className="ui-auto-brand"><span>🎬</span><div><Text>cling · 测试中心</Text><Title level={3}>Emote UI 自动化</Title></div></div>
-      <Space wrap>
-        <Select showSearch value={branch} onChange={setBranch} options={branches.map((value) => ({ value, label: value }))} className="ui-auto-branch" suffixIcon={<BranchesOutlined />} />
-        <Button icon={<SyncOutlined spin={syncBusy} />} loading={syncBusy} onClick={synchronizeBranch}>同步当前分支</Button>
-        <Select value={viewport} onChange={setViewport} options={[{ value: 'mobile', label: '手机视口 390×844' }, { value: 'desktop', label: '桌面视口 1440×900' }]} />
-        <Checkbox checked={syncFirst} onChange={(event) => setSyncFirst(event.target.checked)}>同步最新预览后执行</Checkbox>
-        {!embedded && <Button icon={<ArrowLeftOutlined />} onClick={onClose}>返回私人空间</Button>}
-      </Space>
+      <div className="ui-auto-brand"><span>🎬</span><div><Title level={3}>Emote UI 自动化</Title><Text type="secondary">选择用例、开始执行、查看结果</Text></div></div>
+      {!embedded && <Button type="text" icon={<ArrowLeftOutlined />} onClick={onClose}>返回</Button>}
     </header>
-    <section className="ui-auto-actions">
-      <div><b>可视化回归编排</b><span>选择用例 → 配置环境 → 脚本执行 → 按用例查看证据</span></div>
-      <div className="ui-auto-action-buttons">
-        <Button icon={<DatabaseOutlined />} onClick={() => editDataSet()}>测试数据集</Button>
-        <Button danger icon={<DeleteOutlined />} onClick={clearExecutionData}>清空执行数据</Button>
-        <Button icon={<FileAddOutlined />} onClick={() => setRequirementOpen(true)}>新增测试需求</Button>
-        <Button icon={<PlayCircleOutlined />} onClick={() => requestRun('selected')}>执行已勾选</Button>
+    <section className="ui-auto-command">
+      <div className="ui-auto-run-config">
+        <label className="ui-auto-field"><span>测试分支</span><Select showSearch value={branch} onChange={setBranch} options={branches.map((value) => ({ value, label: value }))} className="ui-auto-branch" suffixIcon={<BranchesOutlined />} /></label>
+        <label className="ui-auto-field"><span>运行视口</span><Select value={viewport} onChange={setViewport} options={[{ value: 'mobile', label: '手机 · 390×844' }, { value: 'desktop', label: '桌面 · 1440×900' }]} /></label>
+        <Button icon={<SyncOutlined spin={syncBusy} />} loading={syncBusy} onClick={synchronizeBranch}>同步预览</Button>
+        <Checkbox checked={syncFirst} onChange={(event) => setSyncFirst(event.target.checked)}>运行前同步</Checkbox>
+      </div>
+      <div className="ui-auto-primary-actions">
+        <span>已选 <b>{selectedCases.length}</b> 个用例</span>
+        <Button icon={<PlayCircleOutlined />} disabled={!selectedCases.length} onClick={() => requestRun('selected')}>运行已选</Button>
         <Button icon={<ExperimentOutlined />} onClick={() => requestRun('smoke')}>随机冒烟</Button>
         <Button type="primary" icon={<VideoCameraOutlined />} onClick={() => requestRun('regression')}>全部回归</Button>
+        <Dropdown trigger={['click']} menu={{ items: [
+          { key: 'data', icon: <DatabaseOutlined />, label: '测试数据集' },
+          { key: 'requirement', icon: <FileAddOutlined />, label: '新增测试需求' },
+          { type: 'divider' },
+          { key: 'clear', danger: true, icon: <DeleteOutlined />, label: '清空执行数据' },
+        ], onClick: ({ key }) => { if (key === 'data') editDataSet(); if (key === 'requirement') setRequirementOpen(true); if (key === 'clear') clearExecutionData(); } }}>
+          <Button icon={<MoreOutlined />} aria-label="更多管理操作" />
+        </Dropdown>
       </div>
     </section>
     <div className="ui-auto-grid">
       <aside className="ui-auto-left">
-        <div className="ui-auto-panel-title"><div><b>功能与用例</b><Text type="secondary">已覆盖 {data.features.length} 个功能</Text></div><Button type="text" icon={<ReloadOutlined />} onClick={() => load()} /></div>
-        <Input.Search allowClear placeholder="搜索用例" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <div className="ui-auto-panel-title"><div><b>测试用例</b><Text type="secondary">{enabledCases.length} 个可运行 · {data.features.length} 个功能</Text></div><Space size={2}><Button type="text" size="small" onClick={() => setSelectedCases(selectedCases.length ? [] : enabledCases.map((item) => item.id))}>{selectedCases.length ? '清空' : '全选'}</Button><Button type="text" icon={<ReloadOutlined />} aria-label="刷新用例" onClick={() => load()} /></Space></div>
+        <Input.Search allowClear placeholder="搜索测试用例" value={search} onChange={(event) => setSearch(event.target.value)} />
         <Spin spinning={loading}>
           {data.features.map((feature) => {
             const rows = visibleCases.filter((item) => item.feature_id === feature.id);
             return <section className="ui-auto-feature" key={feature.id}>
               <div className="ui-auto-feature-head"><span>{feature.name}</span><Badge count={rows.length} showZero color="#6d5dfc" /></div>
               {rows.map((item) => <div className={`ui-auto-case ${selectedCases.includes(item.id) ? 'selected' : ''}`} key={item.id}>
-                <Checkbox checked={selectedCases.includes(item.id)} onChange={(event) => setSelectedCases((old) => event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id))} />
+                <Checkbox disabled={!item.enabled} checked={selectedCases.includes(item.id)} onChange={(event) => setSelectedCases((old) => event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id))} />
                 <button type="button" onClick={() => openCase(item)}><span>{item.name}</span><small><Tag color={item.enabled ? 'green' : 'default'}>{item.enabled ? '已启用' : '草稿'}</Tag>{item.steps.length} 步 · {item.priority}</small></button>
                 <Tooltip title="立即执行此用例"><Button type="text" size="small" icon={<PlayCircleOutlined />} disabled={!item.enabled} onClick={() => requestRun('selected', [item.id])} /></Tooltip>
                 <Tooltip title="复制用例"><Button type="text" size="small" icon={<CopyOutlined />} onClick={async () => { await client.post(`/v1/ui-automation/cases/${item.id}/duplicate`, {}); await load(true); }} /></Tooltip>
@@ -354,7 +360,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
                   <div className="ui-auto-meta"><span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '390 × 844' : '1440 × 900'}</b></span></div>
                   {selectedRun.result_summary?.failure ? <Alert type="error" showIcon title={`${selectedRun.result_summary.failure.case_name} · 第 ${selectedRun.result_summary.failure.step_index} 步失败`} description={<div className="ui-auto-failure"><b>{selectedRun.result_summary.failure.reason}</b><span>动作：{selectedRun.result_summary.failure.action}{selectedRun.result_summary.failure.locator ? ` · 元素：${selectedRun.result_summary.failure.locator}` : ''}</span><span>建议：{selectedRun.result_summary.failure.suggestion}</span>{!!selectedRun.result_summary.failure.network_issues?.length && <details className="ui-auto-network-details" open><summary>接口排查记录（测试数据原样保留）</summary>{selectedRun.result_summary.failure.network_issues.map((item, index) => <div className="ui-auto-network-item" key={`${item.method}-${item.url}-${index}`}><b>{item.method} · {item.type === 'pending' ? '请求未返回（疑似超时）' : item.status ? `HTTP ${item.status}` : '网络失败'}</b><code>{item.url}</code><Button size="small" icon={<CopyOutlined />} onClick={() => copyDiagnostic(item.url, '接口地址')}>复制 URL</Button>{item.error && <span>{item.error}</span>}{item.curl && <><pre>{item.curl}</pre><Button size="small" icon={<CopyOutlined />} onClick={() => copyDiagnostic(item.curl, 'cURL')}>复制 cURL</Button></>}</div>)}</details>}<details><summary>查看技术详情</summary><pre>{selectedRun.result_summary.failure.technical_detail}</pre></details></div>} /> : selectedRun.error_message && <Alert type="error" showIcon title="执行失败" description={selectedRun.error_message} />}
                   <Button size="small" icon={<VideoCameraOutlined />} disabled={!caseArtifacts.some((item) => item.kind === 'screenshot')} onClick={downloadCaseScreenshots}>下载当前用例全部截图</Button>
-                  {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.filter((step) => !evidenceCaseId || step.case_id === evidenceCaseId).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', children: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
+                  {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.filter((step) => !evidenceCaseId || step.case_id === evidenceCaseId).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', content: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
                 </Space>
               </Col>
             </Row>
@@ -389,10 +395,10 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
       </Form>
     </Modal>
 
-    <Drawer title="新增自然语言测试需求" open={requirementOpen} onClose={() => setRequirementOpen(false)} width={520} extra={<Button type="primary" onClick={saveRequirement}>保存草稿</Button>}>
+    <Drawer title="新增自然语言测试需求" open={requirementOpen} onClose={() => setRequirementOpen(false)} size={520} extra={<Button type="primary" onClick={saveRequirement}>保存草稿</Button>}>
       <Alert type="warning" showIcon title="首版不会自动生成脚本" description="先记录你想测什么，再进入可视化步骤编辑器补充动作和断言，确认启用后才会加入回归。" />
       <Form form={requirementForm} layout="vertical" style={{ marginTop: 20 }}><Form.Item name="feature_id" label="所属功能"><Select allowClear options={data.features.map((x) => ({ value: x.id, label: x.name }))} /></Form.Item><Form.Item name="content" label="请用自然语言描述测试需求" rules={[{ required: true, min: 2 }]}><Input.TextArea rows={10} placeholder="例如：使用账号 A 登录，进入发帖页发布一条带 [AUTO] 标记的文字动态，并检查首页能看到它。" /></Form.Item></Form>
-      {data.requirements.length > 0 && <><Title level={5}>最近草稿</Title><Timeline items={data.requirements.slice(0, 8).map((x) => ({ children: x.content }))} /></>}
+      {data.requirements.length > 0 && <><Title level={5}>最近草稿</Title><Timeline items={data.requirements.slice(0, 8).map((x) => ({ content: x.content }))} /></>}
     </Drawer>
   </main>;
 }
