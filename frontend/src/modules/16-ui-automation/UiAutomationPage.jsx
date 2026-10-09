@@ -45,7 +45,7 @@ function ArtifactLoading({ kind, overlay = false }) {
   );
 }
 
-export function ArtifactViewer({ client, artifact }) {
+export function ArtifactViewer({ client, artifact, refreshKey = '' }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -93,7 +93,7 @@ export function ArtifactViewer({ client, artifact }) {
       disposed = true;
       if (delayTimer) window.clearTimeout(delayTimer);
     };
-  }, [artifact?.id, retry]);
+  }, [artifact?.id, refreshKey, retry]);
   if (!artifact) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="执行后会在这里显示录屏和截图" />;
   if (error) return <Alert type="error" showIcon title="产物读取失败" description={<Space orientation="vertical"><span>{error}</span><Button size="small" onClick={() => setRetry((value) => value + 1)}>重新读取</Button></Space>} />;
   return (
@@ -163,9 +163,11 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const enabledCases = useMemo(() => data.cases.filter((item) => item.enabled), [data.cases]);
   const evidenceCases = (selectedRun?.case_ids || []).map((id) => data.cases.find((item) => item.id === id)).filter(Boolean);
   const caseArtifacts = (selectedRun?.artifacts || []).filter((item) => !evidenceCaseId || item.name.includes(`case-${evidenceCaseId}-`));
-  const selectedArtifact = caseArtifacts.find((item) => item.id === selectedArtifactId)
-    || [...caseArtifacts].reverse().find((item) => item.kind === (selectedRun?.status === 'running' ? 'screenshot' : 'video'))
-    || [...caseArtifacts].reverse().find((item) => item.kind === 'screenshot');
+  const displayArtifacts = caseArtifacts.filter((item) => ['video', 'screenshot'].includes(item.kind)
+    && (selectedRun?.status === 'running' || !item.name.includes('-live.')));
+  const selectedArtifact = displayArtifacts.find((item) => item.id === selectedArtifactId)
+    || [...displayArtifacts].reverse().find((item) => item.kind === (selectedRun?.status === 'running' ? 'screenshot' : 'video'))
+    || [...displayArtifacts].reverse().find((item) => item.kind === 'screenshot');
 
   useEffect(() => {
     if (selectedRun?.case_ids?.length && !selectedRun.case_ids.includes(evidenceCaseId)) setEvidenceCaseId(selectedRun.case_ids[0]);
@@ -350,8 +352,8 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
             </div>
             <Row gutter={[16, 16]}>
               <Col xs={24} lg={15}>
-                <div className="ui-auto-screen"><ArtifactViewer client={client} artifact={selectedArtifact} /></div>
-                <div className="ui-auto-artifact-strip">{caseArtifacts.filter((item) => item.kind !== 'trace').map((item) => <button type="button" className={item.id === selectedArtifact?.id ? 'active' : ''} key={item.id} onClick={() => setSelectedArtifactId(item.id)}>{item.kind === 'video' ? '🎥 录像' : '🖼️ 截图'}<small>{item.name.replace(`case-${evidenceCaseId}-`, '')}</small></button>)}</div>
+                <div className="ui-auto-screen"><ArtifactViewer client={client} artifact={selectedArtifact} refreshKey={selectedRun?.status === 'running' ? selectedRun?.progress : ''} /></div>
+                <div className="ui-auto-artifact-strip">{displayArtifacts.map((item) => <button type="button" className={item.id === selectedArtifact?.id ? 'active' : ''} key={item.id} onClick={() => setSelectedArtifactId(item.id)}>{item.kind === 'video' ? '🎥 录像' : '🖼️ 关键截图'}<small>{item.name.replace(`case-${evidenceCaseId}-`, '')}</small></button>)}</div>
               </Col>
               <Col xs={24} lg={9}>
                 <Space orientation="vertical" size={14} style={{ width: '100%' }}>
@@ -359,7 +361,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
                   <Progress percent={selectedRun.progress || 0} status={selectedRun.status === 'failed' ? 'exception' : selectedRun.status === 'passed' ? 'success' : 'active'} />
                   <div className="ui-auto-meta"><span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '390 × 844' : '1440 × 900'}</b></span></div>
                   {selectedRun.result_summary?.failure ? <Alert type="error" showIcon title={`${selectedRun.result_summary.failure.case_name} · 第 ${selectedRun.result_summary.failure.step_index} 步失败`} description={<div className="ui-auto-failure"><b>{selectedRun.result_summary.failure.reason}</b><span>动作：{selectedRun.result_summary.failure.action}{selectedRun.result_summary.failure.locator ? ` · 元素：${selectedRun.result_summary.failure.locator}` : ''}</span><span>建议：{selectedRun.result_summary.failure.suggestion}</span>{!!selectedRun.result_summary.failure.network_issues?.length && <details className="ui-auto-network-details" open><summary>接口排查记录（测试数据原样保留）</summary>{selectedRun.result_summary.failure.network_issues.map((item, index) => <div className="ui-auto-network-item" key={`${item.method}-${item.url}-${index}`}><b>{item.method} · {item.type === 'pending' ? '请求未返回（疑似超时）' : item.status ? `HTTP ${item.status}` : '网络失败'}</b><code>{item.url}</code><Button size="small" icon={<CopyOutlined />} onClick={() => copyDiagnostic(item.url, '接口地址')}>复制 URL</Button>{item.error && <span>{item.error}</span>}{item.curl && <><pre>{item.curl}</pre><Button size="small" icon={<CopyOutlined />} onClick={() => copyDiagnostic(item.curl, 'cURL')}>复制 cURL</Button></>}</div>)}</details>}<details><summary>查看技术详情</summary><pre>{selectedRun.result_summary.failure.technical_detail}</pre></details></div>} /> : selectedRun.error_message && <Alert type="error" showIcon title="执行失败" description={selectedRun.error_message} />}
-                  <Button size="small" icon={<VideoCameraOutlined />} disabled={!caseArtifacts.some((item) => item.kind === 'screenshot')} onClick={downloadCaseScreenshots}>下载当前用例全部截图</Button>
+                  <Button size="small" icon={<VideoCameraOutlined />} disabled={!displayArtifacts.some((item) => item.kind === 'screenshot')} onClick={downloadCaseScreenshots}>下载关键截图</Button>
                   {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.filter((step) => !evidenceCaseId || step.case_id === evidenceCaseId).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', content: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
                 </Space>
               </Col>
@@ -383,7 +385,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
       {!!dataSets.length && <div className="ui-auto-datasets"><Text type="secondary">已保存数据集</Text>{dataSets.map((item) => <Space key={item.id}><Button size="small" onClick={() => editDataSet(item)}>{item.name}{item.is_default ? '（默认）' : ''}</Button><Button danger size="small" icon={<DeleteOutlined />} onClick={async () => { await client.delete(`/v1/ui-automation/data-sets/${item.id}`); await load(true); }} /></Space>)}</div>}
     </Modal>
 
-    <Modal title={editingCase ? '编辑测试用例' : '新建测试用例'} open={caseOpen} onCancel={() => setCaseOpen(false)} onOk={saveCase} okText="保存" width={980} destroyOnHidden>
+    <Modal title={editingCase ? '编辑测试用例' : '新建测试用例'} open={caseOpen} onCancel={() => setCaseOpen(false)} onOk={saveCase} okText="保存" width={980} styles={{ body: { maxHeight: 'calc(100vh - 190px)', overflowY: 'auto', overflowX: 'hidden' } }} destroyOnHidden>
       <Form form={caseForm} layout="vertical">
         <Row gutter={12}><Col span={10}><Form.Item name="name" label="用例名称" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={6}><Form.Item name="feature_id" label="所属功能" rules={[{ required: true }]}><Select options={data.features.map((x) => ({ value: x.id, label: x.name }))} /></Form.Item></Col><Col span={4}><Form.Item name="priority" label="优先级"><Select options={['P0', 'P1', 'P2'].map((x) => ({ value: x }))} /></Form.Item></Col><Col span={4}><Form.Item name="enabled" label="进入回归" valuePropName="checked"><Checkbox>确认并启用</Checkbox></Form.Item></Col></Row>
         <Form.Item name="tags" label="标签（英文逗号分隔）" getValueProps={(value) => ({ value: Array.isArray(value) ? value.join(',') : value })}><Input placeholder="smoke,regression" /></Form.Item>

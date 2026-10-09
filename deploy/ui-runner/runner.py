@@ -222,7 +222,10 @@ def execute_step(page, contexts, step, variables, base_url):
         # can therefore time out even after the browser is already on #/home.
         page.wait_for_function("expected => window.location.href.includes(expected)", arg=value)
     elif action == "assert_count": assert target.count() == int(value)
-    elif action == "switch_account": return contexts[value if value in contexts else "account_a"].pages[0]
+    elif action == "switch_account":
+        account = value if value in contexts else "account_a"
+        variables.setdefault("_used_accounts", set()).add(account)
+        return contexts[account].pages[0]
     return page
 
 
@@ -305,17 +308,18 @@ def run_task(task):
                                "error": detail, "curl": safe_curl(request)})
 
     def finalize_case(case_id, case_dir):
-        """Close one case context so its video and trace are finalized independently."""
+        """Close one case context so its video is finalized independently."""
         case_artifacts = []
+        used_accounts = variables.get("_used_accounts", {"account_a"})
         for account_name, context in list(contexts.items()):
             try:
-                trace = case_dir / f"case-{case_id}-trace-{account_name}.zip"
-                context.tracing.stop(path=str(trace))
-                case_artifacts.append(artifact(trace, run_dir, "trace", "application/zip"))
                 videos = [item.video for item in context.pages if item.video]
                 context.close()
                 for number, video in enumerate(videos, 1):
                     source = Path(video.path())
+                    if account_name not in used_accounts:
+                        source.unlink(missing_ok=True)
+                        continue
                     destination = case_dir / f"case-{case_id}-video-{account_name}-{number}.webm"
                     source.replace(destination)
                     case_artifacts.append(artifact(destination, run_dir, "video", "video/webm"))
@@ -335,17 +339,18 @@ def run_task(task):
             viewport = {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900}
             for case in task["cases"]:
                 current_case = case
+                variables["_used_accounts"] = {"account_a"}
                 case_id = case["id"]
                 case_dir = run_dir / f"case-{case_id}"
                 case_dir.mkdir(parents=True, exist_ok=True)
                 for name in ("account_a", "account_b"):
                     contexts[name] = browser.new_context(viewport=viewport, record_video_dir=str(case_dir / "raw-video"), record_video_size=viewport)
-                    contexts[name].tracing.start(screenshots=True, snapshots=True, sources=False)
                     new_page = contexts[name].new_page()
                     new_page.on("request", remember_request)
                     new_page.on("response", remember_response)
                     new_page.on("requestfailed", remember_failed_request)
                 page = contexts["account_a"].pages[0]
+                has_key_screenshot = False
                 for index, step in enumerate(case.get("steps", []), 1):
                     current_step, current_step_index = step, index
                     if time.monotonic() > deadline:
@@ -364,14 +369,20 @@ def run_task(task):
                     timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
                                      "action": step["action"], "status": "passed", "duration_ms": int((time.monotonic() - step_started) * 1000)})
                     completed += 1
-                    live = case_dir / f"case-{case_id}-step-{index:02d}.png"
+                    is_key_screenshot = step["action"] == "screenshot"
+                    has_key_screenshot = has_key_screenshot or is_key_screenshot
+                    live = case_dir / (f"case-{case_id}-key-step-{index:02d}.png" if is_key_screenshot else f"case-{case_id}-live.png")
                     page.screenshot(path=str(live), full_page=False)
                     callback(run_id, status="running", current_step=label, progress=int(completed / total * 100),
                              result_summary={"timeline": timeline, "viewport": viewport},
                              artifacts=[artifact(live, run_dir, "screenshot", "image/png")])
-                    # Keep each completed action visible long enough for the live
-                    # execution window to poll and show the form-filling process.
-                    page.wait_for_timeout(1200)
+                    # Keep the live preview readable without filling evidence storage
+                    # with one permanent screenshot for every action.
+                    page.wait_for_timeout(700)
+                if not has_key_screenshot:
+                    final = case_dir / f"case-{case_id}-final.png"
+                    page.screenshot(path=str(final), full_page=False)
+                    artifacts.append(artifact(final, run_dir, "screenshot", "image/png"))
                 artifacts.extend(finalize_case(case_id, case_dir))
                 callback(run_id, status="running", current_step=f"{case['name']} · 证据已保存", progress=int(completed / total * 100),
                          result_summary={"timeline": timeline, "viewport": viewport}, artifacts=artifacts)
@@ -391,7 +402,7 @@ def run_task(task):
         case_dir.mkdir(parents=True, exist_ok=True)
         fail = case_dir / f"case-{case_id}-failure-step-{current_step_index or 0:02d}.png"
         try:
-            page.screenshot(path=str(fail), full_page=True); artifacts.append(artifact(fail, run_dir, "screenshot", "image/png"))
+            page.screenshot(path=str(fail), full_page=False); artifacts.append(artifact(fail, run_dir, "screenshot", "image/png"))
         except Exception: pass
         artifacts.extend(finalize_case(case_id, case_dir))
         try:

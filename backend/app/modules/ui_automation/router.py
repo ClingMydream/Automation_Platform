@@ -50,9 +50,22 @@ ONBOARDING_TEMPLATE_STEPS = [
     {"action": "validate_onboarding_page", "title": "深度连接", "description": "找到与你频率共振的灵魂伙伴，一起前行。", "icon": "🌊", "locator": "开启旅程", "when": "onboarding", "flow": "onboarding"},
 ]
 HOME_READY_STEP = {"action": "assert_hidden", "locator_type": "role", "role": "heading", "locator": "深度连接", "flow": "home_ready"}
-LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP] + ONBOARDING_TEMPLATE_STEPS + [HOME_READY_STEP]
+FEATURE_GUIDE_STEPS = [
+    {"action": "detect_visible", "locator_type": "role", "role": "button", "locator": "跳过引导", "condition": "feature_guide", "flow": "feature_guide"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "跳过引导", "when": "feature_guide", "flow": "feature_guide"},
+    {"action": "detect_visible", "locator_type": "role", "role": "button", "locator": "开始体验", "condition": "feature_guide_outro", "flow": "feature_guide"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "开始体验", "when": "feature_guide_outro", "flow": "feature_guide"},
+]
+LOGIN_TEMPLATE_STEPS = LOGIN_FORM_STEPS + [LOGIN_SUCCESS_STEP] + ONBOARDING_TEMPLATE_STEPS + [HOME_READY_STEP] + FEATURE_GUIDE_STEPS
 OBSOLETE_AGREEMENT_XPATH = '//*[@id="auth-modal-container"]/div[3]/div/div/div/form/div[7]/button'
 AGREEMENT_TOGGLE_CSS = "form button[type='button']:has(+ p):visible"
+PROFILE_NAV_CSS = "button[data-feature-guide='profile-entry']:visible"
+COMMUNITY_NAV_CSS = "button[data-feature-guide='meadow-entry']:visible"
+CHAT_NAV_CSS = "button:has(.lucide-message-square):visible"
+LIKE_BUTTON_CSS = "button[aria-label]:has(.lucide-heart):visible"
+COMMENT_BUTTON_CSS = "button:has(.lucide-message-circle):visible"
+DAILY_TASK_BUTTON_CSS = "button[data-entry='daily-tasks']:visible"
+PROFILE_EDIT_BUTTON_CSS = "div[data-profile-container]:visible button.relative.z-10.shrink-0"
 REGISTER_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
@@ -77,48 +90,50 @@ FEATURE_TEMPLATE_STEPS = {
     "login": LOGIN_TEMPLATE_STEPS,
     "register": REGISTER_TEMPLATE_STEPS,
     "post": _authenticated_steps(
-        {"action": "click", "locator_type": "text", "locator": "发布心情"},
-        {"action": "assert_visible", "locator_type": "text", "locator": "发布"},
+        {"action": "click", "locator_type": "css", "locator": "button[data-feature-guide='create-post']:visible"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "心情气象。"},
         {"action": "screenshot"},
     ),
     "delete_post": _authenticated_steps(
-        {"action": "click", "locator_type": "text", "locator": "我的"},
-        {"action": "assert_visible", "locator_type": "text", "locator": "我的记录"},
+        {"action": "click", "locator_type": "css", "locator": PROFILE_NAV_CSS},
+        {"action": "assert_visible", "locator_type": "text", "locator": "我的空间"},
         {"action": "screenshot"},
     ),
     "like": _authenticated_steps(
-        {"action": "click", "locator_type": "text", "locator": "原野"},
+        {"action": "click", "locator_type": "css", "locator": COMMUNITY_NAV_CSS},
+        {"action": "click", "locator_type": "css", "locator": LIKE_BUTTON_CSS, "match": "first"},
         {"action": "assert_visible", "locator_type": "text", "locator": "原野"},
         {"action": "screenshot"},
     ),
     "comment": _authenticated_steps(
-        {"action": "click", "locator_type": "text", "locator": "原野"},
-        {"action": "assert_visible", "locator_type": "text", "locator": "添加评论..."},
+        {"action": "click", "locator_type": "css", "locator": COMMUNITY_NAV_CSS},
+        {"action": "click", "locator_type": "css", "locator": COMMENT_BUTTON_CSS, "match": "first"},
+        {"action": "assert_visible", "locator_type": "placeholder", "locator": "添加评论..."},
         {"action": "screenshot"},
     ),
     "favorite": _authenticated_steps(
-        {"action": "click", "locator_type": "text", "locator": "我的"},
-        {"action": "click", "locator_type": "text", "locator": "收藏夹"},
+        {"action": "click", "locator_type": "css", "locator": PROFILE_NAV_CSS},
+        {"action": "click", "locator_type": "text", "locator": "珍藏回声"},
         {"action": "assert_visible", "locator_type": "text", "locator": "珍藏回声"},
     ),
     "friend": _authenticated_steps(
-        {"action": "click", "locator_type": "text", "locator": "连接"},
-        {"action": "assert_visible", "locator_type": "text", "locator": "好友"},
+        {"action": "click", "locator_type": "css", "locator": CHAT_NAV_CSS},
+        {"action": "assert_visible", "locator_type": "css", "locator": "header h1:visible"},
         {"action": "assert_visible", "locator_type": "text", "locator": "灵魂推荐"},
     ),
     "chat": _authenticated_steps(
-        {"action": "click", "locator_type": "text", "locator": "连接"},
-        {"action": "assert_visible", "locator_type": "text", "locator": "好友"},
+        {"action": "click", "locator_type": "css", "locator": CHAT_NAV_CSS},
+        {"action": "assert_visible", "locator_type": "css", "locator": "header h1:visible"},
         {"action": "screenshot"},
     ),
     "daily_task": _authenticated_steps(
-        {"action": "click", "locator_type": "text", "locator": "我的"},
-        {"action": "click", "locator_type": "text", "locator": "每日任务"},
+        {"action": "click", "locator_type": "css", "locator": PROFILE_NAV_CSS},
+        {"action": "click", "locator_type": "css", "locator": DAILY_TASK_BUTTON_CSS},
         {"action": "assert_visible", "locator_type": "text", "locator": "每日任务"},
     ),
     "profile": _authenticated_steps(
-        {"action": "click", "locator_type": "text", "locator": "我的"},
-        {"action": "click", "locator_type": "text", "locator": "编辑资料"},
+        {"action": "click", "locator_type": "css", "locator": PROFILE_NAV_CSS},
+        {"action": "click", "locator_type": "css", "locator": PROFILE_EDIT_BUTTON_CSS},
         {"action": "assert_visible", "locator_type": "text", "locator": "个性签名"},
         {"action": "screenshot"},
     ),
@@ -223,7 +238,7 @@ def _seed(db: Session):
                 steps = normalized_steps
                 changed = True
             if case and case.name == f"{feature.name}基础流程":
-                managed_flows = {"login_success", "onboarding", "home_ready"}
+                managed_flows = {"login_success", "onboarding", "home_ready", "feature_guide"}
                 unmanaged_steps = [step for step in steps if step.get("flow") not in managed_flows and not (
                     step.get("action") == "assert_url" and step.get("value") == "#/home"
                 )]
@@ -231,11 +246,12 @@ def _seed(db: Session):
                                      if step.get("action") == "click" and step.get("locator") == "进入心灵花园"), None)
                 if submit_index is not None:
                     upgraded_steps = (unmanaged_steps[:submit_index + 1] + [LOGIN_SUCCESS_STEP]
-                                      + ONBOARDING_TEMPLATE_STEPS + [HOME_READY_STEP]
+                                      + ONBOARDING_TEMPLATE_STEPS + [HOME_READY_STEP] + FEATURE_GUIDE_STEPS
                                       + unmanaged_steps[submit_index + 1:])
                     if upgraded_steps != steps:
                         case.steps = upgraded_steps
                         changed = True
+                steps = list(case.steps or [])
             # Registration used a text locator for "注册", which is ambiguous because
             # the tab button and the form title coexist. Upgrade this platform-owned
             # base case to the stable heading locator, while leaving custom cases alone.
@@ -244,6 +260,121 @@ def _seed(db: Session):
                 and step.get("locator_type") == "text" for step in steps
             ):
                 case.steps = REGISTER_TEMPLATE_STEPS
+                changed = True
+                steps = case.steps
+            nav_upgrade = {
+                "delete_post": ("我的", PROFILE_NAV_CSS),
+                "like": ("原野", COMMUNITY_NAV_CSS),
+                "comment": ("原野", COMMUNITY_NAV_CSS),
+                "favorite": ("我的", PROFILE_NAV_CSS),
+                "friend": ("连接", CHAT_NAV_CSS),
+                "chat": ("连接", CHAT_NAV_CSS),
+                "daily_task": ("我的", PROFILE_NAV_CSS),
+                "profile": ("我的", PROFILE_NAV_CSS),
+            }.get(feature.key)
+            if case and case.name == f"{feature.name}基础流程" and nav_upgrade and any(
+                step.get("action") == "click" and step.get("locator") == nav_upgrade[0]
+                for step in steps
+            ):
+                case.steps = [
+                    {"action": "click", "locator_type": "css", "locator": nav_upgrade[1]}
+                    if step.get("action") == "click" and step.get("locator") == nav_upgrade[0] else step
+                    for step in steps
+                ]
+                steps = case.steps
+                changed = True
+            if case and feature.key == "post" and case.name == "发帖基础流程" and any(
+                step.get("action") == "click" and step.get("locator") in {
+                    "发布心情", "[data-feature-guide='create-post']"
+                }
+                for step in steps
+            ):
+                case.steps = [
+                    {"action": "click", "locator_type": "css", "locator": "button[data-feature-guide='create-post']:visible"}
+                    if step.get("action") == "click" and step.get("locator") in {
+                        "发布心情", "[data-feature-guide='create-post']"
+                    } else step
+                    for step in steps
+                ]
+                changed = True
+            content_upgrade = {
+                "delete_post": ("我的记录", "我的空间"),
+                "favorite": ("收藏夹", "珍藏回声"),
+            }.get(feature.key)
+            if case and case.name == f"{feature.name}基础流程" and content_upgrade and any(
+                step.get("locator") == content_upgrade[0] for step in (case.steps or [])
+            ):
+                case.steps = [
+                    {**step, "locator": content_upgrade[1]}
+                    if step.get("locator") == content_upgrade[0] else step
+                    for step in (case.steps or [])
+                ]
+                changed = True
+                steps = case.steps
+            interaction_upgrade = {
+                "like": (LIKE_BUTTON_CSS, "原野"),
+                "comment": (COMMENT_BUTTON_CSS, "添加评论..."),
+            }.get(feature.key)
+            if case and case.name == f"{feature.name}基础流程" and interaction_upgrade and not any(
+                step.get("locator") == interaction_upgrade[0] for step in (case.steps or [])
+            ):
+                upgraded = []
+                inserted = False
+                for step in case.steps or []:
+                    if not inserted and step.get("action") == "assert_visible" and step.get("locator") == interaction_upgrade[1]:
+                        upgraded.append({"action": "click", "locator_type": "css", "locator": interaction_upgrade[0], "match": "first"})
+                        inserted = True
+                    upgraded.append(step)
+                if inserted:
+                    case.steps = upgraded
+                    steps = upgraded
+                    changed = True
+            if case and feature.key == "comment" and case.name == "评论基础流程" and any(
+                step.get("action") == "assert_visible" and step.get("locator") == "添加评论..."
+                and step.get("locator_type") != "placeholder" for step in (case.steps or [])
+            ):
+                case.steps = [
+                    {**step, "locator_type": "placeholder"}
+                    if step.get("action") == "assert_visible" and step.get("locator") == "添加评论..." else step
+                    for step in (case.steps or [])
+                ]
+                steps = case.steps
+                changed = True
+            if case and feature.key in {"friend", "chat"} and case.name == f"{feature.name}基础流程" and any(
+                step.get("action") == "assert_visible" and step.get("locator") in {"好友", "header h1"}
+                for step in (case.steps or [])
+            ):
+                case.steps = [
+                    {"action": "assert_visible", "locator_type": "css", "locator": "header h1:visible"}
+                    if step.get("action") == "assert_visible" and step.get("locator") in {"好友", "header h1"} else step
+                    for step in (case.steps or [])
+                ]
+                steps = case.steps
+                changed = True
+            action_upgrade = {
+                "daily_task": ("每日任务", DAILY_TASK_BUTTON_CSS),
+                "profile": ("编辑资料", PROFILE_EDIT_BUTTON_CSS),
+            }.get(feature.key)
+            if case and case.name == f"{feature.name}基础流程" and action_upgrade and any(
+                step.get("action") == "click" and step.get("locator") == action_upgrade[0]
+                for step in (case.steps or [])
+            ):
+                case.steps = [
+                    {"action": "click", "locator_type": "css", "locator": action_upgrade[1]}
+                    if step.get("action") == "click" and step.get("locator") == action_upgrade[0] else step
+                    for step in (case.steps or [])
+                ]
+                steps = case.steps
+                changed = True
+            if case and feature.key == "post" and case.name == "发帖基础流程" and any(
+                step.get("action") == "assert_visible" and step.get("locator") == "发布"
+                for step in steps
+            ):
+                case.steps = [
+                    {"action": "assert_visible", "locator_type": "text", "locator": "心情气象。"}
+                    if step.get("action") == "assert_visible" and step.get("locator") == "发布" else step
+                    for step in steps
+                ]
                 changed = True
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
