@@ -27,7 +27,7 @@ export function UiAutomationRunViewer({ client, runId }) {
   if (error) return <main className="ui-run-viewer"><Alert type="error" showIcon title="无法读取执行任务" description={error} /></main>;
   return <main className="ui-run-viewer">
     <header><div><Text>Emote · Playwright 实时执行窗口</Text><Title level={3}>脚本任务 #{run.id}</Title></div><Space><Tag color="blue">{run.viewport === 'mobile' ? '390 × 844' : '1440 × 900'}</Tag><Badge status={badge} text={statusText} /></Space></header>
-    <section className="ui-run-viewer__status"><div><b>{run.current_step || '等待 Runner 接收任务'}</b><Text type="secondary">分支 {run.branch} · {run.commit_sha?.slice(0, 10) || '-'}</Text></div><Progress percent={run.progress || 0} status={run.status === 'failed' ? 'exception' : run.status === 'passed' ? 'success' : 'active'} /></section>
+    <section className="ui-run-viewer__status"><div><b>{run.current_step || '等待 Runner 接收任务'}</b><Text type="secondary">{run.target_url ? `线上环境 · ${run.target_url}` : `平台预览 · 分支 ${run.branch}`} · {run.commit_sha?.slice(0, 10) || '-'}</Text></div><Progress percent={run.progress || 0} status={run.status === 'failed' ? 'exception' : run.status === 'passed' ? 'success' : 'active'} /></section>
     <div className="ui-run-viewer__grid">
       <section className="ui-run-viewer__screen"><div className="ui-run-viewer__browser"><i /><i /><i /><span>{run.current_step || 'Emote 自动化页面'}</span></div><ArtifactViewer client={client} artifact={latestScreenshot} refreshKey={run.status === 'running' ? run.progress : ''} /></section>
       <aside>

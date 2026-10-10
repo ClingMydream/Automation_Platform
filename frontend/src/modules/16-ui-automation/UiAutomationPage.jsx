@@ -112,6 +112,8 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [dataSets, setDataSets] = useState([]);
   const [branch, setBranch] = useState(DEFAULT_BRANCH);
   const [viewport, setViewport] = useState('mobile');
+  const [targetMode, setTargetMode] = useState('preview');
+  const [targetUrl, setTargetUrl] = useState('');
   const [syncFirst, setSyncFirst] = useState(false);
   const [selectedCases, setSelectedCases] = useState([]);
   const [selectedRunId, setSelectedRunId] = useState(null);
@@ -201,6 +203,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const requestRun = (mode, directCaseIds = null) => {
     const caseIds = directCaseIds || selectedCases;
     if (mode === 'selected' && !caseIds.length) return message.warning('请先勾选要执行的用例');
+    if (targetMode === 'online' && !targetUrl.trim()) return message.warning('请填写要验证的线上地址');
     setRunRequest({ mode, case_ids: mode === 'selected' ? caseIds : [] });
     credentialForm.setFieldsValue({ data_set_id: dataSets.find((item) => item.is_default)?.id || dataSets[0]?.id }); setCredentialOpen(true);
   };
@@ -213,9 +216,10 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     const credentials = await credentialForm.validateFields().catch((error) => { executionWindow?.close(); throw error; });
     setRunBusy(true);
     try {
-      if (syncFirst) { message.loading({ content: '正在同步所选分支…', key: 'ui-sync', duration: 0 }); await waitForSync(); message.success({ content: '分支同步完成', key: 'ui-sync' }); }
+      if (syncFirst && targetMode === 'preview') { message.loading({ content: '正在同步所选分支…', key: 'ui-sync', duration: 0 }); await waitForSync(); message.success({ content: '分支同步完成', key: 'ui-sync' }); }
       const run = await client.post('/v1/ui-automation/runs', {
         ...runRequest, branch, viewport, smoke_count: 10,
+        target_url: targetMode === 'online' ? targetUrl.trim() : null,
         data_set_id: credentials.data_set_id,
       });
       setSelectedRunId(run.id); setSelectedRun(run); setCredentialOpen(false);
@@ -304,9 +308,11 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     <section className="ui-auto-command">
       <div className="ui-auto-run-config">
         <label className="ui-auto-field"><span>测试分支</span><Select showSearch value={branch} onChange={setBranch} options={branches.map((value) => ({ value, label: value }))} className="ui-auto-branch" suffixIcon={<BranchesOutlined />} /></label>
-        <label className="ui-auto-field"><span>运行视口</span><Select value={viewport} onChange={setViewport} options={[{ value: 'mobile', label: '手机 · 390×844' }, { value: 'desktop', label: '桌面 · 1440×900' }]} /></label>
-        <Button icon={<SyncOutlined spin={syncBusy} />} loading={syncBusy} onClick={synchronizeBranch}>同步预览</Button>
-        <Checkbox checked={syncFirst} onChange={(event) => setSyncFirst(event.target.checked)}>运行前同步</Checkbox>
+        <label className="ui-auto-field"><span>测试环境</span><Select value={targetMode} onChange={setTargetMode} options={[{ value: 'preview', label: '平台预览' }, { value: 'online', label: '线上地址' }]} className="ui-auto-environment" /></label>
+        {targetMode === 'online' && <label className="ui-auto-field ui-auto-target-field"><span>线上地址</span><Input value={targetUrl} onChange={(event) => setTargetUrl(event.target.value)} placeholder="https://example.com/" allowClear /></label>}
+        <label className="ui-auto-field ui-auto-viewport-field"><span>运行视口</span><Select value={viewport} onChange={setViewport} options={[{ value: 'mobile', label: '手机 · 390×844' }, { value: 'desktop', label: '桌面 · 1440×900' }]} /></label>
+        <Button icon={<SyncOutlined spin={syncBusy} />} loading={syncBusy} disabled={targetMode === 'online'} onClick={synchronizeBranch}>同步预览</Button>
+        <Checkbox checked={syncFirst} disabled={targetMode === 'online'} onChange={(event) => setSyncFirst(event.target.checked)}>运行前同步</Checkbox>
       </div>
       <div className="ui-auto-primary-actions">
         <span>已选 <b>{selectedCases.length}</b> 个用例</span>
@@ -359,7 +365,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
                 <Space orientation="vertical" size={14} style={{ width: '100%' }}>
                   <div><Text type="secondary">当前步骤</Text><Paragraph strong>{selectedRun.current_step || '等待 Runner 接收任务'}</Paragraph></div>
                   <Progress percent={selectedRun.progress || 0} status={selectedRun.status === 'failed' ? 'exception' : selectedRun.status === 'passed' ? 'success' : 'active'} />
-                  <div className="ui-auto-meta"><span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '390 × 844' : '1440 × 900'}</b></span></div>
+                  <div className="ui-auto-meta"><span>环境 <b>{selectedRun.target_url ? '线上环境' : '平台预览'}</b></span>{selectedRun.target_url && <span>地址 <a href={selectedRun.target_url} target="_blank" rel="noreferrer">{selectedRun.target_url}</a></span>}<span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '390 × 844' : '1440 × 900'}</b></span></div>
                   {selectedRun.result_summary?.failure ? <Alert type="error" showIcon title={`${selectedRun.result_summary.failure.case_name} · 第 ${selectedRun.result_summary.failure.step_index} 步失败`} description={<div className="ui-auto-failure"><b>{selectedRun.result_summary.failure.reason}</b><span>动作：{selectedRun.result_summary.failure.action}{selectedRun.result_summary.failure.locator ? ` · 元素：${selectedRun.result_summary.failure.locator}` : ''}</span><span>建议：{selectedRun.result_summary.failure.suggestion}</span>{!!selectedRun.result_summary.failure.network_issues?.length && <details className="ui-auto-network-details" open><summary>接口排查记录（测试数据原样保留）</summary>{selectedRun.result_summary.failure.network_issues.map((item, index) => <div className="ui-auto-network-item" key={`${item.method}-${item.url}-${index}`}><b>{item.method} · {item.type === 'pending' ? '请求未返回（疑似超时）' : item.status ? `HTTP ${item.status}` : '网络失败'}</b><code>{item.url}</code><Button size="small" icon={<CopyOutlined />} onClick={() => copyDiagnostic(item.url, '接口地址')}>复制 URL</Button>{item.error && <span>{item.error}</span>}{item.curl && <><pre>{item.curl}</pre><Button size="small" icon={<CopyOutlined />} onClick={() => copyDiagnostic(item.curl, 'cURL')}>复制 cURL</Button></>}</div>)}</details>}<details><summary>查看技术详情</summary><pre>{selectedRun.result_summary.failure.technical_detail}</pre></details></div>} /> : selectedRun.error_message && <Alert type="error" showIcon title="执行失败" description={selectedRun.error_message} />}
                   <Button size="small" icon={<VideoCameraOutlined />} disabled={!displayArtifacts.some((item) => item.kind === 'screenshot')} onClick={downloadCaseScreenshots}>下载关键截图</Button>
                   {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.filter((step) => !evidenceCaseId || step.case_id === evidenceCaseId).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', content: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
@@ -369,7 +375,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
           </>}
         </Card>
         <Card title="历史执行" size="small">
-          <div className="ui-auto-history">{data.runs.map((run) => <button type="button" key={run.id} className={run.id === selectedRunId ? 'active' : ''} onClick={() => setSelectedRunId(run.id)}><b>#{run.id} · {(STATUS[run.status] || STATUS.queued)[0]}</b><span>{run.mode} · {run.branch}</span><small>{run.created_at ? new Date(run.created_at).toLocaleString('zh-CN') : ''}</small></button>)}</div>
+          <div className="ui-auto-history">{data.runs.map((run) => <button type="button" key={run.id} className={run.id === selectedRunId ? 'active' : ''} onClick={() => setSelectedRunId(run.id)}><b>#{run.id} · {(STATUS[run.status] || STATUS.queued)[0]}</b><span>{run.target_url ? '线上环境' : run.branch}</span><small>{run.created_at ? new Date(run.created_at).toLocaleString('zh-CN') : ''}</small></button>)}</div>
         </Card>
       </section>
     </div>

@@ -9,6 +9,9 @@ import json
 import random
 import secrets
 import zipfile
+import ipaddress
+import socket
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
@@ -175,6 +178,7 @@ class RunInput(BaseModel):
     random_seed: str | None = None
     data_set_id: int | None = None
     credentials: dict = Field(default_factory=dict)
+    target_url: str | None = Field(default=None, max_length=2048)
 
 
 class DataSetInput(BaseModel):
@@ -419,6 +423,7 @@ def _case_dict(case: UiAutomationCase):
 def _run_dict(run: UiAutomationRun, db: Session):
     artifacts = db.query(UiAutomationArtifact).filter_by(run_id=run.id).order_by(UiAutomationArtifact.id).all()
     return {"id": run.id, "mode": run.mode, "branch": run.branch, "commit_sha": run.commit_sha,
+            "target_url": (run.result_summary or {}).get("target_url", ""),
             "viewport": run.viewport, "random_seed": run.random_seed, "status": run.status,
             "case_ids": run.case_ids, "current_step": run.current_step, "progress": run.progress,
             "result_summary": run.result_summary, "error_message": run.error_message,
@@ -618,6 +623,38 @@ def delete_case(case_id: int, db: Session = Depends(get_db)):
     return {"message": "用例已删除，历史执行证据不受影响"}
 
 
+def _validate_target_url(value: str | None) -> tuple[str, str]:
+    """Return the runner URL and the safe display URL for an optional online target."""
+    if not value or not value.strip():
+        return "http://frontend/emote-preview/", ""
+    raw = value.strip()
+    parsed = urlsplit(raw)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise HTTPException(400, "线上地址必须是完整的 http:// 或 https:// 地址")
+    if parsed.username or parsed.password:
+        raise HTTPException(400, "线上地址不能包含账号或密码")
+    try:
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError as exc:
+        raise HTTPException(400, "线上地址端口不合法") from exc
+    hostname = parsed.hostname.lower().rstrip(".")
+    if hostname in {"localhost", "frontend", "backend", "ui-runner"} or hostname.endswith((".local", ".internal")):
+        raise HTTPException(400, "线上地址不能指向平台内部服务")
+    try:
+        if not ipaddress.ip_address(hostname).is_global:
+            raise HTTPException(400, "线上地址不能使用内网或本机 IP")
+    except ValueError:
+        try:
+            resolved = {item[4][0] for item in socket.getaddrinfo(hostname, port)}
+        except socket.gaierror as exc:
+            raise HTTPException(400, "线上地址无法解析，请检查域名") from exc
+        if not resolved or any(not ipaddress.ip_address(address).is_global for address in resolved):
+            raise HTTPException(400, "线上地址解析到了内网或本机 IP")
+    path = (parsed.path or "/").rstrip("/") + "/"
+    normalized = urlunsplit((parsed.scheme.lower(), parsed.netloc, path, "", ""))
+    return normalized, normalized
+
+
 @router.post("/runs", dependencies=[guard])
 def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(get_db)):
     _seed(db)
@@ -632,6 +669,7 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
         random.Random(seed).shuffle(cases)
         cases = cases[:payload.smoke_count]
     if not cases: raise HTTPException(400, "没有可执行的已启用用例")
+    runner_base_url, display_target_url = _validate_target_url(payload.target_url)
     credentials = payload.credentials
     if payload.data_set_id:
         data_set = db.get(UiAutomationDataSet, payload.data_set_id)
@@ -643,11 +681,12 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
         raise HTTPException(409, "Jenkins 正在同步预览或构建 APK，请完成后再执行 UI 自动化")
     revision = _remote_revision(branch)
     run = UiAutomationRun(mode=payload.mode, branch=branch, commit_sha=revision["sha"], viewport=payload.viewport,
-                          random_seed=seed, status="queued", case_ids=[x.id for x in cases])
+                          random_seed=seed, status="queued", case_ids=[x.id for x in cases],
+                          result_summary={"target_url": display_target_url})
     db.add(run); db.commit(); db.refresh(run)
     # Go through the public preview proxy so /emote-preview/* assets (including the
     # Logo) resolve exactly as they do for a user opening the preview website.
-    runner_payload = {"run_id": run.id, "base_url": "http://frontend/emote-preview/", "viewport": payload.viewport,
+    runner_payload = {"run_id": run.id, "base_url": runner_base_url, "viewport": payload.viewport,
                       "cases": [_case_dict(x) for x in cases], "credentials": credentials}
     settings = get_settings()
     try:
@@ -738,7 +777,9 @@ def runner_update(run_id: int, payload: RunnerUpdate, x_runner_token: str | None
     run = db.get(UiAutomationRun, run_id)
     if not run: raise HTTPException(404, "执行记录不存在")
     run.status, run.current_step, run.progress = payload.status, payload.current_step[:300], max(0, min(100, payload.progress))
-    run.result_summary, run.error_message = payload.result_summary, payload.error_message[:5000]
+    persistent_summary = {key: value for key, value in (run.result_summary or {}).items() if key in {"target_url"}}
+    run.result_summary = {**payload.result_summary, **persistent_summary}
+    run.error_message = payload.error_message[:5000]
     if payload.status == "running" and not run.started_at: run.started_at = datetime.utcnow()
     if payload.status in {"passed", "failed", "interrupted"}: run.finished_at = datetime.utcnow()
     for artifact in payload.artifacts:
