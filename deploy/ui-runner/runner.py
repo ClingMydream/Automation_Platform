@@ -262,7 +262,8 @@ def execute_step(page, contexts, step, variables, base_url):
     action = step["action"]
     value = resolve_value(step.get("value") if "value" in step else step.get("variable") and "${" + step["variable"] + "}", variables)
     target = locator(page, step, variables) if action not in {"goto", "wait", "screenshot", "switch_account", "assert_url", "assert_watering_result"} else None
-    if action in {"click", "click_random", "fill", "append", "press", "select", "check", "uncheck"}:
+    if action in {"click", "click_random", "fill", "append", "press", "select", "check", "uncheck"} \
+            and step.get("flow") != "feature_guide":
         dismiss_interrupting_guides(page)
     if action == "goto":
         # Test paths are relative to the configured preview base. A leading slash
@@ -543,7 +544,12 @@ def run_task(task):
             viewport = {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900}
             account_a = task.get("credentials", {}).get("account_a", {})
             state_path = auth_state_path(task["base_url"], str(account_a.get("username", "")))
-            prepare_authenticated_state(browser, task["base_url"], viewport, account_a, state_path)
+            inline_auth = len(task["cases"]) == 1 and any(
+                step.get("flow") == "authentication"
+                for step in task["cases"][0].get("steps", [])
+            )
+            if not inline_auth:
+                prepare_authenticated_state(browser, task["base_url"], viewport, account_a, state_path)
             for case in task["cases"]:
                 current_case = case
                 variables["_used_accounts"] = {"account_a"}

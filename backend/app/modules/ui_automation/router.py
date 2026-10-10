@@ -774,8 +774,20 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
     db.add(run); db.commit(); db.refresh(run)
     # Go through the public preview proxy so /emote-preview/* assets (including the
     # Logo) resolve exactly as they do for a user opening the preview website.
+    case_payloads = [_case_dict(x) for x in cases]
+    # A directly executed business case owns its authentication precondition so
+    # its timeline/video shows dataset account -> home -> feature. Valid daily
+    # state skips the form; stale state falls back to these login steps.
+    if len(cases) == 1:
+        feature = db.get(UiAutomationFeature, cases[0].feature_id)
+        if feature and feature.key != "register":
+            business_steps = [
+                step for step in case_payloads[0]["steps"]
+                if step.get("flow") != "authenticated_home"
+            ]
+            case_payloads[0]["steps"] = [dict(step) for step in LOGIN_TEMPLATE_STEPS] + business_steps
     runner_payload = {"run_id": run.id, "base_url": runner_base_url, "viewport": payload.viewport,
-                      "cases": [_case_dict(x) for x in cases], "credentials": credentials}
+                      "cases": case_payloads, "credentials": credentials}
     settings = get_settings()
     try:
         response = httpx.post(f"{settings.ui_runner_url}/execute", json=runner_payload,
