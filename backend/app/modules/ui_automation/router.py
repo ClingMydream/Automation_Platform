@@ -148,12 +148,12 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "screenshot"},
     ),
     "friend": _authenticated_steps(
-        {"action": "click", "locator_type": "css", "locator": CHAT_NAV_CSS},
+        {"action": "click", "locator_type": "nav_entry", "locator": "chat"},
         {"action": "assert_visible", "locator_type": "css", "locator": "header h1:visible"},
         {"action": "assert_visible", "locator_type": "text", "locator": "灵魂推荐"},
     ),
     "chat": _authenticated_steps(
-        {"action": "click", "locator_type": "css", "locator": CHAT_NAV_CSS},
+        {"action": "click", "locator_type": "nav_entry", "locator": "chat"},
         {"action": "click", "locator_type": "chat_friend_action", "locator": "霖感小秘书"},
         {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "霖感小秘书", "exact": True},
         {"action": "fill", "locator_type": "placeholder", "locator": "Message...", "value": "聊天测试${timestamp}"},
@@ -186,7 +186,7 @@ FEATURE_TEMPLATE_STEPS = {
     ),
 }
 SAFE_ACTIONS = {"goto", "click", "click_random", "fill", "append", "select", "check", "uncheck", "press", "wait", "detect_visible", "detect_enabled", "assert_watering_result", "validate_onboarding_page", "assert_visible", "assert_hidden", "assert_in_viewport", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
-SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath", "post_action", "post_tags", "chat_friend_action", "avatar_option", "garden_water", "daily_task_button"}
+SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath", "post_action", "post_tags", "chat_friend_action", "avatar_option", "garden_water", "daily_task_button", "nav_entry"}
 
 
 class RequirementInput(BaseModel):
@@ -341,6 +341,18 @@ def _seed(db: Session):
                 ]
                 steps = case.steps
                 changed = True
+            if case and feature.key in {"friend", "chat"} and case.name == f"{feature.name}基础流程":
+                upgraded_nav = [
+                    {"action": "click", "locator_type": "nav_entry", "locator": "chat"}
+                    if step.get("action") == "click" and step.get("locator_type") == "css"
+                    and step.get("locator") in {CHAT_NAV_CSS, "button:has(.lucide-message-square)"}
+                    else step
+                    for step in (case.steps or [])
+                ]
+                if upgraded_nav != list(case.steps or []):
+                    case.steps = upgraded_nav
+                    steps = upgraded_nav
+                    changed = True
             if case and feature.key == "post" and case.name == "发帖基础流程" and any(
                 step.get("action") == "click" and step.get("locator") in {
                     "发布心情", "[data-feature-guide='create-post']"

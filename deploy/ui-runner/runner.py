@@ -193,6 +193,29 @@ def visible_page_markers(page):
     return visible
 
 
+def visible_nav_buttons(page):
+    """Capture visible navigation buttons and their guide/icon hints for diagnostics."""
+    result = []
+    try:
+        buttons = page.locator("button:visible")
+        for index in range(min(buttons.count(), 40)):
+            button = buttons.nth(index)
+            try:
+                guide = button.get_attribute("data-feature-guide")
+                aria = button.get_attribute("aria-label")
+                text = (button.inner_text() or "").strip()[:12]
+                icons = []
+                for i in range(min(button.locator("[class*='lucide-']").count(), 3)):
+                    icons.append(button.locator("[class*='lucide-']").nth(i).get_attribute("class") or "")
+                if guide or aria or icons:
+                    result.append({"text": text, "guide": guide, "aria": aria, "icons": icons})
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return result[:20]
+
+
 def locator(page, step, variables):
     kind = step.get("locator_type", "text")
     value = resolve_value(step.get("locator", ""), variables)
@@ -233,6 +256,24 @@ def locator(page, step, variables):
         title = page.get_by_role("heading", name=value, exact=False).first
         card = title.locator("xpath=ancestor::div[./button][1]")
         target = card.locator(":scope > button")
+    elif kind == "nav_entry":
+        # 聊天/连接入口在前端迭代中图标类名可能变化，按候选顺序取首个可见按钮，
+        # 优先使用稳定的 data-feature-guide 属性，图标类作为最后回退。
+        candidates = [
+            "button[data-feature-guide='connection-entry']:visible",
+            "button[data-feature-guide='chat-entry']:visible",
+            "button[data-feature-guide='message-entry']:visible",
+            "button:has(.lucide-message-square):visible",
+        ] if value == "chat" else [value]
+        target = page.locator(candidates[-1])
+        for selector in candidates:
+            candidate = page.locator(selector)
+            try:
+                if candidate.count() and candidate.first.is_visible():
+                    target = candidate.first
+                    break
+            except Exception:
+                continue
     else: target = page.get_by_text(value, exact=exact)
     match = step.get("match")
     if match == "first": return target.first
@@ -247,24 +288,43 @@ def artifact(path: Path, run_dir: Path, kind: str, content_type: str):
 
 
 def dismiss_interrupting_guides(page):
-    """Close a delayed feature-guide overlay before a business interaction."""
-    for label in ("跳过引导", "开始体验"):
+    """Close a guide, or consume the business click through its highlighted hole."""
+    dialog = page.locator("[role='dialog'][data-swipe-close-ignore='true']:visible")
+    if not dialog.count():
+        return False
+    guide_deadline = time.monotonic() + 5
+    while time.monotonic() < guide_deadline:
+        for label in ("跳过引导", "开始体验"):
+            try:
+                button = page.get_by_role("button", name=label, exact=True)
+                if button.count() and button.first.is_visible():
+                    button.first.click(timeout=3000)
+                    page.wait_for_timeout(300)
+                    return False
+            except Exception:
+                pass
         try:
-            button = page.get_by_role("button", name=label, exact=True)
-            if button.count() and button.first.is_visible():
-                button.first.click(timeout=3000)
+            hole = page.locator("button.feature-guide-hole--open:visible")
+            if hole.count() and hole.first.is_visible():
+                hole.first.click(timeout=3000)
                 page.wait_for_timeout(300)
+                return True
         except Exception:
             pass
+        page.wait_for_timeout(150)
+    return False
 
 
 def execute_step(page, contexts, step, variables, base_url):
     action = step["action"]
     value = resolve_value(step.get("value") if "value" in step else step.get("variable") and "${" + step["variable"] + "}", variables)
     target = locator(page, step, variables) if action not in {"goto", "wait", "screenshot", "switch_account", "assert_url", "assert_watering_result"} else None
+    guide_consumed_click = False
     if action in {"click", "click_random", "fill", "append", "press", "select", "check", "uncheck"} \
             and step.get("flow") != "feature_guide":
-        dismiss_interrupting_guides(page)
+        if action == "click" and "data-feature-guide" in str(step.get("locator", "")):
+            page.wait_for_timeout(650)
+        guide_consumed_click = dismiss_interrupting_guides(page)
     if action == "goto":
         # Test paths are relative to the configured preview base. A leading slash
         # must not escape /emote-preview/ and accidentally open the cling home page.
@@ -278,7 +338,8 @@ def execute_step(page, contexts, step, variables, base_url):
                 state_path = variables.get("_auth_state_path")
                 if isinstance(state_path, Path): state_path.unlink(missing_ok=True)
     elif action == "click":
-        if step.get("force"): target.dispatch_event("click")
+        if guide_consumed_click: pass
+        elif step.get("force"): target.dispatch_event("click")
         else: target.click()
     elif action == "click_random":
         visible = [target.nth(index) for index in range(target.count()) if target.nth(index).is_visible()]
@@ -380,6 +441,7 @@ def describe_step(case, index, step, variables):
     elif action == "fill": detail = f"填写内容：{target or '输入框'}"
     elif action == "append": detail = f"追加时间戳：{target or '输入框'}"
     elif action == "click_random": detail = f"随机选择：{target or '选项'}"
+    elif action == "click" and step.get("locator_type") == "nav_entry": detail = "点击：聊天/连接入口"
     elif action == "click": detail = f"点击：{target or '目标按钮'}"
     elif action == "screenshot": detail = "保存当前页面截图"
     elif action == "switch_account": detail = "切换测试账号"
@@ -617,6 +679,7 @@ def run_task(task):
         failure = friendly_failure(exc, current_case, current_step, current_step_index, task.get("credentials", {}))
         failure["page_feedback"] = visible_auth_feedback(page) if page else []
         failure["page_markers"] = visible_page_markers(page) if page else []
+        failure["nav_buttons"] = visible_nav_buttons(page) if page else []
         failure["current_url"] = page.url if page else ""
         # Keep only the newest relevant calls. Pending entries indicate requests
         # that were still waiting when Playwright timed out.
