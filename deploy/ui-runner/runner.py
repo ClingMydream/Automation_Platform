@@ -4,10 +4,12 @@ import os
 import json
 import shutil
 import time
+from datetime import datetime
 from pathlib import Path
 from queue import Queue
 from threading import Thread
 from urllib.parse import urljoin
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException
@@ -36,9 +38,10 @@ def callback(run_id: int, **payload):
 def resolve_value(value, variables):
     if value is None: return ""
     text = str(value)
-    if text.startswith("${") and text.endswith("}"):
-        return str(variables.get(text[2:-1], ""))
-    return text.replace("${run_id}", str(variables["run_id"]))
+    for key, variable in variables.items():
+        if not isinstance(variable, (dict, list, set, tuple)):
+            text = text.replace("${" + key + "}", str(variable))
+    return text
 
 
 def redact_error(error, credentials):
@@ -146,8 +149,9 @@ def visible_page_markers(page):
     return visible
 
 
-def locator(page, step):
-    kind, value = step.get("locator_type", "text"), step.get("locator", "")
+def locator(page, step, variables):
+    kind = step.get("locator_type", "text")
+    value = resolve_value(step.get("locator", ""), variables)
     exact = bool(step.get("exact"))
     if kind == "testid": target = page.get_by_test_id(value)
     elif kind == "role": target = page.get_by_role(step.get("role", "button"), name=value, exact=exact)
@@ -158,6 +162,18 @@ def locator(page, step):
     elif kind == "id": target = page.locator(f"#{value}")
     elif kind == "xpath": target = page.locator(f"xpath={value}")
     elif kind == "css": target = page.locator(value)
+    elif kind == "post_action":
+        content = page.get_by_text(value, exact=True).first
+        card = content.locator("xpath=ancestor::div[.//button//*[contains(@class,'lucide-heart')]][1]")
+        post_action = step.get("role", "")
+        if post_action == "like": target = card.locator("button:has(.lucide-heart)")
+        elif post_action == "liked": target = card.locator("button:has(.lucide-heart) .lucide-heart.fill-pink-500")
+        elif post_action == "comment": target = card.locator("button:has(.lucide-message-circle)")
+        elif post_action == "comment_input": target = card.get_by_placeholder("添加评论...")
+        elif post_action == "favorite": target = card.locator("button:has(.lucide-bookmark)")
+        elif post_action == "favorited": target = card.locator("button:has(.lucide-bookmark) .lucide-bookmark.fill-amber-400")
+        elif post_action == "private": target = card.get_by_text("私密", exact=True)
+        else: target = card
     else: target = page.get_by_text(value, exact=exact)
     match = step.get("match")
     if match == "first": return target.first
@@ -174,7 +190,7 @@ def artifact(path: Path, run_dir: Path, kind: str, content_type: str):
 def execute_step(page, contexts, step, variables, base_url):
     action = step["action"]
     value = resolve_value(step.get("value") if "value" in step else step.get("variable") and "${" + step["variable"] + "}", variables)
-    target = locator(page, step) if action not in {"goto", "wait", "screenshot", "switch_account", "assert_url"} else None
+    target = locator(page, step, variables) if action not in {"goto", "wait", "screenshot", "switch_account", "assert_url"} else None
     if action == "goto":
         # Test paths are relative to the configured preview base. A leading slash
         # must not escape /emote-preview/ and accidentally open the cling home page.
@@ -229,9 +245,11 @@ def execute_step(page, contexts, step, variables, base_url):
     return page
 
 
-def describe_step(case, index, step):
+def describe_step(case, index, step, variables):
     """Use beginner-friendly Chinese labels in the live window and reports."""
-    action, target, value = step.get("action", ""), step.get("locator", ""), step.get("value", "")
+    action = step.get("action", "")
+    target = resolve_value(step.get("locator", ""), variables)
+    value = resolve_value(step.get("value", ""), variables)
     if action == "goto": detail = "跳转登录页" if value in {"", "/"} else f"跳转页面：{value}"
     elif action == "assert_visible": detail = f"断言元素出现：{target}"
     elif action == "assert_hidden": detail = f"断言引导已关闭：{target}"
@@ -339,6 +357,7 @@ def run_task(task):
             viewport = {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900}
             for case in task["cases"]:
                 current_case = case
+                variables["timestamp"] = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M:%S")
                 variables["_used_accounts"] = {"account_a"}
                 case_id = case["id"]
                 case_dir = run_dir / f"case-{case_id}"
@@ -355,7 +374,7 @@ def run_task(task):
                     current_step, current_step_index = step, index
                     if time.monotonic() > deadline:
                         raise TimeoutError("达到最长执行时间 20 分钟，任务已停止")
-                    label = describe_step(case, index, step)
+                    label = describe_step(case, index, step, variables)
                     condition = step.get("when")
                     if condition and not variables.get(f"condition.{condition}", False):
                         timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,

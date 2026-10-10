@@ -69,6 +69,8 @@ LIKE_BUTTON_CSS = "button[aria-label]:has(.lucide-heart):visible"
 COMMENT_BUTTON_CSS = "button:has(.lucide-message-circle):visible"
 DAILY_TASK_BUTTON_CSS = "button[data-entry='daily-tasks']:visible"
 PROFILE_EDIT_BUTTON_CSS = "div[data-profile-container]:visible button.relative.z-10.shrink-0"
+PRIVATE_POST_FLOW = "private_self_interaction_v2"
+PRIVATE_POST_CONTENT = "自动化测试 ${timestamp}"
 REGISTER_TEMPLATE_STEPS = [
     {"action": "goto", "value": "/"},
     {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
@@ -89,12 +91,26 @@ def _authenticated_steps(*feature_steps):
     return [dict(step) for step in LOGIN_TEMPLATE_STEPS] + [dict(step) for step in feature_steps]
 
 
+def _private_post_steps(*interaction_steps):
+    """Create a retained private post before interacting with that exact post."""
+    creation = [
+        {"action": "click", "locator_type": "css", "locator": "button[data-feature-guide='create-post']:visible", "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "text", "locator": "心情气象。", "flow": PRIVATE_POST_FLOW},
+        {"action": "click", "locator_type": "css", "locator": "div.grid.grid-cols-2 > button:first-child", "flow": PRIVATE_POST_FLOW},
+        {"action": "fill", "locator_type": "placeholder", "locator": "开始书写...", "value": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "role", "role": "button", "locator": "私密", "exact": True, "flow": PRIVATE_POST_FLOW},
+        {"action": "click", "locator_type": "role", "role": "button", "locator": "释放心语", "exact": True, "flow": PRIVATE_POST_FLOW},
+        {"action": "wait", "value": "6000", "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "text", "locator": PRIVATE_POST_CONTENT, "exact": True, "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "post_action", "role": "private", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+    ]
+    return _authenticated_steps(*creation, *interaction_steps)
+
+
 FEATURE_TEMPLATE_STEPS = {
     "login": LOGIN_TEMPLATE_STEPS,
     "register": REGISTER_TEMPLATE_STEPS,
-    "post": _authenticated_steps(
-        {"action": "click", "locator_type": "css", "locator": "button[data-feature-guide='create-post']:visible"},
-        {"action": "assert_visible", "locator_type": "text", "locator": "心情气象。"},
+    "post": _private_post_steps(
         {"action": "screenshot"},
     ),
     "delete_post": _authenticated_steps(
@@ -102,22 +118,22 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "assert_visible", "locator_type": "text", "locator": "我的空间"},
         {"action": "screenshot"},
     ),
-    "like": _authenticated_steps(
-        {"action": "click", "locator_type": "css", "locator": COMMUNITY_NAV_CSS},
-        {"action": "click", "locator_type": "css", "locator": LIKE_BUTTON_CSS, "match": "first"},
-        {"action": "assert_visible", "locator_type": "text", "locator": "原野"},
+    "like": _private_post_steps(
+        {"action": "click", "locator_type": "post_action", "role": "like", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "post_action", "role": "liked", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
-    "comment": _authenticated_steps(
-        {"action": "click", "locator_type": "css", "locator": COMMUNITY_NAV_CSS},
-        {"action": "click", "locator_type": "css", "locator": COMMENT_BUTTON_CSS, "match": "first"},
-        {"action": "assert_visible", "locator_type": "placeholder", "locator": "添加评论..."},
+    "comment": _private_post_steps(
+        {"action": "click", "locator_type": "post_action", "role": "comment", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "fill", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "自动化评论 ${timestamp}", "flow": PRIVATE_POST_FLOW},
+        {"action": "press", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "Enter", "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "text", "locator": "自动化评论 ${timestamp}", "exact": True, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
-    "favorite": _authenticated_steps(
-        {"action": "click", "locator_type": "css", "locator": PROFILE_NAV_CSS},
-        {"action": "click", "locator_type": "text", "locator": "珍藏回声"},
-        {"action": "assert_visible", "locator_type": "text", "locator": "珍藏回声"},
+    "favorite": _private_post_steps(
+        {"action": "click", "locator_type": "post_action", "role": "favorite", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "post_action", "role": "favorited", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "screenshot"},
     ),
     "friend": _authenticated_steps(
         {"action": "click", "locator_type": "css", "locator": CHAT_NAV_CSS},
@@ -142,7 +158,7 @@ FEATURE_TEMPLATE_STEPS = {
     ),
 }
 SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "detect_visible", "validate_onboarding_page", "assert_visible", "assert_hidden", "assert_in_viewport", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
-SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath"}
+SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath", "post_action"}
 
 
 class RequirementInput(BaseModel):
@@ -380,6 +396,14 @@ def _seed(db: Session):
                     for step in steps
                 ]
                 changed = True
+            if case and feature.key in {"post", "like", "comment", "favorite"} \
+                    and case.name == f"{feature.name}基础流程" and not any(
+                        step.get("flow") == PRIVATE_POST_FLOW for step in (case.steps or [])
+                    ):
+                case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
+                case.preconditions = "使用账号 A 登录；脚本会创建以当天执行时间戳为内容的私密帖子，并只操作该账号自己的本次帖子。"
+                case.cleanup_note = "保留私密帖子及点赞、评论、收藏记录，不删除测试数据。"
+                changed = True
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
             if case and case.steps == legacy_steps:
@@ -406,7 +430,11 @@ def _seed(db: Session):
         db.flush()
         db.add(UiAutomationCase(
             feature_id=feature.id, name=f"{name}基础流程", priority="P1", tags=["smoke", "regression"],
-            preconditions="运行前填写所需测试账号；请根据当前页面补充定位步骤。", cleanup_note="保留测试数据",
+            preconditions=("使用账号 A 登录；脚本会创建以当天执行时间戳为内容的私密帖子，并只操作该账号自己的本次帖子。"
+                           if key in {"post", "like", "comment", "favorite"}
+                           else "运行前填写所需测试账号；请根据当前页面补充定位步骤。"),
+            cleanup_note=("保留私密帖子及点赞、评论、收藏记录，不删除测试数据。"
+                          if key in {"post", "like", "comment", "favorite"} else "保留测试数据"),
             steps=FEATURE_TEMPLATE_STEPS[key],
             enabled=True,
         ))

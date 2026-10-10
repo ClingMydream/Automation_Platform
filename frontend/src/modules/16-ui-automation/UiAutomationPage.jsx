@@ -21,7 +21,7 @@ const ACTIONS = [
 const LOCATOR_TYPES = [
   ['testid', '测试 ID'], ['role', '角色 + 名称'], ['label', '表单标签'], ['placeholder', '占位文字'],
   ['text', '页面文本'], ['alt', '图片替代文字'], ['title', '标题属性'], ['id', '元素 ID'],
-  ['css', 'CSS 选择器'], ['xpath', 'XPath'],
+  ['css', 'CSS 选择器'], ['xpath', 'XPath'], ['post_action', '本次私密帖子'],
 ];
 const STATUS = {
   queued: ['等待执行', 'default'], running: ['执行中', 'processing'], passed: ['通过', 'success'],
