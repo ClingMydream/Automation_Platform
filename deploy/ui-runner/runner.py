@@ -363,7 +363,9 @@ def describe_step(case, index, step, variables):
     action = step.get("action", "")
     target = resolve_value(step.get("locator", ""), variables)
     value = resolve_value(step.get("value", ""), variables)
-    if action == "goto": detail = "跳转登录页" if value in {"", "/"} else f"跳转页面：{value}"
+    if action == "goto":
+        detail = "从已登录首页开始" if step.get("flow") == "authenticated_home" \
+            else ("跳转登录页" if value in {"", "/"} else f"跳转页面：{value}")
     elif action == "assert_visible": detail = f"断言元素出现：{target}"
     elif action == "assert_hidden": detail = f"断言引导已关闭：{target}"
     elif action == "assert_in_viewport": detail = f"检查图标完整显示：{target}"
@@ -544,12 +546,7 @@ def run_task(task):
             viewport = {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900}
             account_a = task.get("credentials", {}).get("account_a", {})
             state_path = auth_state_path(task["base_url"], str(account_a.get("username", "")))
-            inline_auth = len(task["cases"]) == 1 and any(
-                step.get("flow") == "authentication"
-                for step in task["cases"][0].get("steps", [])
-            )
-            if not inline_auth:
-                prepare_authenticated_state(browser, task["base_url"], viewport, account_a, state_path)
+            prepare_authenticated_state(browser, task["base_url"], viewport, account_a, state_path)
             for case in task["cases"]:
                 current_case = case
                 variables["_used_accounts"] = {"account_a"}

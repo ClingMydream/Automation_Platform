@@ -130,16 +130,20 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "assert_visible", "locator_type": "text", "locator": "我的空间"},
         {"action": "screenshot"},
     ),
-    "like": _authenticated_steps(
+    "like": _private_post_steps(
+        {"action": "click", "locator_type": "post_action", "role": "like", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "assert_visible", "locator_type": "post_action", "role": "liked", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
-    "comment": _authenticated_steps(
+    "comment": _private_post_steps(
         {"action": "click", "locator_type": "post_action", "role": "comment", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "fill", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "自动化评论 ${timestamp}", "flow": PRIVATE_POST_FLOW},
+        {"action": "press", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "Enter", "flow": PRIVATE_POST_FLOW},
         {"action": "assert_visible", "locator_type": "text", "locator": "自动化评论 ${timestamp}", "exact": True, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
-    "favorite": _authenticated_steps(
+    "favorite": _private_post_steps(
+        {"action": "click", "locator_type": "post_action", "role": "favorite", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "assert_visible", "locator_type": "post_action", "role": "favorited", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
@@ -437,6 +441,15 @@ def _seed(db: Session):
                 case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
                 case.preconditions = "使用账号 A 登录；脚本会创建以当天执行时间戳为内容的私密帖子，并只操作该账号自己的本次帖子。"
                 case.cleanup_note = "保留私密帖子及点赞、评论、收藏记录，不删除测试数据。"
+                changed = True
+            if case and feature.key in {"like", "comment", "favorite"} \
+                    and case.name == f"{feature.name}基础流程" and not any(
+                        step.get("locator") == "button[data-feature-guide='create-post']:visible"
+                        for step in (case.steps or [])
+                    ):
+                case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
+                case.preconditions = "任务内部恢复测试数据集账号登录态；从首页创建私密帖子后执行本用例操作。"
+                case.cleanup_note = "保留私密帖子及对应操作记录，不删除测试数据。"
                 changed = True
             # Version 3 runs one authentication preflight per task. Migrate the
             # platform-owned base cases that still embed a login form in every case.
@@ -774,20 +787,8 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
     db.add(run); db.commit(); db.refresh(run)
     # Go through the public preview proxy so /emote-preview/* assets (including the
     # Logo) resolve exactly as they do for a user opening the preview website.
-    case_payloads = [_case_dict(x) for x in cases]
-    # A directly executed business case owns its authentication precondition so
-    # its timeline/video shows dataset account -> home -> feature. Valid daily
-    # state skips the form; stale state falls back to these login steps.
-    if len(cases) == 1:
-        feature = db.get(UiAutomationFeature, cases[0].feature_id)
-        if feature and feature.key != "register":
-            business_steps = [
-                step for step in case_payloads[0]["steps"]
-                if step.get("flow") != "authenticated_home"
-            ]
-            case_payloads[0]["steps"] = [dict(step) for step in LOGIN_TEMPLATE_STEPS] + business_steps
     runner_payload = {"run_id": run.id, "base_url": runner_base_url, "viewport": payload.viewport,
-                      "cases": case_payloads, "credentials": credentials}
+                      "cases": [_case_dict(x) for x in cases], "credentials": credentials}
     settings = get_settings()
     try:
         response = httpx.post(f"{settings.ui_runner_url}/execute", json=runner_payload,
