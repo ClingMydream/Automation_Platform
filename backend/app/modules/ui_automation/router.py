@@ -36,13 +36,13 @@ FEATURES = [
 ]
 LOGIN_FORM_STEPS = [
     {"action": "goto", "value": "/"},
-    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote"},
-    {"action": "click", "locator_type": "role", "role": "button", "locator": "同意并继续"},
-    {"action": "click", "locator_type": "role", "role": "button", "locator": "登录"},
-    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "登录"},
-    {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='tel'][placeholder='手机号']", "value": "${account_a.username}"},
-    {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='password']", "value": "${account_a.password}"},
-    {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园"},
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "欢迎来到 Emote", "flow": "authentication"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "同意并继续", "flow": "authentication"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "登录", "flow": "authentication"},
+    {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "登录", "flow": "authentication"},
+    {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='tel'][placeholder='手机号']", "value": "${account_a.username}", "flow": "authentication"},
+    {"action": "fill", "locator_type": "css", "locator": "div[style*='pointer-events: auto'] input[type='password']", "value": "${account_a.password}", "flow": "authentication"},
+    {"action": "click", "locator_type": "role", "role": "button", "locator": "进入心灵花园", "flow": "authentication"},
 ]
 LOGIN_SUCCESS_STEP = {"action": "assert_url", "value": "#/home", "flow": "login_success"}
 ONBOARDING_TEMPLATE_STEPS = [
@@ -256,6 +256,16 @@ def _seed(db: Session):
             if case and case.name == f"{feature.name}基础流程" and normalized_steps != steps:
                 case.steps = normalized_steps
                 steps = normalized_steps
+                changed = True
+            if case and feature.key != "register" and case.name == f"{feature.name}基础流程" \
+                    and len(steps) >= len(LOGIN_FORM_STEPS) and not all(
+                        steps[index].get("flow") == "authentication" for index in range(1, len(LOGIN_FORM_STEPS))
+                    ):
+                upgraded_auth_steps = list(steps)
+                for index in range(1, len(LOGIN_FORM_STEPS)):
+                    upgraded_auth_steps[index] = {**upgraded_auth_steps[index], "flow": "authentication"}
+                case.steps = upgraded_auth_steps
+                steps = upgraded_auth_steps
                 changed = True
             if case and case.name == f"{feature.name}基础流程":
                 managed_flows = {"login_success", "onboarding", "home_ready", "feature_guide"}

@@ -381,7 +381,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     </div>
 
     <Modal title="选择测试数据" open={credentialOpen} onCancel={() => setCredentialOpen(false)} onOk={startRun} okText="确认并开始执行" confirmLoading={runBusy} width={520} destroyOnHidden>
-      <Alert type="info" showIcon title="复用已保存的测试数据" description="账号密码在服务器加密保存，执行时临时解密给 Runner，运行记录、截图说明和日志不会保存明文密码。" />
+      <Alert type="info" showIcon title="登录 Token 当天复用" description="账号首次登录成功后，Runner 会在受限目录保存登录态 24 小时；后续用例直接复用，过期或失效时自动重新登录。Token 不进入数据库、日志或测试报告。" />
       <Form form={credentialForm} layout="vertical" className="ui-auto-credentials"><Form.Item name="data_set_id" label="测试数据集" rules={[{ required: true, message: '请先选择或新建测试数据集' }]}><Select placeholder="选择账号数据" options={dataSets.map((item) => ({ value: item.id, label: `${item.name}${item.is_default ? '（默认）' : ''}` }))} /></Form.Item><Button icon={<DatabaseOutlined />} onClick={() => editDataSet()}>新建测试数据集</Button></Form>
     </Modal>
 

@@ -4,6 +4,7 @@ import os
 import json
 import shutil
 import time
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
@@ -20,7 +21,49 @@ app = FastAPI(title="cling UI Runner", docs_url=None, redoc_url=None)
 TOKEN = os.environ.get("UI_RUNNER_TOKEN", "")
 CALLBACK = os.environ.get("UI_RUNNER_CALLBACK", "http://backend:8000/api/v1/ui-automation/internal/runs")
 DATA_ROOT = Path(os.environ.get("UI_AUTOMATION_DATA_DIR", "/data")).resolve()
+AUTH_STATE_ROOT = DATA_ROOT / "auth-sessions"
+AUTH_STATE_TTL_SECONDS = 24 * 60 * 60
 tasks: Queue[dict] = Queue()
+
+
+def _prepare_auth_state_root():
+    AUTH_STATE_ROOT.mkdir(parents=True, exist_ok=True)
+    try: AUTH_STATE_ROOT.chmod(0o700)
+    except OSError: pass
+
+
+def auth_state_path(base_url: str, username: str) -> Path | None:
+    if not username:
+        return None
+    digest = hashlib.sha256(f"{base_url.rstrip('/')}|{username}".encode("utf-8")).hexdigest()
+    return AUTH_STATE_ROOT / f"{digest}.json"
+
+
+def reusable_auth_state(path: Path | None) -> Path | None:
+    if not path or not path.is_file():
+        return None
+    try:
+        if time.time() - path.stat().st_mtime >= AUTH_STATE_TTL_SECONDS:
+            path.unlink(missing_ok=True)
+            return None
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload.get("origins"), list):
+            raise ValueError("invalid storage state")
+        return path
+    except Exception:
+        path.unlink(missing_ok=True)
+        return None
+
+
+def save_auth_state(context, path: Path | None):
+    if not path:
+        return
+    context.storage_state(path=str(path))
+    try: path.chmod(0o600)
+    except OSError: pass
+
+
+_prepare_auth_state_root()
 
 
 class ExecuteInput(BaseModel):
@@ -196,6 +239,13 @@ def execute_step(page, contexts, step, variables, base_url):
         # must not escape /emote-preview/ and accidentally open the cling home page.
         target_url = urljoin(base_url.rstrip("/") + "/", (value or "/").lstrip("/"))
         page.goto(target_url, wait_until="domcontentloaded")
+        if variables.get("_auth_reused"):
+            try:
+                page.wait_for_function("() => window.location.href.includes('#/home')", timeout=5000)
+            except Exception:
+                variables["_auth_reused"] = False
+                state_path = variables.get("_auth_state_path")
+                if isinstance(state_path, Path): state_path.unlink(missing_ok=True)
     elif action == "click":
         if step.get("force"): target.dispatch_event("click")
         else: target.click()
@@ -237,6 +287,8 @@ def execute_step(page, contexts, step, variables, base_url):
         # Hash-router changes do not emit a new page load. Waiting for navigation
         # can therefore time out even after the browser is already on #/home.
         page.wait_for_function("expected => window.location.href.includes(expected)", arg=value)
+        if value == "#/home" and not variables.get("_auth_reused"):
+            save_auth_state(page.context, variables.get("_auth_state_path"))
     elif action == "assert_count": assert target.count() == int(value)
     elif action == "switch_account":
         account = value if value in contexts else "account_a"
@@ -362,8 +414,16 @@ def run_task(task):
                 case_id = case["id"]
                 case_dir = run_dir / f"case-{case_id}"
                 case_dir.mkdir(parents=True, exist_ok=True)
+                account_a = task.get("credentials", {}).get("account_a", {})
+                state_path = auth_state_path(task["base_url"], str(account_a.get("username", "")))
+                reusable_state = reusable_auth_state(state_path)
+                variables["_auth_state_path"] = state_path
+                variables["_auth_reused"] = bool(reusable_state)
                 for name in ("account_a", "account_b"):
-                    contexts[name] = browser.new_context(viewport=viewport, record_video_dir=str(case_dir / "raw-video"), record_video_size=viewport)
+                    context_options = {"viewport": viewport, "record_video_dir": str(case_dir / "raw-video"), "record_video_size": viewport}
+                    if name == "account_a" and reusable_state:
+                        context_options["storage_state"] = str(reusable_state)
+                    contexts[name] = browser.new_context(**context_options)
                     new_page = contexts[name].new_page()
                     new_page.on("request", remember_request)
                     new_page.on("response", remember_response)
@@ -375,6 +435,14 @@ def run_task(task):
                     if time.monotonic() > deadline:
                         raise TimeoutError("达到最长执行时间 20 分钟，任务已停止")
                     label = describe_step(case, index, step, variables)
+                    if step.get("flow") == "authentication" and variables.get("_auth_reused"):
+                        timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
+                                         "action": step["action"], "status": "skipped", "duration_ms": 0,
+                                         "note": "已复用24小时内登录Token"})
+                        completed += 1
+                        callback(run_id, status="running", current_step=f"{case['name']} · 已复用今日登录Token",
+                                 progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
+                        continue
                     condition = step.get("when")
                     if condition and not variables.get(f"condition.{condition}", False):
                         timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
@@ -467,6 +535,7 @@ def cleanup(x_runner_token: str | None = Header(None)):
         for child in DATA_ROOT.iterdir():
             target = child.resolve()
             if not target.is_relative_to(DATA_ROOT) or target == DATA_ROOT: continue
+            if target == AUTH_STATE_ROOT: continue
             if target.is_dir(): shutil.rmtree(target)
             else: target.unlink(missing_ok=True)
             removed += 1
