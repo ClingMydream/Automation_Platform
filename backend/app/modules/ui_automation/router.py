@@ -87,8 +87,8 @@ REGISTER_TEMPLATE_STEPS = [
 
 
 def _authenticated_steps(*feature_steps):
-    """Every business case shows the complete login precondition before its own flow."""
-    return [dict(step) for step in LOGIN_TEMPLATE_STEPS] + [dict(step) for step in feature_steps]
+    """Business cases start from the authenticated home prepared once by the runner."""
+    return [{"action": "goto", "value": "/", "flow": "authenticated_home"}] + [dict(step) for step in feature_steps]
 
 
 def _private_post_steps(*interaction_steps):
@@ -96,8 +96,9 @@ def _private_post_steps(*interaction_steps):
     creation = [
         {"action": "click", "locator_type": "css", "locator": "button[data-feature-guide='create-post']:visible", "flow": PRIVATE_POST_FLOW},
         {"action": "assert_visible", "locator_type": "text", "locator": "心情气象。", "flow": PRIVATE_POST_FLOW},
-        {"action": "click", "locator_type": "css", "locator": "div.grid.grid-cols-2 > button:first-child", "flow": PRIVATE_POST_FLOW},
+        {"action": "click_random", "locator_type": "css", "locator": "div.grid.grid-cols-2 > button", "flow": PRIVATE_POST_FLOW},
         {"action": "fill", "locator_type": "placeholder", "locator": "开始书写...", "value": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "click_random", "locator_type": "post_tags", "locator": "开始书写...", "flow": PRIVATE_POST_FLOW},
         {"action": "assert_visible", "locator_type": "role", "role": "button", "locator": "私密", "exact": True, "flow": PRIVATE_POST_FLOW},
         {"action": "click", "locator_type": "role", "role": "button", "locator": "释放心语", "exact": True, "flow": PRIVATE_POST_FLOW},
         {"action": "wait", "value": "6000", "flow": PRIVATE_POST_FLOW},
@@ -108,9 +109,20 @@ def _private_post_steps(*interaction_steps):
 
 
 FEATURE_TEMPLATE_STEPS = {
-    "login": LOGIN_TEMPLATE_STEPS,
+    "login": _authenticated_steps(
+        {"action": "assert_url", "value": "#/home"},
+        {"action": "assert_visible", "locator_type": "css", "locator": "button[data-feature-guide='create-post']:visible"},
+    ),
     "register": REGISTER_TEMPLATE_STEPS,
     "post": _private_post_steps(
+        {"action": "click", "locator_type": "post_action", "role": "like", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "post_action", "role": "liked", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "click", "locator_type": "post_action", "role": "comment", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "fill", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "自动化评论 ${timestamp}", "flow": PRIVATE_POST_FLOW},
+        {"action": "press", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "Enter", "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "text", "locator": "自动化评论 ${timestamp}", "exact": True, "flow": PRIVATE_POST_FLOW},
+        {"action": "click", "locator_type": "post_action", "role": "favorite", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "post_action", "role": "favorited", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
     "delete_post": _authenticated_steps(
@@ -118,20 +130,16 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "assert_visible", "locator_type": "text", "locator": "我的空间"},
         {"action": "screenshot"},
     ),
-    "like": _private_post_steps(
-        {"action": "click", "locator_type": "post_action", "role": "like", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+    "like": _authenticated_steps(
         {"action": "assert_visible", "locator_type": "post_action", "role": "liked", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
-    "comment": _private_post_steps(
+    "comment": _authenticated_steps(
         {"action": "click", "locator_type": "post_action", "role": "comment", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
-        {"action": "fill", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "自动化评论 ${timestamp}", "flow": PRIVATE_POST_FLOW},
-        {"action": "press", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "Enter", "flow": PRIVATE_POST_FLOW},
         {"action": "assert_visible", "locator_type": "text", "locator": "自动化评论 ${timestamp}", "exact": True, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
-    "favorite": _private_post_steps(
-        {"action": "click", "locator_type": "post_action", "role": "favorite", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
+    "favorite": _authenticated_steps(
         {"action": "assert_visible", "locator_type": "post_action", "role": "favorited", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
@@ -142,23 +150,39 @@ FEATURE_TEMPLATE_STEPS = {
     ),
     "chat": _authenticated_steps(
         {"action": "click", "locator_type": "css", "locator": CHAT_NAV_CSS},
-        {"action": "assert_visible", "locator_type": "css", "locator": "header h1:visible"},
+        {"action": "click", "locator_type": "chat_friend_action", "locator": "霖感小秘书"},
+        {"action": "assert_visible", "locator_type": "role", "role": "heading", "locator": "霖感小秘书", "exact": True},
+        {"action": "fill", "locator_type": "placeholder", "locator": "Message...", "value": "聊天测试${timestamp}"},
+        {"action": "press", "locator_type": "placeholder", "locator": "Message...", "value": "Enter"},
+        {"action": "assert_visible", "locator_type": "text", "locator": "聊天测试${timestamp}", "exact": True},
         {"action": "screenshot"},
     ),
     "daily_task": _authenticated_steps(
         {"action": "click", "locator_type": "css", "locator": PROFILE_NAV_CSS},
         {"action": "click", "locator_type": "css", "locator": DAILY_TASK_BUTTON_CSS},
         {"action": "assert_visible", "locator_type": "text", "locator": "每日任务"},
+        {"action": "wait", "value": "3000"},
+        {"action": "detect_enabled", "locator_type": "daily_task_button", "locator": "浇水", "condition": "watering_pending"},
+        {"action": "click", "locator_type": "daily_task_button", "locator": "浇水", "when": "watering_pending"},
+        {"action": "click", "locator_type": "garden_water", "locator": "浇水", "when": "watering_pending"},
+        {"action": "assert_watering_result", "when": "watering_pending"},
+        {"action": "screenshot"},
     ),
     "profile": _authenticated_steps(
         {"action": "click", "locator_type": "css", "locator": PROFILE_NAV_CSS},
         {"action": "click", "locator_type": "css", "locator": PROFILE_EDIT_BUTTON_CSS},
         {"action": "assert_visible", "locator_type": "text", "locator": "个性签名"},
+        {"action": "click_random", "locator_type": "avatar_option", "locator": "头像"},
+        {"action": "append", "locator_type": "css", "locator": "input[type='text']:visible", "value": "${compact_timestamp}"},
+        {"action": "append", "locator_type": "css", "locator": "textarea:visible", "value": "${compact_timestamp}"},
+        {"action": "wait", "value": "1200"},
+        {"action": "click", "locator_type": "role", "role": "button", "locator": "保存", "exact": True},
+        {"action": "assert_hidden", "locator_type": "text", "locator": "个性签名"},
         {"action": "screenshot"},
     ),
 }
-SAFE_ACTIONS = {"goto", "click", "fill", "select", "check", "uncheck", "press", "wait", "detect_visible", "validate_onboarding_page", "assert_visible", "assert_hidden", "assert_in_viewport", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
-SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath", "post_action"}
+SAFE_ACTIONS = {"goto", "click", "click_random", "fill", "append", "select", "check", "uncheck", "press", "wait", "detect_visible", "detect_enabled", "assert_watering_result", "validate_onboarding_page", "assert_visible", "assert_hidden", "assert_in_viewport", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
+SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath", "post_action", "post_tags", "chat_friend_action", "avatar_option", "garden_water", "daily_task_button"}
 
 
 class RequirementInput(BaseModel):
@@ -414,6 +438,32 @@ def _seed(db: Session):
                 case.preconditions = "使用账号 A 登录；脚本会创建以当天执行时间戳为内容的私密帖子，并只操作该账号自己的本次帖子。"
                 case.cleanup_note = "保留私密帖子及点赞、评论、收藏记录，不删除测试数据。"
                 changed = True
+            # Version 3 runs one authentication preflight per task. Migrate the
+            # platform-owned base cases that still embed a login form in every case.
+            if case and feature.key != "register" and case.name == f"{feature.name}基础流程" and any(
+                step.get("flow") == "authentication" for step in (case.steps or [])
+            ):
+                case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
+                case.preconditions = "任务开始时统一登录账号 A；本用例直接复用当日登录态执行。"
+                changed = True
+            if case and feature.key == "comment" and case.name == "评论基础流程" and not any(
+                step.get("locator_type") == "post_action" and step.get("role") == "comment"
+                for step in (case.steps or [])
+            ):
+                case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
+                changed = True
+            if case and feature.key == "chat" and case.name == "聊天基础流程" and any(
+                step.get("action") == "assert_visible" and step.get("locator") == "霖感小秘书"
+                and step.get("locator_type") == "text" for step in (case.steps or [])
+            ):
+                case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
+                changed = True
+            if case and feature.key == "daily_task" and case.name == "每日任务基础流程" and any(
+                step.get("locator") in {"浇水成功！", "button.absolute.bottom-4.right-4:has(.lucide-cloud-rain)", "button.absolute.bottom-4.right-4.bg-emerald-500"}
+                for step in (case.steps or [])
+            ):
+                case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
+                changed = True
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
             if case and case.steps == legacy_steps:
@@ -427,7 +477,7 @@ def _seed(db: Session):
                       and case.steps[1].get("locator_type") == "text")
                   or (feature.key != "register" and not any(
                       step.get("action") == "click" and step.get("locator") == "登录" for step in (case.steps or [])
-                  )) or any(step.get("action") == "assert_visible" and step.get("locator") == "登录"
+                  ) and not any(step.get("flow") == "authenticated_home" for step in (case.steps or []))) or any(step.get("action") == "assert_visible" and step.get("locator") == "登录"
                             and step.get("locator_type") == "text" for step in (case.steps or [])))):
                 case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
                 changed = True

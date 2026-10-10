@@ -5,6 +5,7 @@ import json
 import shutil
 import time
 import hashlib
+import random
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
@@ -217,6 +218,21 @@ def locator(page, step, variables):
         elif post_action == "favorited": target = card.locator("button:has(.lucide-bookmark) .lucide-bookmark.fill-amber-400")
         elif post_action == "private": target = card.get_by_text("私密", exact=True)
         else: target = card
+    elif kind == "post_tags":
+        composer = page.get_by_placeholder(value, exact=True)
+        target = composer.locator("xpath=following::div[contains(@class,'flex-wrap')][1]/button")
+    elif kind == "chat_friend_action":
+        name = page.get_by_text(value, exact=True).first
+        card = name.locator("xpath=ancestor::div[.//button//*[contains(@class,'lucide-message-circle')]][1]")
+        target = card.locator("button:has(.lucide-message-circle)")
+    elif kind == "avatar_option":
+        target = page.locator("div.flex.flex-wrap.justify-center.gap-2 button")
+    elif kind == "garden_water":
+        target = page.locator("button.absolute.bottom-4.right-4:has(.lucide-droplets)")
+    elif kind == "daily_task_button":
+        title = page.get_by_role("heading", name=value, exact=False).first
+        card = title.locator("xpath=ancestor::div[./button][1]")
+        target = card.locator(":scope > button")
     else: target = page.get_by_text(value, exact=exact)
     match = step.get("match")
     if match == "first": return target.first
@@ -230,10 +246,24 @@ def artifact(path: Path, run_dir: Path, kind: str, content_type: str):
             "content_type": content_type, "size_bytes": path.stat().st_size if path.exists() else 0}
 
 
+def dismiss_interrupting_guides(page):
+    """Close a delayed feature-guide overlay before a business interaction."""
+    for label in ("跳过引导", "开始体验"):
+        try:
+            button = page.get_by_role("button", name=label, exact=True)
+            if button.count() and button.first.is_visible():
+                button.first.click(timeout=3000)
+                page.wait_for_timeout(300)
+        except Exception:
+            pass
+
+
 def execute_step(page, contexts, step, variables, base_url):
     action = step["action"]
     value = resolve_value(step.get("value") if "value" in step else step.get("variable") and "${" + step["variable"] + "}", variables)
-    target = locator(page, step, variables) if action not in {"goto", "wait", "screenshot", "switch_account", "assert_url"} else None
+    target = locator(page, step, variables) if action not in {"goto", "wait", "screenshot", "switch_account", "assert_url", "assert_watering_result"} else None
+    if action in {"click", "click_random", "fill", "append", "press", "select", "check", "uncheck"}:
+        dismiss_interrupting_guides(page)
     if action == "goto":
         # Test paths are relative to the configured preview base. A leading slash
         # must not escape /emote-preview/ and accidentally open the cling home page.
@@ -249,7 +279,21 @@ def execute_step(page, contexts, step, variables, base_url):
     elif action == "click":
         if step.get("force"): target.dispatch_event("click")
         else: target.click()
+    elif action == "click_random":
+        visible = [target.nth(index) for index in range(target.count()) if target.nth(index).is_visible()]
+        if not visible:
+            raise AssertionError("没有找到可随机选择的选项")
+        random.SystemRandom().choice(visible).click()
     elif action == "fill": target.fill(value)
+    elif action == "append":
+        current = target.input_value()
+        separator = " " if current.strip() else ""
+        suffix = f"{separator}{value}"
+        max_length = target.get_attribute("maxlength")
+        if max_length and max_length.isdigit():
+            limit = int(max_length)
+            current = current[:max(0, limit - len(suffix))]
+        target.fill(f"{current}{suffix}")
     elif action == "select": target.select_option(value)
     elif action == "check": target.check()
     elif action == "uncheck": target.uncheck()
@@ -261,6 +305,22 @@ def execute_step(page, contexts, step, variables, base_url):
             variables[f"condition.{step.get('condition', '')}"] = True
         except Exception:
             variables[f"condition.{step.get('condition', '')}"] = False
+    elif action == "detect_enabled":
+        try:
+            target.wait_for(state="visible", timeout=5000)
+            variables[f"condition.{step.get('condition', '')}"] = target.is_enabled()
+        except Exception:
+            variables[f"condition.{step.get('condition', '')}"] = False
+    elif action == "assert_watering_result":
+        success = page.locator("button.absolute.bottom-4.right-4.bg-emerald-500")
+        cooldown = page.get_by_text("24小时内您已对该用户浇过水", exact=False)
+        result_deadline = time.monotonic() + 6
+        while time.monotonic() < result_deadline:
+            if (success.count() and success.first.is_visible()) or (cooldown.count() and cooldown.first.is_visible()):
+                break
+            page.wait_for_timeout(150)
+        else:
+            raise AssertionError("页面未显示浇水成功或今日已浇水状态")
     elif action == "validate_onboarding_page":
         heading = page.get_by_role("heading", name=step.get("title", ""), exact=True)
         description = page.get_by_text(step.get("description", ""), exact=True)
@@ -309,10 +369,14 @@ def describe_step(case, index, step, variables):
     elif action == "assert_text": detail = f"断言文本正确：{target}"
     elif action == "assert_url": detail = "断言页面地址正确"
     elif action == "detect_visible": detail = "检测是否显示新手引导"
+    elif action == "detect_enabled": detail = f"检测任务是否待完成：{target}"
+    elif action == "assert_watering_result": detail = "确认浇水成功或今日已完成"
     elif action == "validate_onboarding_page": detail = f"确认引导页并继续：{step.get('title', '')}"
     elif action == "fill" and "password" in target: detail = "填写登录密码"
     elif action == "fill" and ("tel" in target or "手机号" in target): detail = "填写手机号/账号"
     elif action == "fill": detail = f"填写内容：{target or '输入框'}"
+    elif action == "append": detail = f"追加时间戳：{target or '输入框'}"
+    elif action == "click_random": detail = f"随机选择：{target or '选项'}"
     elif action == "click": detail = f"点击：{target or '目标按钮'}"
     elif action == "screenshot": detail = "保存当前页面截图"
     elif action == "switch_account": detail = "切换测试账号"
@@ -321,10 +385,80 @@ def describe_step(case, index, step, variables):
     return f"{case['name']} · 第 {index} 步 · {detail}"
 
 
+def prepare_authenticated_state(browser, base_url, viewport, credentials, state_path):
+    """Authenticate once per run and persist the resulting one-day browser token."""
+    reusable = reusable_auth_state(state_path)
+    options = {"viewport": viewport}
+    if reusable:
+        options["storage_state"] = str(reusable)
+    context = browser.new_context(**options)
+    page = context.new_page()
+    try:
+        page.goto(base_url.rstrip("/") + "/", wait_until="domcontentloaded")
+        if reusable:
+            try:
+                page.wait_for_function("() => window.location.href.includes('#/home')", timeout=7000)
+                # Wait through the asynchronous refresh-token check. A stale state
+                # can briefly render #/home before the app redirects to #/login.
+                page.locator("button[data-feature-guide='create-post']:visible").wait_for(
+                    state="visible", timeout=12000
+                )
+                page.wait_for_timeout(5000)
+                assert "#/home" in page.url
+                save_auth_state(context, state_path)
+                return state_path
+            except Exception:
+                context.close()
+                state_path.unlink(missing_ok=True)
+                context = browser.new_context(viewport=viewport)
+                page = context.new_page()
+                page.goto(base_url.rstrip("/") + "/", wait_until="domcontentloaded")
+
+        page.get_by_role("heading", name="欢迎来到 Emote").wait_for(state="visible")
+        page.get_by_role("button", name="同意并继续").click()
+        page.get_by_role("button", name="登录", exact=True).click()
+        page.locator("div[style*='pointer-events: auto'] input[type='tel'][placeholder='手机号']").fill(str(credentials.get("username", "")))
+        page.locator("div[style*='pointer-events: auto'] input[type='password']").fill(str(credentials.get("password", "")))
+        page.get_by_role("button", name="进入心灵花园", exact=True).click()
+        page.wait_for_function("() => window.location.href.includes('#/home')", timeout=30000)
+
+        for _ in range(5):
+            advanced = False
+            for label in ("继续", "开启旅程"):
+                button = page.get_by_role("button", name=label, exact=True)
+                if button.count() and button.first.is_visible():
+                    button.first.click()
+                    page.wait_for_timeout(400)
+                    advanced = True
+                    break
+            if not advanced:
+                break
+        for label in ("跳过引导", "开始体验"):
+            button = page.get_by_role("button", name=label, exact=True)
+            if button.count() and button.first.is_visible():
+                button.first.click()
+                page.wait_for_timeout(400)
+        page.locator("button[data-feature-guide='create-post']:visible").wait_for(
+            state="visible", timeout=12000
+        )
+        page.wait_for_timeout(5000)
+        assert "#/home" in page.url
+        save_auth_state(context, state_path)
+        return state_path
+    finally:
+        try: context.close()
+        except Exception: pass
+
+
 def run_task(task):
     run_id, run_dir = task["run_id"], DATA_ROOT / f"run-{task['run_id']}"
     run_dir.mkdir(parents=True, exist_ok=True)
-    variables = {"run_id": run_id}
+    now = datetime.now(ZoneInfo("Asia/Shanghai"))
+    variables = {
+        "run_id": run_id,
+        "timestamp": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "compact_timestamp": now.strftime("%m%d%H%M%S"),
+    }
     for group, values in task.get("credentials", {}).items():
         if isinstance(values, dict):
             for key, value in values.items(): variables[f"{group}.{key}"] = value
@@ -407,15 +541,15 @@ def run_task(task):
             )
             # Pixel-exact mobile viewport requested for the Emote target device.
             viewport = {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900}
+            account_a = task.get("credentials", {}).get("account_a", {})
+            state_path = auth_state_path(task["base_url"], str(account_a.get("username", "")))
+            prepare_authenticated_state(browser, task["base_url"], viewport, account_a, state_path)
             for case in task["cases"]:
                 current_case = case
-                variables["timestamp"] = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M:%S")
                 variables["_used_accounts"] = {"account_a"}
                 case_id = case["id"]
                 case_dir = run_dir / f"case-{case_id}"
                 case_dir.mkdir(parents=True, exist_ok=True)
-                account_a = task.get("credentials", {}).get("account_a", {})
-                state_path = auth_state_path(task["base_url"], str(account_a.get("username", "")))
                 reusable_state = reusable_auth_state(state_path)
                 variables["_auth_state_path"] = state_path
                 variables["_auth_reused"] = bool(reusable_state)
