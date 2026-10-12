@@ -26,6 +26,10 @@ AUTH_STATE_ROOT = DATA_ROOT / "auth-sessions"
 AUTH_STATE_TTL_SECONDS = 24 * 60 * 60
 tasks: Queue[dict] = Queue()
 
+# 用例重试机制：失败用例自动重试次数；注册用例一次性，不参与回归与重试
+MAX_CASE_RETRIES = 2
+SKIP_CASE_NAMES = {"注册基础流程"}
+
 
 def _prepare_auth_state_root():
     AUTH_STATE_ROOT.mkdir(parents=True, exist_ok=True)
@@ -553,7 +557,7 @@ def run_task(task):
         if isinstance(values, dict):
             for key, value in values.items(): variables[f"{group}.{key}"] = value
     artifacts = []
-    total = sum(len(case.get("steps", [])) for case in task["cases"]) or 1
+    total = sum(len(case.get("steps", [])) for case in task["cases"] if case.get("name") not in SKIP_CASE_NAMES) or 1
     completed = 0
     timeline = []
     network_issues = []
@@ -638,91 +642,123 @@ def run_task(task):
             prepare_authenticated_state(browser, task["base_url"], viewport, account_a, state_path)
             for case in task["cases"]:
                 current_case = case
-                variables["_used_accounts"] = {"account_a"}
                 case_id = case["id"]
                 case_dir = run_dir / f"case-{case_id}"
                 case_dir.mkdir(parents=True, exist_ok=True)
-                reusable_state = reusable_auth_state(state_path)
-                variables["_auth_state_path"] = state_path
-                variables["_auth_reused"] = bool(reusable_state)
-                for name in ("account_a", "account_b"):
-                    context_options = {"viewport": viewport, "record_video_dir": str(case_dir / "raw-video"), "record_video_size": viewport}
-                    if name == "account_a" and reusable_state:
-                        context_options["storage_state"] = str(reusable_state)
-                    contexts[name] = browser.new_context(**context_options)
-                    new_page = contexts[name].new_page()
-                    new_page.on("request", remember_request)
-                    new_page.on("response", remember_response)
-                    new_page.on("requestfailed", remember_failed_request)
-                page = contexts["account_a"].pages[0]
-                has_key_screenshot = False
-                for index, step in enumerate(case.get("steps", []), 1):
-                    current_step, current_step_index = step, index
-                    if time.monotonic() > deadline:
-                        raise TimeoutError("达到最长执行时间 20 分钟，任务已停止")
-                    label = describe_step(case, index, step, variables)
-                    if step.get("flow") == "authentication" and variables.get("_auth_reused"):
-                        timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
-                                         "action": step["action"], "status": "skipped", "duration_ms": 0,
-                                         "note": "已复用24小时内登录Token"})
-                        completed += 1
-                        callback(run_id, status="running", current_step=f"{case['name']} · 已复用今日登录Token",
-                                 progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
-                        continue
-                    condition = step.get("when")
-                    if condition and not variables.get(f"condition.{condition}", False):
-                        timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
-                                         "action": step["action"], "status": "skipped", "duration_ms": 0})
-                        completed += 1
-                        callback(run_id, status="running", current_step=f"{label}（本次无引导，已跳过）",
-                                 progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
-                        continue
-                    step_started = time.monotonic()
+                # 注册用例一次性，不参与回归与重试
+                if case.get("name") in SKIP_CASE_NAMES:
+                    timeline.append({"name": case.get("name", "未知用例"), "case_id": case_id,
+                                     "case_name": case.get("name"), "step_index": 0,
+                                     "action": "skip", "status": "skipped", "duration_ms": 0,
+                                     "note": "注册用例不参与回归"})
+                    callback(run_id, status="running", current_step=f"{case['name']} · 已跳过",
+                             progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
+                    continue
+                for attempt in range(MAX_CASE_RETRIES + 1):
+                    attempt_timeline = len(timeline)
+                    attempt_completed = completed
+                    page_diagnostics.clear()
                     try:
-                        page = execute_step(page, contexts, step, variables, task["base_url"])
+                        variables["_used_accounts"] = {"account_a"}
+                        reusable_state = reusable_auth_state(state_path)
+                        variables["_auth_state_path"] = state_path
+                        # 注册等需要从未登录页开始的用例不能复用登录态
+                        reuse_auth = bool(reusable_state) and bool(case.get("steps")) and case["steps"][0].get("flow") == "authenticated_home"
+                        variables["_auth_reused"] = reuse_auth
+                        for name in ("account_a", "account_b"):
+                            context_options = {"viewport": viewport, "record_video_dir": str(case_dir / "raw-video"), "record_video_size": viewport}
+                            if name == "account_a" and reuse_auth:
+                                context_options["storage_state"] = str(reusable_state)
+                            contexts[name] = browser.new_context(**context_options)
+                            new_page = contexts[name].new_page()
+                            new_page.on("request", remember_request)
+                            new_page.on("response", remember_response)
+                            new_page.on("requestfailed", remember_failed_request)
+                        page = contexts["account_a"].pages[0]
+                        has_key_screenshot = False
+                        for index, step in enumerate(case.get("steps", []), 1):
+                            current_step, current_step_index = step, index
+                            if time.monotonic() > deadline:
+                                raise TimeoutError("达到最长执行时间 20 分钟，任务已停止")
+                            label = describe_step(case, index, step, variables)
+                            if step.get("flow") == "authentication" and variables.get("_auth_reused"):
+                                timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
+                                                 "action": step["action"], "status": "skipped", "duration_ms": 0,
+                                                 "note": "已复用24小时内登录Token"})
+                                completed += 1
+                                callback(run_id, status="running", current_step=f"{case['name']} · 已复用今日登录Token",
+                                         progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
+                                continue
+                            condition = step.get("when")
+                            if condition and not variables.get(f"condition.{condition}", False):
+                                timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
+                                                 "action": step["action"], "status": "skipped", "duration_ms": 0})
+                                completed += 1
+                                callback(run_id, status="running", current_step=f"{label}（本次无引导，已跳过）",
+                                         progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
+                                continue
+                            step_started = time.monotonic()
+                            try:
+                                page = execute_step(page, contexts, step, variables, task["base_url"])
+                            except Exception:
+                                # 在 playwright 退出前采集诊断信息，否则浏览器关闭后拿不到页面状态
+                                if page is not None:
+                                    try:
+                                        page_diagnostics["page_feedback"] = visible_auth_feedback(page)
+                                        page_diagnostics["page_markers"] = visible_page_markers(page)
+                                        page_diagnostics["nav_buttons"] = visible_nav_buttons(page)
+                                        page_diagnostics["current_url"] = page.url
+                                    except Exception:
+                                        pass
+                                    try:
+                                        _cid = current_case.get("id", "startup") if current_case else "startup"
+                                        _cdir = run_dir / f"case-{_cid}"
+                                        _cdir.mkdir(parents=True, exist_ok=True)
+                                        _fail = _cdir / f"case-{_cid}-failure-step-{current_step_index or 0:02d}.png"
+                                        page.screenshot(path=str(_fail), full_page=False)
+                                        page_diagnostics["failure_screenshot"] = artifact(_fail, run_dir, "screenshot", "image/png")
+                                    except Exception:
+                                        pass
+                                raise
+                            timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
+                                             "action": step["action"], "status": "passed", "duration_ms": int((time.monotonic() - step_started) * 1000)})
+                            completed += 1
+                            is_key_screenshot = step["action"] == "screenshot"
+                            has_key_screenshot = has_key_screenshot or is_key_screenshot
+                            live = case_dir / (f"case-{case_id}-key-step-{index:02d}.png" if is_key_screenshot else f"case-{case_id}-live.png")
+                            page.screenshot(path=str(live), full_page=False)
+                            callback(run_id, status="running", current_step=label, progress=int(completed / total * 100),
+                                     result_summary={"timeline": timeline, "viewport": viewport},
+                                     artifacts=[artifact(live, run_dir, "screenshot", "image/png")])
+                            # Keep the live preview readable without filling evidence storage
+                            # with one permanent screenshot for every action.
+                            page.wait_for_timeout(700)
+                        if not has_key_screenshot:
+                            final = case_dir / f"case-{case_id}-final.png"
+                            page.screenshot(path=str(final), full_page=False)
+                            artifacts.append(artifact(final, run_dir, "screenshot", "image/png"))
+                        artifacts.extend(finalize_case(case_id, case_dir))
+                        callback(run_id, status="running", current_step=f"{case['name']} · 证据已保存", progress=int(completed / total * 100),
+                                 result_summary={"timeline": timeline, "viewport": viewport}, artifacts=artifacts)
+                        break
                     except Exception:
-                        # 在 playwright 退出前采集诊断信息，否则浏览器关闭后拿不到页面状态
-                        if page is not None:
-                            try:
-                                page_diagnostics["page_feedback"] = visible_auth_feedback(page)
-                                page_diagnostics["page_markers"] = visible_page_markers(page)
-                                page_diagnostics["nav_buttons"] = visible_nav_buttons(page)
-                                page_diagnostics["current_url"] = page.url
-                            except Exception:
-                                pass
-                            try:
-                                _cid = current_case.get("id", "startup") if current_case else "startup"
-                                _cdir = run_dir / f"case-{_cid}"
-                                _cdir.mkdir(parents=True, exist_ok=True)
-                                _fail = _cdir / f"case-{_cid}-failure-step-{current_step_index or 0:02d}.png"
-                                page.screenshot(path=str(_fail), full_page=False)
-                                page_diagnostics["failure_screenshot"] = artifact(_fail, run_dir, "screenshot", "image/png")
-                            except Exception:
-                                pass
+                        # 丢弃本次尝试的记录与计数，关闭上下文后重试
+                        del timeline[attempt_timeline:]
+                        completed = attempt_completed
+                        try:
+                            finalize_case(case_id, case_dir)
+                        except Exception:
+                            pass
+                        if attempt < MAX_CASE_RETRIES:
+                            callback(run_id, status="running", current_step=f"{case['name']} · 第 {attempt + 1} 次重试",
+                                     progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
+                            continue
                         raise
-                    timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
-                                     "action": step["action"], "status": "passed", "duration_ms": int((time.monotonic() - step_started) * 1000)})
-                    completed += 1
-                    is_key_screenshot = step["action"] == "screenshot"
-                    has_key_screenshot = has_key_screenshot or is_key_screenshot
-                    live = case_dir / (f"case-{case_id}-key-step-{index:02d}.png" if is_key_screenshot else f"case-{case_id}-live.png")
-                    page.screenshot(path=str(live), full_page=False)
-                    callback(run_id, status="running", current_step=label, progress=int(completed / total * 100),
-                             result_summary={"timeline": timeline, "viewport": viewport},
-                             artifacts=[artifact(live, run_dir, "screenshot", "image/png")])
-                    # Keep the live preview readable without filling evidence storage
-                    # with one permanent screenshot for every action.
-                    page.wait_for_timeout(700)
-                if not has_key_screenshot:
-                    final = case_dir / f"case-{case_id}-final.png"
-                    page.screenshot(path=str(final), full_page=False)
-                    artifacts.append(artifact(final, run_dir, "screenshot", "image/png"))
-                artifacts.extend(finalize_case(case_id, case_dir))
-                callback(run_id, status="running", current_step=f"{case['name']} · 证据已保存", progress=int(completed / total * 100),
-                         result_summary={"timeline": timeline, "viewport": viewport}, artifacts=artifacts)
             browser.close()
         callback(run_id, status="passed", current_step="执行完成", progress=100,
-                 result_summary={"passed": len(task["cases"]), "failed": 0, "timeline": timeline, "viewport": viewport}, artifacts=artifacts)
+                 result_summary={"passed": len([c for c in task["cases"] if c.get("name") not in SKIP_CASE_NAMES]),
+                                 "skipped": len([c for c in task["cases"] if c.get("name") in SKIP_CASE_NAMES]),
+                                 "failed": 0, "timeline": timeline, "viewport": viewport}, artifacts=artifacts)
     except Exception as exc:
         failure = friendly_failure(exc, current_case, current_step, current_step_index, task.get("credentials", {}))
         failure["page_feedback"] = page_diagnostics.get("page_feedback", [])
