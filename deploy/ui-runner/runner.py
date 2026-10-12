@@ -287,14 +287,16 @@ def artifact(path: Path, run_dir: Path, kind: str, content_type: str):
 
 
 def dismiss_interrupting_guides(page):
-    """Close a guide overlay, or consume the business click through its highlighted hole."""
-    dialog = page.locator("[role='dialog'][data-swipe-close-ignore='true']:visible")
-    if not dialog.count():
-        return False
-    guide_deadline = time.monotonic() + 8
-    while time.monotonic() < guide_deadline:
-        # 1. 明确的跳过/确认按钮
-        for label in ("跳过引导", "开始体验", "跳过", "进入", "我知道了", "立即体验", "立即加入", "开始", "继续", "下一步"):
+    """Wait for a feature-guide overlay and dismiss it before the business click."""
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        dialog = page.locator("[role='dialog'][data-swipe-close-ignore='true']:visible")
+        if not dialog.count():
+            # 引导可能带动画延迟出现，先等待再判断
+            page.wait_for_timeout(200)
+            continue
+        # 1. 跳过整段引导（最优）
+        for label in ("跳过引导", "跳过", "开始体验"):
             try:
                 button = page.get_by_role("button", name=label, exact=True)
                 if button.count() and button.first.is_visible():
@@ -303,35 +305,26 @@ def dismiss_interrupting_guides(page):
                     return False
             except Exception:
                 pass
-        # 2. 引导高亮的“洞”按钮（业务点击穿过引导）
+        # 2. 消费高亮的“洞”按钮（业务点击穿过引导）
         try:
-            hole = page.locator(".feature-guide-hole--open:visible")
+            hole = page.locator("button.feature-guide-hole--open:visible")
             if hole.count() and hole.first.is_visible():
                 hole.first.click(timeout=3000)
                 page.wait_for_timeout(400)
                 return True
         except Exception:
             pass
-        # 3. 兜底：点击引导弹窗内的任意可见按钮（引导按钮均为安全操作）
-        try:
-            dialog_buttons = dialog.locator("button:visible")
-            for index in range(min(dialog_buttons.count(), 8)):
-                button = dialog_buttons.nth(index)
-                if button.is_visible():
-                    button.click(timeout=3000)
+        # 3. 兜底：点击“知道了/下一步”推进一步，继续循环直到关闭
+        for label in ("知道了", "下一步", "继续", "进入", "我知道了"):
+            try:
+                button = page.get_by_role("button", name=label, exact=True)
+                if button.count() and button.first.is_visible():
+                    button.first.click(timeout=3000)
                     page.wait_for_timeout(400)
-                    return False
-        except Exception:
-            pass
-        # 4. 最后手段：按 Escape 关闭模态框
-        try:
-            page.keyboard.press("Escape")
-            page.wait_for_timeout(400)
-            if not page.locator("[role='dialog'][data-swipe-close-ignore='true']:visible").count():
-                return False
-        except Exception:
-            pass
-        page.wait_for_timeout(150)
+                    break
+            except Exception:
+                pass
+        page.wait_for_timeout(200)
     return False
 
 
