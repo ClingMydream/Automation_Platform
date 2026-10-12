@@ -287,24 +287,37 @@ def artifact(path: Path, run_dir: Path, kind: str, content_type: str):
 
 
 def dismiss_interrupting_guides(page):
-    """Wait for a feature-guide overlay and dismiss it before the business click."""
-    deadline = time.monotonic() + 8
+    """Wait for feature-guide overlays and dismiss them all before the business click."""
+    deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
         dialog = page.locator("[role='dialog'][data-swipe-close-ignore='true']:visible")
         if not dialog.count():
             # 引导可能带动画延迟出现，先等待再判断
             page.wait_for_timeout(200)
             continue
-        # 1. 跳过整段引导（最优）
-        for label in ("跳过引导", "跳过", "开始体验"):
+        d = dialog.first
+        btn_infos = []
+        for i in range(d.locator("button").count()):
+            b = d.locator("button").nth(i)
             try:
-                button = page.get_by_role("button", name=label, exact=True)
-                if button.count() and button.first.is_visible():
-                    button.first.click(timeout=3000)
-                    page.wait_for_timeout(400)
-                    return False
+                btn_infos.append((i, (b.inner_text() or "").strip(), b.is_visible()))
             except Exception:
-                pass
+                btn_infos.append((i, "?", False))
+        # 1. 点“跳过引导/跳过/开始体验”，点完继续检查是否还有下一个引导
+        skipped = False
+        for i, text, vis in btn_infos:
+            if text in ("跳过引导", "跳过", "开始体验") and vis:
+                try:
+                    d.locator("button").nth(i).click(timeout=3000)
+                    page.wait_for_timeout(300)
+                    skipped = True
+                    break
+                except Exception:
+                    pass
+        if skipped:
+            if not page.locator("[role='dialog'][data-swipe-close-ignore='true']:visible").count():
+                return False
+            continue
         # 2. 消费高亮的“洞”按钮（业务点击穿过引导）
         try:
             hole = page.locator("button.feature-guide-hole--open:visible")
@@ -314,16 +327,15 @@ def dismiss_interrupting_guides(page):
                 return True
         except Exception:
             pass
-        # 3. 兜底：点击“知道了/下一步”推进一步，继续循环直到关闭
-        for label in ("知道了", "下一步", "继续", "进入", "我知道了"):
-            try:
-                button = page.get_by_role("button", name=label, exact=True)
-                if button.count() and button.first.is_visible():
-                    button.first.click(timeout=3000)
+        # 3. 兜底：点“知道了/下一步”推进一步，继续循环
+        for i, text, vis in btn_infos:
+            if text in ("知道了", "下一步", "继续", "进入", "我知道了") and vis:
+                try:
+                    d.locator("button").nth(i).click(timeout=3000)
                     page.wait_for_timeout(400)
                     break
-            except Exception:
-                pass
+                except Exception:
+                    pass
         page.wait_for_timeout(200)
     return False
 
