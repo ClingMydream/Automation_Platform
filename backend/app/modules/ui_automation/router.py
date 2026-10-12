@@ -102,7 +102,7 @@ def _private_post_steps(*interaction_steps):
         {"action": "assert_visible", "locator_type": "role", "role": "button", "locator": "私密", "exact": True, "flow": PRIVATE_POST_FLOW},
         {"action": "click", "locator_type": "role", "role": "button", "locator": "释放心语", "exact": True, "flow": PRIVATE_POST_FLOW},
         {"action": "wait", "value": "6000", "flow": PRIVATE_POST_FLOW},
-        {"action": "assert_visible", "locator_type": "text", "locator": PRIVATE_POST_CONTENT, "exact": True, "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "text", "locator": PRIVATE_POST_CONTENT, "exact": True, "match": "first", "flow": PRIVATE_POST_FLOW},
         {"action": "assert_visible", "locator_type": "post_action", "role": "private", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
     ]
     return _authenticated_steps(*creation, *interaction_steps)
@@ -120,7 +120,7 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "click", "locator_type": "post_action", "role": "comment", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "fill", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "自动化评论 ${timestamp}", "flow": PRIVATE_POST_FLOW},
         {"action": "press", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "Enter", "flow": PRIVATE_POST_FLOW},
-        {"action": "assert_visible", "locator_type": "text", "locator": "自动化评论 ${timestamp}", "exact": True, "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "text", "locator": "自动化评论 ${timestamp}", "exact": True, "match": "first", "flow": PRIVATE_POST_FLOW},
         {"action": "click", "locator_type": "post_action", "role": "favorite", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "assert_visible", "locator_type": "post_action", "role": "favorited", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
@@ -139,7 +139,7 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "click", "locator_type": "post_action", "role": "comment", "locator": PRIVATE_POST_CONTENT, "flow": PRIVATE_POST_FLOW},
         {"action": "fill", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "自动化评论 ${timestamp}", "flow": PRIVATE_POST_FLOW},
         {"action": "press", "locator_type": "post_action", "role": "comment_input", "locator": PRIVATE_POST_CONTENT, "value": "Enter", "flow": PRIVATE_POST_FLOW},
-        {"action": "assert_visible", "locator_type": "text", "locator": "自动化评论 ${timestamp}", "exact": True, "flow": PRIVATE_POST_FLOW},
+        {"action": "assert_visible", "locator_type": "text", "locator": "自动化评论 ${timestamp}", "exact": True, "match": "first", "flow": PRIVATE_POST_FLOW},
         {"action": "screenshot"},
     ),
     "favorite": _private_post_steps(
@@ -352,6 +352,19 @@ def _seed(db: Session):
                 if upgraded_nav != list(case.steps or []):
                     case.steps = upgraded_nav
                     steps = upgraded_nav
+                    changed = True
+            if case and feature.key in {"post", "like", "comment", "favorite"}:
+                upgraded_content = [
+                    {**step, "match": "first"}
+                    if step.get("action") == "assert_visible" and step.get("locator_type") == "text"
+                    and step.get("locator") in {PRIVATE_POST_CONTENT, "自动化评论 ${timestamp}"}
+                    and step.get("match") != "first"
+                    else step
+                    for step in (case.steps or [])
+                ]
+                if upgraded_content != list(case.steps or []):
+                    case.steps = upgraded_content
+                    steps = upgraded_content
                     changed = True
             if case and feature.key == "post" and case.name == "发帖基础流程" and any(
                 step.get("action") == "click" and step.get("locator") in {
