@@ -812,8 +812,11 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
     db.add(run); db.commit(); db.refresh(run)
     # Go through the public preview proxy so /emote-preview/* assets (including the
     # Logo) resolve exactly as they do for a user opening the preview website.
+    # Runner 生成简短报告需要功能中文名，这里一并下发，避免 Runner 反查数据库。
+    feature_names = {feature.id: feature.name for feature in db.query(UiAutomationFeature).all()}
     runner_payload = {"run_id": run.id, "base_url": runner_base_url, "viewport": payload.viewport,
-                      "cases": [_case_dict(x) for x in cases], "credentials": credentials}
+                      "cases": [{**_case_dict(x), "feature_name": feature_names.get(x.feature_id, "")} for x in cases],
+                      "credentials": credentials}
     settings = get_settings()
     try:
         response = httpx.post(f"{settings.ui_runner_url}/execute", json=runner_payload,

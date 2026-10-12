@@ -31,3 +31,34 @@
 .ui-auto-page .ui-auto-grid{grid-template-columns:300px minmax(0,1fr);gap:12px;padding:0 18px 18px}.ui-auto-page .ui-auto-left{padding:14px;min-height:calc(100vh - 188px)}.ui-auto-page .ui-auto-panel-title{margin-bottom:12px}.ui-auto-page .ui-auto-feature{margin:10px 0}.ui-auto-page .ui-auto-feature-head{padding:6px 8px}.ui-auto-page .ui-auto-case{padding:6px;margin:3px 0}.ui-auto-page .ui-auto-run-card{min-height:500px}
 @media(max-width:1180px){.ui-auto-command{align-items:stretch;flex-direction:column}.ui-auto-primary-actions{justify-content:flex-start}}
 @media(max-width:760px){.ui-auto-page .ui-auto-header{padding:12px 14px}.ui-auto-command{margin:10px 12px;padding:12px}.ui-auto-run-config{align-items:stretch;flex-direction:column}.ui-auto-run-config .ui-auto-branch,.ui-auto-run-config .ui-auto-environment,.ui-auto-run-config .ui-auto-viewport-field .ant-select{width:100%}.ui-auto-run-config .ui-auto-target-field{min-width:0}.ui-auto-primary-actions{display:grid;grid-template-columns:1fr 1fr}.ui-auto-primary-actions>span{grid-column:1/-1}.ui-auto-primary-actions>.ant-btn{width:100%}.ui-auto-primary-actions>.ant-dropdown-trigger{width:40px}.ui-auto-page .ui-auto-grid{grid-template-columns:1fr;padding:0 12px 14px}.ui-auto-page .ui-auto-left{min-height:auto}}
+
+/* 左侧用例面板：固定高度三段式布局，用例只在窗口内滚动，不再撑长整页 */
+.ui-auto-grid{align-items:start}
+.ui-auto-left{position:sticky;top:12px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:calc(100dvh - 196px);min-height:420px;max-height:840px;overflow:hidden}
+.ui-auto-case-toolbar{display:flex;flex-direction:column;gap:10px;padding-bottom:10px;background:#fff}
+.ui-auto-case-toolbar .ui-auto-panel-title{margin-bottom:0}
+.ui-auto-case-scroll{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:2px}
+.ui-auto-case-scroll .ui-auto-feature:first-child{margin-top:4px}
+.ui-auto-case-footer{padding-top:10px;border-top:1px solid #eef1f5;background:#fff}
+
+/* 简短测试报告 */
+.ui-auto-report{margin:0 0 14px;padding:12px 14px;border:1px solid #e3e7ee;border-radius:8px;background:#fafbfd}
+.ui-auto-report--passed{border-color:#b7ebc6;background:#f6fef9}
+.ui-auto-report--partial,.ui-auto-report--interrupted{border-color:#ffe0a3;background:#fffbf0}
+.ui-auto-report--failed{border-color:#ffccc7;background:#fff5f5}
+.ui-auto-report__head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ui-auto-report__head>b{font-size:14px}
+.ui-auto-report__copy{margin-left:auto}
+.ui-auto-report__scope{margin-bottom:6px;color:#4e5969;font-size:13px}
+.ui-auto-report__line{display:flex;gap:6px;margin-bottom:4px;font-size:13px;line-height:1.7}
+.ui-auto-report__line>span:first-child{flex:0 0 auto;color:#86909c}
+.ui-auto-report__line--ok>span:last-child{color:#15803d}
+.ui-auto-report__line--bad>span:nth-child(2){color:#cf1322}
+.ui-auto-report__conclusion{margin-top:6px;font-size:13px;font-weight:600}
+.ui-auto-report__meta{margin-top:6px;color:#86909c;font-size:12px}
+
+@media(max-width:760px){
+  .ui-auto-left{position:static;height:auto;max-height:none;min-height:0;padding:12px}
+  .ui-auto-case-scroll{max-height:56dvh;overflow-y:auto}
+  .ui-auto-report__line{flex-direction:column;gap:0}
+}

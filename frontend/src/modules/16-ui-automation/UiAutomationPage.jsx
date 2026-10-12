@@ -30,6 +30,82 @@ const STATUS = {
 
 const ARTIFACT_LOADING_MIN_MS = 700;
 
+const REPORT_STATUS = {
+  running: ['测试进行中', 'processing'],
+  passed: ['全部通过', 'success'],
+  partial: ['部分通过', 'warning'],
+  failed: ['未通过', 'error'],
+  interrupted: ['测试未完成', 'warning'],
+};
+
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.round((ms || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes ? `${minutes} 分 ${seconds} 秒` : `${seconds} 秒`;
+}
+
+function formatClock(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+// 简短报告优先使用 Runner 下发的 report；旧执行记录用 timeline/failure 兼容展示。
+function buildReportView(run, caseList) {
+  if (!run) return null;
+  const summary = run.result_summary || {};
+  const raw = summary.report;
+  if (raw && raw.status) return { ...raw, legacy: false };
+  const timeline = summary.timeline || [];
+  const caseIds = run.case_ids || [];
+  const nameOf = (id) => (caseList.find((item) => item.id === id) || {}).name || `用例 ${id}`;
+  const passedIds = [...new Set(timeline.filter((step) => step.status === 'passed' && step.case_id).map((step) => step.case_id))];
+  const failedIds = [...new Set(timeline.filter((step) => step.status === 'failed' && step.case_id).map((step) => step.case_id))];
+  const passedItems = passedIds.map((id) => ({ case_id: id, case_name: nameOf(id), feature_name: '' }));
+  const problemItems = failedIds.map((id) => ({ case_id: id, case_name: nameOf(id), feature_name: '', status: 'failed', reason: summary.failure?.reason || '执行失败' }));
+  let status = 'running';
+  if (run.status === 'passed') status = 'passed';
+  else if (run.status === 'failed') status = problemItems.length ? (passedItems.length ? 'partial' : 'failed') : 'interrupted';
+  else if (run.status === 'interrupted') status = 'interrupted';
+  return {
+    status,
+    legacy: true,
+    conclusion: status === 'passed' ? '本次测试全部通过。'
+      : status === 'interrupted' ? '测试未完成，部分用例未执行。'
+        : `${passedItems.length} 条通过，${problemItems.length} 条失败，请查看详细失败信息。`,
+    total: caseIds.length,
+    passed: passedItems.length,
+    failed: problemItems.length,
+    interrupted: 0,
+    started_at: run.started_at,
+    finished_at: run.finished_at,
+    duration_ms: 0,
+    tested_features: [],
+    passed_items: passedItems,
+    problem_items: problemItems,
+  };
+}
+
+function reportToText(run, view) {
+  if (!run || !view) return '';
+  const environment = run.target_url ? `线上地址 ${run.target_url}` : '平台预览';
+  const viewport = run.viewport === 'mobile' ? '手机 390×844' : '桌面 1440×900';
+  const passed = (view.passed_items || []).map((item) => item.feature_name || item.case_name).join('、') || '无';
+  const problems = (view.problem_items || []).map((item) => `${item.feature_name || item.case_name}（${item.reason || '执行失败'}）`).join('；') || '无';
+  return [
+    'Emote UI 自动化简短测试报告',
+    `执行编号：#${run.id}`,
+    `测试环境：${environment} / ${run.branch} / ${viewport}`,
+    `测试范围：${(view.tested_features || []).length || view.total} 个功能，${view.total} 条用例`,
+    `通过：${passed}`,
+    `有问题：${problems}`,
+    `结论：${view.conclusion}`,
+    `执行时间：${formatClock(view.started_at || run.started_at)} - ${formatClock(view.finished_at || run.finished_at)}（${formatDuration(view.duration_ms)}）`,
+  ].join('\n');
+}
+
 function ArtifactLoading({ kind, overlay = false }) {
   return (
     <div className={`ui-auto-artifact-loading${overlay ? ' ui-auto-artifact-loading--overlay' : ''}`} role="status" aria-live="polite">
@@ -135,6 +211,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [credentialForm] = Form.useForm();
   const [requirementForm] = Form.useForm();
   const [dataSetForm] = Form.useForm();
+  const [reportShowAll, setReportShowAll] = useState(false);
 
   const load = async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -170,9 +247,11 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const selectedArtifact = displayArtifacts.find((item) => item.id === selectedArtifactId)
     || [...displayArtifacts].reverse().find((item) => item.kind === (selectedRun?.status === 'running' ? 'screenshot' : 'video'))
     || [...displayArtifacts].reverse().find((item) => item.kind === 'screenshot');
+  const reportView = useMemo(() => buildReportView(selectedRun, data.cases), [selectedRun, data.cases]);
 
   useEffect(() => {
     if (selectedRun?.case_ids?.length && !selectedRun.case_ids.includes(evidenceCaseId)) setEvidenceCaseId(selectedRun.case_ids[0]);
+    setReportShowAll(false);
   }, [selectedRun?.id]);
 
   const waitForSync = async () => {
@@ -331,23 +410,29 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     </section>
     <div className="ui-auto-grid">
       <aside className="ui-auto-left">
-        <div className="ui-auto-panel-title"><div><b>测试用例</b><Text type="secondary">{enabledCases.length} 个可运行 · {data.features.length} 个功能</Text></div><Space size={2}><Button type="text" size="small" onClick={() => setSelectedCases(selectedCases.length ? [] : enabledCases.map((item) => item.id))}>{selectedCases.length ? '清空' : '全选'}</Button><Button type="text" icon={<ReloadOutlined />} aria-label="刷新用例" onClick={() => load()} /></Space></div>
-        <Input.Search allowClear placeholder="搜索测试用例" value={search} onChange={(event) => setSearch(event.target.value)} />
-        <Spin spinning={loading}>
-          {data.features.map((feature) => {
-            const rows = visibleCases.filter((item) => item.feature_id === feature.id);
-            return <section className="ui-auto-feature" key={feature.id}>
-              <div className="ui-auto-feature-head"><span>{feature.name}</span><Badge count={rows.length} showZero color="#6d5dfc" /></div>
-              {rows.map((item) => <div className={`ui-auto-case ${selectedCases.includes(item.id) ? 'selected' : ''}`} key={item.id}>
-                <Checkbox disabled={!item.enabled} checked={selectedCases.includes(item.id)} onChange={(event) => setSelectedCases((old) => event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id))} />
-                <button type="button" onClick={() => openCase(item)}><span>{item.name}</span><small><Tag color={item.enabled ? 'green' : 'default'}>{item.enabled ? '已启用' : '草稿'}</Tag>{item.steps.length} 步 · {item.priority}</small></button>
-                <Tooltip title="立即执行此用例"><Button type="text" size="small" icon={<PlayCircleOutlined />} disabled={!item.enabled} onClick={() => requestRun('selected', [item.id])} /></Tooltip>
-                <Tooltip title="复制用例"><Button type="text" size="small" icon={<CopyOutlined />} onClick={async () => { await client.post(`/v1/ui-automation/cases/${item.id}/duplicate`, {}); await load(true); }} /></Tooltip>
-              </div>)}
-            </section>;
-          })}
-        </Spin>
-        <Button block type="dashed" icon={<FileAddOutlined />} onClick={() => openCase(null)}>新建结构化用例</Button>
+        <div className="ui-auto-case-toolbar">
+          <div className="ui-auto-panel-title"><div><b>测试用例</b><Text type="secondary">{enabledCases.length} 个可运行 · {data.features.length} 个功能</Text></div><Space size={2}><Button type="text" size="small" onClick={() => setSelectedCases(selectedCases.length ? [] : enabledCases.map((item) => item.id))}>{selectedCases.length ? '清空' : '全选'}</Button><Button type="text" icon={<ReloadOutlined />} aria-label="刷新用例" onClick={() => load()} /></Space></div>
+          <Input.Search allowClear placeholder="搜索测试用例" value={search} onChange={(event) => setSearch(event.target.value)} />
+        </div>
+        <div className="ui-auto-case-scroll">
+          <Spin spinning={loading}>
+            {data.features.map((feature) => {
+              const rows = visibleCases.filter((item) => item.feature_id === feature.id);
+              return <section className="ui-auto-feature" key={feature.id}>
+                <div className="ui-auto-feature-head"><span>{feature.name}</span><Badge count={rows.length} showZero color="#6d5dfc" /></div>
+                {rows.map((item) => <div className={`ui-auto-case ${selectedCases.includes(item.id) ? 'selected' : ''}`} key={item.id}>
+                  <Checkbox disabled={!item.enabled} checked={selectedCases.includes(item.id)} onChange={(event) => setSelectedCases((old) => event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id))} />
+                  <button type="button" onClick={() => openCase(item)}><span>{item.name}</span><small><Tag color={item.enabled ? 'green' : 'default'}>{item.enabled ? '已启用' : '草稿'}</Tag>{item.steps.length} 步 · {item.priority}</small></button>
+                  <Tooltip title="立即执行此用例"><Button type="text" size="small" icon={<PlayCircleOutlined />} disabled={!item.enabled} onClick={() => requestRun('selected', [item.id])} /></Tooltip>
+                  <Tooltip title="复制用例"><Button type="text" size="small" icon={<CopyOutlined />} onClick={async () => { await client.post(`/v1/ui-automation/cases/${item.id}/duplicate`, {}); await load(true); }} /></Tooltip>
+                </div>)}
+              </section>;
+            })}
+          </Spin>
+        </div>
+        <div className="ui-auto-case-footer">
+          <Button block type="dashed" icon={<FileAddOutlined />} onClick={() => openCase(null)}>新建结构化用例</Button>
+        </div>
       </aside>
       <section className="ui-auto-right">
         <Card className="ui-auto-run-card" title={selectedRun ? `执行 #${selectedRun.id}` : '执行过程'} extra={selectedRun && <Badge status={(STATUS[selectedRun.status] || STATUS.queued)[1]} text={(STATUS[selectedRun.status] || STATUS.queued)[0]} />}>
@@ -356,6 +441,23 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
               <Text type="secondary">用例证据</Text>
               {evidenceCases.map((item) => <Button size="small" type={evidenceCaseId === item.id ? 'primary' : 'default'} key={item.id} onClick={() => { setEvidenceCaseId(item.id); setSelectedArtifactId(null); }}>{item.name}</Button>)}
             </div>
+            {reportView && <section className={`ui-auto-report ui-auto-report--${reportView.status}`}>
+              <div className="ui-auto-report__head">
+                <b>测试结果</b>
+                <Tag color={(REPORT_STATUS[reportView.status] || REPORT_STATUS.running)[1]}>{(REPORT_STATUS[reportView.status] || REPORT_STATUS.running)[0]}</Tag>
+                {reportView.legacy && <Tag color="default">历史数据，信息可能不完整</Tag>}
+                <Button size="small" icon={<CopyOutlined />} className="ui-auto-report__copy" onClick={() => copyDiagnostic(reportToText(selectedRun, reportView), '测试报告')}>复制测试报告</Button>
+              </div>
+              <div className="ui-auto-report__scope">测试范围：<b>{(reportView.tested_features || []).length || reportView.total}</b> 个功能 / <b>{reportView.total}</b> 条用例</div>
+              <div className="ui-auto-report__line ui-auto-report__line--ok"><span>通过（{reportView.passed}）：</span><span>{(reportView.passed_items || []).map((item) => item.feature_name || item.case_name).join('、') || '无'}</span></div>
+              <div className="ui-auto-report__line ui-auto-report__line--bad">
+                <span>有问题（{(reportView.problem_items || []).length}）：</span>
+                <span>{(reportView.problem_items || []).length === 0 ? '无' : (reportShowAll ? reportView.problem_items : reportView.problem_items.slice(0, 5)).map((item) => `${item.feature_name || item.case_name}——${item.reason || '执行失败'}`).join('；')}</span>
+                {(reportView.problem_items || []).length > 5 && <Button type="link" size="small" onClick={() => setReportShowAll((value) => !value)}>{reportShowAll ? '收起' : `查看全部问题（${reportView.problem_items.length}）`}</Button>}
+              </div>
+              <div className="ui-auto-report__conclusion">结论：{reportView.conclusion}</div>
+              <div className="ui-auto-report__meta">耗时 {formatDuration(reportView.duration_ms)} · {selectedRun.viewport === 'mobile' ? '手机 390 × 844' : '桌面 1440 × 900'} · {selectedRun.target_url ? '线上地址' : '平台预览'}{selectedRun.status !== 'running' && reportView.started_at ? ` · ${formatClock(reportView.started_at)} - ${formatClock(reportView.finished_at)}` : ''}</div>
+            </section>}
             <Row gutter={[16, 16]}>
               <Col xs={24} lg={15}>
                 <div className="ui-auto-screen"><ArtifactViewer client={client} artifact={selectedArtifact} refreshKey={selectedRun?.status === 'running' ? selectedRun?.progress : ''} /></div>

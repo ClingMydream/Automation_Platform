@@ -569,6 +569,8 @@ def run_task(task):
     current_case = None
     current_step = None
     current_step_index = 0
+    task_started_at = datetime.now(ZoneInfo("Asia/Shanghai"))
+    case_results = []
 
     def remember_request(request):
         if request.resource_type not in {"xhr", "fetch"}: return
@@ -627,6 +629,55 @@ def run_task(task):
                 pass
         contexts.clear()
         return case_artifacts
+
+    def build_report(final_status=None):
+        """按用例汇总简短测试报告，严格区分通过 / 失败 / 未执行。"""
+        passed_items = [r for r in case_results if r["status"] == "passed"]
+        failed_items = [r for r in case_results if r["status"] == "failed"]
+        expected = len([c for c in task["cases"] if c.get("name") not in SKIP_CASE_NAMES])
+        executed = len(passed_items) + len(failed_items)
+        unexecuted = max(expected - executed, 0)
+        if final_status == "running":
+            report_status = "running"
+        elif failed_items and passed_items:
+            report_status = "partial"
+        elif failed_items:
+            report_status = "failed"
+        elif unexecuted:
+            report_status = "interrupted"
+        else:
+            report_status = "passed"
+        if report_status == "passed":
+            conclusion = "本次测试全部通过。"
+        elif report_status == "partial":
+            conclusion = f"{len(passed_items)} 条通过，{len(failed_items)} 条失败，请处理问题后重新执行失败用例。"
+        elif report_status == "failed":
+            conclusion = "本次测试未通过，请检查环境与用例配置后重试。"
+        elif report_status == "interrupted":
+            conclusion = f"测试未完成：已执行 {executed} 条，剩余 {unexecuted} 条未执行。"
+        else:
+            conclusion = "测试进行中。"
+        features = []
+        for row in case_results:
+            name = row.get("feature_name") or ""
+            if name and name not in features:
+                features.append(name)
+        finished = datetime.now(ZoneInfo("Asia/Shanghai"))
+        return {
+            "status": report_status,
+            "conclusion": conclusion,
+            "total": expected,
+            "passed": len(passed_items),
+            "failed": len(failed_items),
+            "interrupted": unexecuted,
+            "started_at": task_started_at.isoformat(),
+            "finished_at": None if report_status == "running" else finished.isoformat(),
+            "duration_ms": int((finished - task_started_at).total_seconds() * 1000),
+            "tested_features": features,
+            "passed_items": [{"case_id": r["case_id"], "case_name": r["case_name"], "feature_name": r.get("feature_name", "")} for r in passed_items],
+            "problem_items": [{"case_id": r["case_id"], "case_name": r["case_name"], "feature_name": r.get("feature_name", ""), "status": r["status"], "reason": r.get("reason", "")} for r in failed_items],
+        }
+
     try:
         callback(run_id, status="running", current_step="启动 Chromium", progress=0)
         with sync_playwright() as pw:
@@ -654,6 +705,7 @@ def run_task(task):
                     callback(run_id, status="running", current_step=f"{case['name']} · 已跳过",
                              progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
                     continue
+                case_started = time.monotonic()
                 for attempt in range(MAX_CASE_RETRIES + 1):
                     attempt_timeline = len(timeline)
                     attempt_completed = completed
@@ -728,7 +780,7 @@ def run_task(task):
                             live = case_dir / (f"case-{case_id}-key-step-{index:02d}.png" if is_key_screenshot else f"case-{case_id}-live.png")
                             page.screenshot(path=str(live), full_page=False)
                             callback(run_id, status="running", current_step=label, progress=int(completed / total * 100),
-                                     result_summary={"timeline": timeline, "viewport": viewport},
+                                     result_summary={"timeline": timeline, "viewport": viewport, "report": build_report("running")},
                                      artifacts=[artifact(live, run_dir, "screenshot", "image/png")])
                             # Keep the live preview readable without filling evidence storage
                             # with one permanent screenshot for every action.
@@ -738,10 +790,15 @@ def run_task(task):
                             page.screenshot(path=str(final), full_page=False)
                             artifacts.append(artifact(final, run_dir, "screenshot", "image/png"))
                         artifacts.extend(finalize_case(case_id, case_dir))
+                        case_results.append({
+                            "case_id": case_id, "case_name": case.get("name", ""),
+                            "feature_name": case.get("feature_name", ""),
+                            "status": "passed", "duration_ms": int((time.monotonic() - case_started) * 1000), "reason": "",
+                        })
                         callback(run_id, status="running", current_step=f"{case['name']} · 证据已保存", progress=int(completed / total * 100),
-                                 result_summary={"timeline": timeline, "viewport": viewport}, artifacts=artifacts)
+                                 result_summary={"timeline": timeline, "viewport": viewport, "report": build_report("running")}, artifacts=artifacts)
                         break
-                    except Exception:
+                    except Exception as exc:
                         # 丢弃本次尝试的记录与计数，关闭上下文后重试
                         del timeline[attempt_timeline:]
                         completed = attempt_completed
@@ -753,12 +810,25 @@ def run_task(task):
                             callback(run_id, status="running", current_step=f"{case['name']} · 第 {attempt + 1} 次重试",
                                      progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
                             continue
+                        # 重试耗尽：记录失败用例，供简短报告使用
+                        try:
+                            reason = friendly_failure(exc, case, current_step, current_step_index,
+                                                      task.get("credentials", {})).get("reason", "") or "执行异常"
+                        except Exception:
+                            reason = "执行异常"
+                        case_results.append({
+                            "case_id": case_id, "case_name": case.get("name", ""),
+                            "feature_name": case.get("feature_name", ""),
+                            "status": "failed", "duration_ms": int((time.monotonic() - case_started) * 1000),
+                            "reason": str(reason)[:80],
+                        })
                         raise
             browser.close()
         callback(run_id, status="passed", current_step="执行完成", progress=100,
                  result_summary={"passed": len([c for c in task["cases"] if c.get("name") not in SKIP_CASE_NAMES]),
                                  "skipped": len([c for c in task["cases"] if c.get("name") in SKIP_CASE_NAMES]),
-                                 "failed": 0, "timeline": timeline, "viewport": viewport}, artifacts=artifacts)
+                                 "failed": 0, "timeline": timeline, "viewport": viewport,
+                                 "report": build_report("passed")}, artifacts=artifacts)
     except Exception as exc:
         failure = friendly_failure(exc, current_case, current_step, current_step_index, task.get("credentials", {}))
         failure["page_feedback"] = page_diagnostics.get("page_feedback", [])
@@ -783,7 +853,8 @@ def run_task(task):
                          "action": failure["action"], "status": "failed", "duration_ms": 0})
         callback(run_id, status="failed", current_step="执行失败", progress=int(completed / total * 100),
                  result_summary={"passed": 0, "failed": 1, "timeline": timeline, "failure": failure,
-                                 "viewport": {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900}},
+                                 "viewport": {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900},
+                                 "report": build_report()},
                  error_message=f"{failure['reason']}：{failure['suggestion']}", artifacts=artifacts)
 
 
