@@ -560,6 +560,8 @@ def run_task(task):
     deadline = time.monotonic() + 20 * 60
     contexts = {}
     browser = None
+    page = None
+    page_diagnostics = {}
     current_case = None
     current_step = None
     current_step_index = 0
@@ -676,7 +678,28 @@ def run_task(task):
                                  progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
                         continue
                     step_started = time.monotonic()
-                    page = execute_step(page, contexts, step, variables, task["base_url"])
+                    try:
+                        page = execute_step(page, contexts, step, variables, task["base_url"])
+                    except Exception:
+                        # 在 playwright 退出前采集诊断信息，否则浏览器关闭后拿不到页面状态
+                        if page is not None:
+                            try:
+                                page_diagnostics["page_feedback"] = visible_auth_feedback(page)
+                                page_diagnostics["page_markers"] = visible_page_markers(page)
+                                page_diagnostics["nav_buttons"] = visible_nav_buttons(page)
+                                page_diagnostics["current_url"] = page.url
+                            except Exception:
+                                pass
+                            try:
+                                _cid = current_case.get("id", "startup") if current_case else "startup"
+                                _cdir = run_dir / f"case-{_cid}"
+                                _cdir.mkdir(parents=True, exist_ok=True)
+                                _fail = _cdir / f"case-{_cid}-failure-step-{current_step_index or 0:02d}.png"
+                                page.screenshot(path=str(_fail), full_page=False)
+                                page_diagnostics["failure_screenshot"] = artifact(_fail, run_dir, "screenshot", "image/png")
+                            except Exception:
+                                pass
+                        raise
                     timeline.append({"name": label, "case_id": case_id, "case_name": case["name"], "step_index": index,
                                      "action": step["action"], "status": "passed", "duration_ms": int((time.monotonic() - step_started) * 1000)})
                     completed += 1
@@ -702,20 +725,18 @@ def run_task(task):
                  result_summary={"passed": len(task["cases"]), "failed": 0, "timeline": timeline, "viewport": viewport}, artifacts=artifacts)
     except Exception as exc:
         failure = friendly_failure(exc, current_case, current_step, current_step_index, task.get("credentials", {}))
-        failure["page_feedback"] = visible_auth_feedback(page) if page else []
-        failure["page_markers"] = visible_page_markers(page) if page else []
-        failure["nav_buttons"] = visible_nav_buttons(page) if page else []
-        failure["current_url"] = page.url if page else ""
+        failure["page_feedback"] = page_diagnostics.get("page_feedback", [])
+        failure["page_markers"] = page_diagnostics.get("page_markers", [])
+        failure["nav_buttons"] = page_diagnostics.get("nav_buttons", [])
+        failure["current_url"] = page_diagnostics.get("current_url", "")
         # Keep only the newest relevant calls. Pending entries indicate requests
         # that were still waiting when Playwright timed out.
         failure["network_issues"] = [item for item in network_issues if item.get("type") != "pending" or item.get("curl")][-10:]
+        if "failure_screenshot" in page_diagnostics:
+            artifacts.append(page_diagnostics["failure_screenshot"])
         case_id = current_case.get("id", "startup") if current_case else "startup"
         case_dir = run_dir / f"case-{case_id}"
         case_dir.mkdir(parents=True, exist_ok=True)
-        fail = case_dir / f"case-{case_id}-failure-step-{current_step_index or 0:02d}.png"
-        try:
-            page.screenshot(path=str(fail), full_page=False); artifacts.append(artifact(fail, run_dir, "screenshot", "image/png"))
-        except Exception: pass
         artifacts.extend(finalize_case(case_id, case_dir))
         try:
             if browser: browser.close()
