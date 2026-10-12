@@ -194,26 +194,25 @@ def visible_page_markers(page):
 
 
 def visible_nav_buttons(page):
-    """Capture visible navigation buttons and their guide/icon hints for diagnostics."""
+    """Capture every visible button and its text/guide/icon hints for diagnostics."""
     result = []
     try:
-        buttons = page.locator("button:visible")
-        for index in range(min(buttons.count(), 40)):
-            button = buttons.nth(index)
+        for index in range(min(page.locator("button").count(), 50)):
+            button = page.locator("button").nth(index)
             try:
-                guide = button.get_attribute("data-feature-guide")
-                aria = button.get_attribute("aria-label")
-                text = (button.inner_text() or "").strip()[:12]
-                icons = []
-                for i in range(min(button.locator("[class*='lucide-']").count(), 3)):
-                    icons.append(button.locator("[class*='lucide-']").nth(i).get_attribute("class") or "")
-                if guide or aria or icons:
-                    result.append({"text": text, "guide": guide, "aria": aria, "icons": icons})
+                if not button.is_visible():
+                    continue
+                result.append({
+                    "text": (button.inner_text() or "").strip()[:16],
+                    "guide": button.get_attribute("data-feature-guide"),
+                    "aria": button.get_attribute("aria-label"),
+                    "class": (button.get_attribute("class") or "")[:120],
+                })
             except Exception:
                 pass
     except Exception:
         pass
-    return result[:20]
+    return result[:30]
 
 
 def locator(page, step, variables):
@@ -288,27 +287,48 @@ def artifact(path: Path, run_dir: Path, kind: str, content_type: str):
 
 
 def dismiss_interrupting_guides(page):
-    """Close a guide, or consume the business click through its highlighted hole."""
+    """Close a guide overlay, or consume the business click through its highlighted hole."""
     dialog = page.locator("[role='dialog'][data-swipe-close-ignore='true']:visible")
     if not dialog.count():
         return False
-    guide_deadline = time.monotonic() + 5
+    guide_deadline = time.monotonic() + 8
     while time.monotonic() < guide_deadline:
-        for label in ("跳过引导", "开始体验"):
+        # 1. 明确的跳过/确认按钮
+        for label in ("跳过引导", "开始体验", "跳过", "进入", "我知道了", "立即体验", "立即加入", "开始", "继续", "下一步"):
             try:
                 button = page.get_by_role("button", name=label, exact=True)
                 if button.count() and button.first.is_visible():
                     button.first.click(timeout=3000)
-                    page.wait_for_timeout(300)
+                    page.wait_for_timeout(400)
                     return False
             except Exception:
                 pass
+        # 2. 引导高亮的“洞”按钮（业务点击穿过引导）
         try:
-            hole = page.locator("button.feature-guide-hole--open:visible")
+            hole = page.locator(".feature-guide-hole--open:visible")
             if hole.count() and hole.first.is_visible():
                 hole.first.click(timeout=3000)
-                page.wait_for_timeout(300)
+                page.wait_for_timeout(400)
                 return True
+        except Exception:
+            pass
+        # 3. 兜底：点击引导弹窗内的任意可见按钮（引导按钮均为安全操作）
+        try:
+            dialog_buttons = dialog.locator("button:visible")
+            for index in range(min(dialog_buttons.count(), 8)):
+                button = dialog_buttons.nth(index)
+                if button.is_visible():
+                    button.click(timeout=3000)
+                    page.wait_for_timeout(400)
+                    return False
+        except Exception:
+            pass
+        # 4. 最后手段：按 Escape 关闭模态框
+        try:
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(400)
+            if not page.locator("[role='dialog'][data-swipe-close-ignore='true']:visible").count():
+                return False
         except Exception:
             pass
         page.wait_for_timeout(150)
