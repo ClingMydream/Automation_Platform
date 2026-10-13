@@ -25,6 +25,7 @@ MENU_OPTIONS = [
     {"key": "codec", "label": "转码工具"},
     {"key": "family_oa_web", "label": "莓好审批网页版"},
     {"key": "integrations", "label": "集成配置"},
+    {"key": "work_journal", "label": "工作手记"},
 ]
 
 ADMIN_MENU = {"key": "users", "label": "用户管理"}

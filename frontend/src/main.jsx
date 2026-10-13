@@ -48,6 +48,7 @@ const CircleStatsPanel = lazy(() => import('./modules/17-circle-stats/CircleStat
 const SelfStudyPanel = lazy(() => import('./modules/18-self-study/SelfStudyPanel.jsx').then(m => ({ default: m.SelfStudyPanel })));
 const OaManagementPanel = lazy(() => import('./modules/19-oa-management/OaManagementPanel.jsx').then(m => ({ default: m.OaManagementPanel })));
 const FamilyOaWebPage = lazy(() => import('./modules/19-oa-management/FamilyOaWebPage.jsx').then(m => ({ default: m.FamilyOaWebPage })));
+const WorkJournalPanel = lazy(() => import('./modules/20-work-journal/WorkJournalPanel.jsx').then(m => ({ default: m.WorkJournalPanel })));
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { CuteIcon } from './shared/CuteIcon.jsx';
@@ -100,6 +101,7 @@ const MENU_SECTIONS = [
       { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" /> },
       { key: 'effects', label: '临时效果', icon: <CuteIcon emoji="🎀" tone="rose" /> },
       { key: 'online_preview', label: '在线预览', icon: <CuteIcon emoji="📱" tone="mint" /> },
+      { key: 'work_journal', label: '工作手记', icon: <CuteIcon emoji="📝" tone="violet" /> },
     ],
   },
   {
@@ -361,6 +363,7 @@ function ToolboxApp() {
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
             {tab === 'oa_management' && user?.is_admin && <OaManagementPanel client={client} />}
+            {tab === 'work_journal' && <WorkJournalPanel client={client} />}
             </Suspense></ModuleBoundary>}
           </div>
         </Content>

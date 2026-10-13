@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 
-from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -470,3 +470,58 @@ class UiAutomationArtifact(Base, TimestampMixin):
     stored_name: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     content_type: Mapped[str] = mapped_column(String(120), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+
+
+class WorkJournalEntry(Base, TimestampMixin):
+    """Store one personal work log entry, always owned by a single platform user."""
+
+    __tablename__ = "work_journal_entries"
+    # The request id makes the create call idempotent when the browser retries or the user double-clicks.
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "client_request_id", name="uq_work_journal_entries_owner_request"),
+        Index("ix_work_journal_entries_owner_date", "owner_user_id", "work_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    owner_user_id: Mapped[int] = mapped_column(ForeignKey("app_users.id", ondelete="CASCADE"), index=True, nullable=False)
+    client_request_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    work_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    body_markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    project: Mapped[str | None] = mapped_column(String(80))
+    category: Mapped[str] = mapped_column(String(40), default="其他", nullable=False)
+    progress_status: Mapped[str] = mapped_column(String(20), default="in_progress", nullable=False)
+    # Null means "not recorded" and must never be treated as zero minutes.
+    duration_minutes: Mapped[int | None] = mapped_column(Integer)
+    tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    outcome_markdown: Mapped[str | None] = mapped_column(Text)
+    blocker_markdown: Mapped[str | None] = mapped_column(Text)
+    next_step_markdown: Mapped[str | None] = mapped_column(Text)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class WorkJournalReport(Base, TimestampMixin):
+    """Store one daily or weekly report with its assembled source snapshots."""
+
+    __tablename__ = "work_journal_reports"
+    # One daily report per day and one weekly report per week per user; deleted rows keep the slot reserved.
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "report_type", "period_start", name="uq_work_journal_reports_owner_period"),
+        Index("ix_work_journal_reports_owner_type_start", "owner_user_id", "report_type", "period_start"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    owner_user_id: Mapped[int] = mapped_column(ForeignKey("app_users.id", ondelete="CASCADE"), index=True, nullable=False)
+    report_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    template_version: Mapped[str] = mapped_column(String(30), nullable=False)
+    sections: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    source_refs: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    assembled_at: Mapped[datetime | None] = mapped_column(DateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)

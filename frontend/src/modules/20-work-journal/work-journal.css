@@ -1,0 +1,439 @@
+/* 工作手记模块样式。所有规则都限定在 .work-journal 作用域内，不覆盖平台的全局 .ant-* 类。 */
+
+.work-journal {
+  --wj-primary: #6d5bd0;
+  --wj-mint: #15803d;
+  --wj-peach: #b45309;
+  --wj-rose: #be123c;
+  --wj-ink: #182230;
+  --wj-muted: #667085;
+  --wj-line: #ece8f6;
+  --wj-surface: #ffffff;
+  --wj-soft: #faf9fd;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 4px 4px 24px;
+  color: var(--wj-ink);
+}
+
+/* ---------- 顶部 ---------- */
+.work-journal__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.work-journal__title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 2px;
+}
+.work-journal__tagline {
+  color: var(--wj-muted);
+  font-size: 13px;
+}
+.work-journal__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.work-journal__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+.work-journal__chip {
+  background: var(--wj-soft);
+  border: 1px solid var(--wj-line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--wj-muted);
+}
+.work-journal__chip strong {
+  color: var(--wj-ink);
+  font-weight: 600;
+}
+
+/* ---------- 主体两栏 ---------- */
+.work-journal__grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.work-journal__side,
+.work-journal__main {
+  min-width: 0;
+}
+
+/* 左侧固定高度三段式：工具区 / 独立滚动列表 / 底部操作 */
+.work-journal__side {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: calc(100dvh - 268px);
+  min-height: 360px;
+  max-height: 860px;
+  background: var(--wj-surface);
+  border: 1px solid var(--wj-line);
+  border-radius: 16px;
+  overflow: hidden;
+  position: sticky;
+  top: 12px;
+}
+.work-journal__side-tools {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--wj-line);
+  display: grid;
+  gap: 8px;
+}
+.work-journal__side-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 6px 8px 8px;
+}
+.work-journal__side-foot {
+  border-top: 1px solid var(--wj-line);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--wj-muted);
+}
+
+/* ---------- 迷你日历 ---------- */
+.work-journal__calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.work-journal__calendar-head {
+  text-align: center;
+  font-size: 11px;
+  color: var(--wj-muted);
+  padding: 2px 0;
+}
+.work-journal__day {
+  position: relative;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  padding: 6px 0 8px;
+  font-size: 12px;
+  color: var(--wj-ink);
+  cursor: pointer;
+  line-height: 1.2;
+  font-family: inherit;
+}
+.work-journal__day:hover {
+  background: var(--wj-soft);
+}
+.work-journal__day.is-outside {
+  color: #c4c0d6;
+}
+.work-journal__day.is-today {
+  box-shadow: inset 0 0 0 1px var(--wj-primary);
+}
+.work-journal__day.is-selected {
+  background: var(--wj-primary);
+  color: #fff;
+}
+.work-journal__day.is-selected .work-journal__dot {
+  background: #fff;
+}
+.work-journal__day.is-in-week {
+  background: #f2effc;
+}
+.work-journal__day.is-in-week.is-selected {
+  background: var(--wj-primary);
+}
+.work-journal__dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--wj-primary);
+  margin: 0 1px;
+}
+.work-journal__dot--done {
+  background: var(--wj-mint);
+}
+.work-journal__dot--draft {
+  background: var(--wj-peach);
+}
+
+/* ---------- 记录列表 ---------- */
+.work-journal__group {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--wj-muted);
+  padding: 10px 8px 4px;
+  letter-spacing: 0.04em;
+}
+.work-journal__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+.work-journal__item:hover {
+  background: var(--wj-soft);
+}
+.work-journal__item.is-active {
+  background: #f2effc;
+  border-color: #ded6f7;
+}
+.work-journal__item-title {
+  font-size: 13px;
+  font-weight: 600;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.work-journal__item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--wj-muted);
+  margin-top: 3px;
+}
+.work-journal__item-body {
+  font-size: 12px;
+  color: var(--wj-muted);
+  margin-top: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- 右侧内容区 ---------- */
+.work-journal__card {
+  background: var(--wj-surface);
+  border: 1px solid var(--wj-line);
+  border-radius: 16px;
+  padding: 16px 18px 18px;
+}
+.work-journal__card + .work-journal__card {
+  margin-top: 14px;
+}
+.work-journal__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.work-journal__bar-left,
+.work-journal__bar-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.work-journal__save-state {
+  font-size: 12px;
+  color: var(--wj-muted);
+  min-width: 92px;
+}
+.work-journal__save-state.is-error {
+  color: var(--wj-rose);
+}
+.work-journal__save-state.is-saved {
+  color: var(--wj-mint);
+}
+
+.work-journal__field {
+  margin-bottom: 12px;
+}
+.work-journal__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wj-muted);
+  margin-bottom: 4px;
+}
+.work-journal__hint {
+  font-size: 12px;
+  color: var(--wj-muted);
+}
+.work-journal__text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.work-journal__empty {
+  padding: 28px 8px;
+  text-align: center;
+  color: var(--wj-muted);
+  font-size: 13px;
+}
+
+/* 事项 / 条目卡片 */
+.work-journal__block {
+  border: 1px solid var(--wj-line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--wj-soft);
+}
+.work-journal__block-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.work-journal__block-index {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--wj-primary);
+  min-width: 20px;
+}
+.work-journal__block-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.work-journal__sub {
+  font-size: 11px;
+  color: var(--wj-muted);
+  margin-top: 4px;
+}
+
+/* 周报 P/R/O 阅读态 */
+.work-journal__ro-heading {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 18px 0 8px;
+  color: var(--wj-ink);
+}
+.work-journal__ro-heading:first-child {
+  margin-top: 0;
+}
+.work-journal__ro-item {
+  margin-bottom: 14px;
+}
+.work-journal__ro-name {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.work-journal__ro-line {
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 2px 0;
+}
+.work-journal__ro-bullet {
+  color: var(--wj-primary);
+  margin-right: 4px;
+}
+.work-journal__flag {
+  font-size: 11px;
+  color: var(--wj-peach);
+  margin-left: 6px;
+}
+
+/* 来源预览 */
+.work-journal__source {
+  border: 1px solid var(--wj-line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--wj-soft);
+  font-size: 12px;
+}
+.work-journal__source.is-off {
+  opacity: 0.55;
+}
+.work-journal__source-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.work-journal__source-body {
+  margin-top: 6px;
+  color: var(--wj-muted);
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow: auto;
+}
+.work-journal__textarea {
+  width: 100%;
+  border: 1px solid var(--wj-line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  background: #fff;
+  color: inherit;
+}
+.work-journal__textarea:focus {
+  outline: 2px solid #ded6f7;
+  outline-offset: 0;
+}
+
+/* ---------- 移动端 ---------- */
+@media (max-width: 900px) {
+  .work-journal__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .work-journal__side {
+    position: static;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+  .work-journal__side-scroll {
+    max-height: 46dvh;
+  }
+}
+
+@media (max-width: 768px) {
+  .work-journal {
+    padding: 0 0 16px;
+  }
+  .work-journal__head-actions {
+    width: 100%;
+  }
+  .work-journal__head-actions .ant-btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+  .work-journal__card {
+    padding: 12px 12px 14px;
+    border-radius: 14px;
+  }
+  .work-journal__bar .ant-btn {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 380px) {
+  .work-journal__summary {
+    gap: 6px;
+  }
+  .work-journal__chip {
+    padding: 3px 9px;
+    font-size: 11px;
+  }
+}
