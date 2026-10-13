@@ -177,7 +177,8 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "click", "locator_type": "css", "locator": PROFILE_EDIT_BUTTON_CSS},
         {"action": "assert_visible", "locator_type": "text", "locator": "个性签名"},
         {"action": "click_random", "locator_type": "avatar_option", "locator": "头像"},
-        {"action": "append", "locator_type": "css", "locator": "input[type='text']:visible", "value": "${compact_timestamp}"},
+        # 应用限制了「一个自然月内只允许更新一次昵称」，自动化每天执行时改昵称必然被拒，
+        # 保存后弹窗不会关闭。因此本用例只改头像与个性签名，昵称编辑保留为人工验证项。
         {"action": "append", "locator_type": "css", "locator": "textarea:visible", "value": "${compact_timestamp}"},
         {"action": "wait", "value": "1200"},
         {"action": "click", "locator_type": "role", "role": "button", "locator": "保存", "exact": True},
@@ -341,6 +342,22 @@ def _seed(db: Session):
                 ]
                 steps = case.steps
                 changed = True
+            # 应用限制「一个自然月内只允许更新一次昵称」，每天执行时改昵称必被拒绝，
+            # 保存弹窗不关闭会让 assert_hidden 超时。把模板里的改昵称步骤移除，
+            # 只保留改头像与个性签名；用户自行添加的其它步骤不受影响。
+            if case and feature.key == "profile" and case.name == f"{feature.name}基础流程":
+                trimmed_steps = [
+                    step for step in (case.steps or [])
+                    if not (
+                        step.get("action") == "append"
+                        and step.get("locator_type") == "css"
+                        and step.get("locator") == "input[type='text']:visible"
+                    )
+                ]
+                if trimmed_steps != list(case.steps or []):
+                    case.steps = trimmed_steps
+                    steps = trimmed_steps
+                    changed = True
             if case and feature.key in {"friend", "chat"} and case.name == f"{feature.name}基础流程":
                 upgraded_nav = [
                     {"action": "click", "locator_type": "nav_entry", "locator": "chat"}
