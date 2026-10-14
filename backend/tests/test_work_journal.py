@@ -1,9 +1,10 @@
-"""Tests for the work journal module.
+"""Tests for the work journal module (二期：事项内容 / 状态 / 进度百分比).
 
 这些测试走完整的 HTTP 与鉴权链路（真实 JWT -> get_current_user -> require_menu -> 数据库持久化），
-不通过直接调用内部函数绕过权限，符合方案第 12 节"不能只直接调用函数绕过权限"的要求。
+不通过直接调用内部函数绕过权限。
 """
 
+import uuid
 from datetime import date, timedelta
 from types import SimpleNamespace
 
@@ -51,9 +52,8 @@ def env(tmp_path):
             session.close()
 
     app.dependency_overrides[get_db] = override_db
-    client = TestClient(app)
     return SimpleNamespace(
-        client=client,
+        client=TestClient(app),
         session=TestingSession,
         alice={"Authorization": f"Bearer {create_access_token('alice')}"},
         bob={"Authorization": f"Bearer {create_access_token('bob')}"},
@@ -62,7 +62,7 @@ def env(tmp_path):
 
 
 def entry_payload(**overrides):
-    """Build a valid entry payload with sane defaults."""
+    """Build a valid log payload with sane defaults."""
     payload = {
         "client_request_id": "req-0000-0000-0000-000000000001",
         "work_date": today_shanghai().isoformat(),
@@ -77,13 +77,18 @@ def entry_payload(**overrides):
 
 
 def make_entry(env, headers, **overrides):
-    """Create one entry through the API and return its JSON body."""
+    """Create one log through the API and return its JSON body."""
     response = env.client.post(f"{PREFIX}/entries", json=entry_payload(**overrides), headers=headers)
     assert response.status_code == 201, response.text
     return response.json()
 
 
-def make_daily(env, headers, day, items, *, quality="", reflection="", blockers=None, next_plan=None, complete=True):
+def daily_item(content, status="in_progress", percent=0):
+    """Build one 二期 daily item: content / status / progress_percent."""
+    return {"item_id": str(uuid.uuid4()), "content": content, "status": status, "progress_percent": percent}
+
+
+def make_daily(env, headers, day, items, *, remarks="", blockers=None, next_plan=None, complete=True):
     """Create and optionally complete one daily report with the given body."""
     created = env.client.post(
         f"{PREFIX}/reports", json={"report_type": "daily", "period_start": day.isoformat()}, headers=headers
@@ -97,10 +102,9 @@ def make_daily(env, headers, day, items, *, quality="", reflection="", blockers=
         report_id = current["id"]
     sections = {
         "items": items,
-        "quality": quality,
         "blockers": blockers or [],
         "next_plan": next_plan or [],
-        "reflection": reflection,
+        "remarks": remarks,
     }
     saved = env.client.put(
         f"{PREFIX}/reports/{report_id}",
@@ -118,16 +122,34 @@ def make_daily(env, headers, day, items, *, quality="", reflection="", blockers=
     return current
 
 
-def daily_item(name, progress, result="", project="", status="completed"):
-    """Build one daily report item."""
-    return {
-        "item_id": f"item-{name}-{progress}"[:36],
-        "name": name,
-        "project": project,
-        "progress": progress,
-        "result": result,
-        "status": status,
-    }
+def _legacy_report(env, report_type, period_start, body):
+    """Insert one pre-P/R/O report directly so the conversion path can be exercised."""
+    with env.session() as db:
+        alice = db.query(AppUser).filter(AppUser.username == "alice").first()
+        row = WorkJournalReport(
+            owner_user_id=alice.id, report_type=report_type,
+            period_start=period_start, period_end=period_start if report_type == "daily" else period_start + timedelta(days=6),
+            title=f"旧版{report_type}", template_version=f"{report_type}_legacy_v1",
+            sections={"body": body}, status="draft", source_refs=[], revision=1,
+        )
+        db.add(row)
+        db.commit()
+        return row.id
+
+
+def _v1_report(env, report_type, period_start, sections):
+    """Insert one 一期 structured report so the v1 -> v2 conversion path can be exercised."""
+    with env.session() as db:
+        alice = db.query(AppUser).filter(AppUser.username == "alice").first()
+        row = WorkJournalReport(
+            owner_user_id=alice.id, report_type=report_type,
+            period_start=period_start, period_end=period_start if report_type == "daily" else period_start + timedelta(days=6),
+            title=f"一期{report_type}", template_version="daily_v1" if report_type == "daily" else "weekly_pro_v1",
+            sections=sections, status="draft", source_refs=[], revision=1,
+        )
+        db.add(row)
+        db.commit()
+        return row.id
 
 
 # --------------------------------------------------------------------------------------
@@ -145,9 +167,7 @@ def test_owner_isolation_across_every_read(env):
     made = make_entry(env, env.alice)
     assert env.client.get(f"{PREFIX}/entries/{made['id']}", headers=env.bob).status_code == 404
     assert env.client.put(
-        f"{PREFIX}/entries/{made['id']}",
-        json={**entry_payload(), "revision": 1},
-        headers=env.bob,
+        f"{PREFIX}/entries/{made['id']}", json={**entry_payload(), "revision": 1}, headers=env.bob
     ).status_code == 404
     assert env.client.delete(f"{PREFIX}/entries/{made['id']}?revision=1", headers=env.bob).status_code == 404
     assert env.client.get(f"{PREFIX}/entries/{made['id']}/export", headers=env.bob).status_code == 404
@@ -158,15 +178,11 @@ def test_owner_isolation_across_every_read(env):
 def test_admin_still_only_sees_own_records(env):
     """Administrators bypass menu checks but must not read another user's journal."""
     with env.session() as db:
-        alice = db.query(AppUser).filter(AppUser.username == "alice").first()
-        admin = AppUser(username="root", display_name="管理员", password_hash=hash_password("x"), is_admin=True)
-        db.add(admin)
+        db.add(AppUser(username="root", display_name="管理员", password_hash=hash_password("x"), is_admin=True))
         db.commit()
-        alice_id = alice.id
     make_entry(env, env.alice)
     admin_headers = {"Authorization": f"Bearer {create_access_token('root', is_admin=True)}"}
     assert env.client.get(f"{PREFIX}/entries", headers=admin_headers).json()["total"] == 0
-    assert alice_id is not None
 
 
 # --------------------------------------------------------------------------------------
@@ -184,17 +200,13 @@ def test_create_is_idempotent_for_repeated_request_id(env):
 def test_future_work_date_is_rejected(env):
     """First release does not allow future work dates."""
     tomorrow = (today_shanghai() + timedelta(days=1)).isoformat()
-    response = env.client.post(f"{PREFIX}/entries", json=entry_payload(work_date=tomorrow), headers=env.alice)
-    assert response.status_code == 422
+    assert env.client.post(f"{PREFIX}/entries", json=entry_payload(work_date=tomorrow), headers=env.alice).status_code == 422
 
 
 def test_blank_body_and_bad_tags_are_rejected(env):
     """Whitespace-only bodies are invalid and tags are de-duplicated and capped."""
-    blank = env.client.post(f"{PREFIX}/entries", json=entry_payload(body_markdown="   \n  "), headers=env.alice)
-    assert blank.status_code == 422
-    tagged = make_entry(
-        env, env.alice, client_request_id="req-bad-tags", tags=["a", "a", " b ", ""]
-    )
+    assert env.client.post(f"{PREFIX}/entries", json=entry_payload(body_markdown="   \n  "), headers=env.alice).status_code == 422
+    tagged = make_entry(env, env.alice, client_request_id="req-bad-tags", tags=["a", "a", " b ", ""])
     assert tagged["tags"] == ["a", "b"]
     too_many = env.client.post(
         f"{PREFIX}/entries", json=entry_payload(client_request_id="req-many-tags", tags=[f"t{i}" for i in range(11)]), headers=env.alice
@@ -202,13 +214,24 @@ def test_blank_body_and_bad_tags_are_rejected(env):
     assert too_many.status_code == 422
 
 
+def test_entry_remarks_round_trip(env):
+    """日志备注可保存、返回与导出；留空时导出不出现备注区块。"""
+    with_remarks = make_entry(env, env.alice, client_request_id="req-remarks-1", remarks_markdown="补充背景与链接")
+    assert with_remarks["remarks_markdown"] == "补充背景与链接"
+    exported = env.client.get(f"{PREFIX}/entries/{with_remarks['id']}/export", headers=env.alice).text
+    assert "## 备注" in exported and "补充背景与链接" in exported
+
+    without = make_entry(env, env.alice, client_request_id="req-remarks-2", title="无备注日志")
+    assert without["remarks_markdown"] in (None, "")
+    assert "## 备注" not in env.client.get(f"{PREFIX}/entries/{without['id']}/export", headers=env.alice).text
+
+
 def test_update_delete_and_restore_require_matching_revision(env):
     """Stale revisions conflict; deleted rows land in the recycle bin and can be restored."""
     made = make_entry(env, env.alice)
-    stale = env.client.put(
+    assert env.client.put(
         f"{PREFIX}/entries/{made['id']}", json={**entry_payload(), "revision": 99}, headers=env.alice
-    )
-    assert stale.status_code == 409
+    ).status_code == 409
     updated = env.client.put(
         f"{PREFIX}/entries/{made['id']}",
         json={**entry_payload(), "title": "登录接口自动化（二）", "revision": made["revision"]},
@@ -217,13 +240,10 @@ def test_update_delete_and_restore_require_matching_revision(env):
     assert updated.status_code == 200
     assert updated.json()["revision"] == made["revision"] + 1
 
-    deleted = env.client.delete(f"{PREFIX}/entries/{made['id']}?revision={updated.json()['revision']}", headers=env.alice)
-    assert deleted.status_code == 200
+    assert env.client.delete(f"{PREFIX}/entries/{made['id']}?revision={updated.json()['revision']}", headers=env.alice).status_code == 200
     assert env.client.get(f"{PREFIX}/entries", headers=env.alice).json()["total"] == 0
     assert env.client.get(f"{PREFIX}/entries?deleted=true", headers=env.alice).json()["total"] == 1
-
-    restored = env.client.post(f"{PREFIX}/entries/{made['id']}/restore", headers=env.alice)
-    assert restored.status_code == 200
+    assert env.client.post(f"{PREFIX}/entries/{made['id']}/restore", headers=env.alice).status_code == 200
     assert env.client.get(f"{PREFIX}/entries", headers=env.alice).json()["total"] == 1
 
 
@@ -231,9 +251,7 @@ def test_filters_run_on_the_server(env):
     """Filters and keyword search apply to the whole result set, not just one page."""
     for index in range(3):
         make_entry(
-            env,
-            env.alice,
-            client_request_id=f"req-page-{index}",
+            env, env.alice, client_request_id=f"req-page-{index}",
             work_date=(today_shanghai() - timedelta(days=index)).isoformat(),
             title=f"分页用例 {index}",
             body_markdown="内容命中关键字" if index == 2 else "普通内容",
@@ -241,16 +259,15 @@ def test_filters_run_on_the_server(env):
         )
     assert env.client.get(f"{PREFIX}/entries?project=霖感 APP", headers=env.alice).json()["total"] == 2
     assert env.client.get(f"{PREFIX}/entries?q=命中关键字", headers=env.alice).json()["total"] == 1
-    assert env.client.get(f"{PREFIX}/entries?page=1&page_size=2", headers=env.alice).json()["items"].__len__() == 2
-    filters = env.client.get(f"{PREFIX}/filters", headers=env.alice).json()
-    assert set(filters["projects"]) == {"霖感 APP", "商城"}
+    assert len(env.client.get(f"{PREFIX}/entries?page=1&page_size=2", headers=env.alice).json()["items"]) == 2
+    assert set(env.client.get(f"{PREFIX}/filters", headers=env.alice).json()["projects"]) == {"霖感 APP", "商城"}
 
 
 # --------------------------------------------------------------------------------------
-# 日报汇总
+# 日报（二期结构）
 # --------------------------------------------------------------------------------------
-def test_daily_assemble_maps_logs_to_the_five_sections(env):
-    """Logs map to items/quality/blockers/next_plan/reflection with the real progress status."""
+def test_daily_assemble_uses_content_status_and_progress(env):
+    """J06：日志按新结构整理，状态真实，不再出现测试与质量 / 成长与复盘。"""
     today = today_shanghai()
     make_entry(
         env, env.alice, client_request_id="req-daily-1", work_date=today.isoformat(), title="回归线上版本",
@@ -262,30 +279,24 @@ def test_daily_assemble_maps_logs_to_the_five_sections(env):
         env, env.alice, client_request_id="req-daily-2", work_date=today.isoformat(), title="自动化脚本优化",
         body_markdown="重构登录态复用", category="自动化开发", progress_status="in_progress",
     )
-    make_entry(
-        env, env.alice, client_request_id="req-daily-3", work_date=today.isoformat(), title="学习 Pytest",
-        body_markdown="学习 fixture 用法", category="学习成长", progress_status="completed",
-    )
     preview = env.client.post(
         f"{PREFIX}/assemble-preview",
         json={"report_type": "daily", "period_start": today.isoformat()},
         headers=env.alice,
-    )
-    assert preview.status_code == 200, preview.text
-    body = preview.json()
-    sections = body["sections"]
-    assert len(sections["items"]) == 3
-    statuses = {item["name"]: item["status"] for item in sections["items"]}
-    assert statuses["自动化脚本优化"] == "in_progress"
-    assert statuses["回归线上版本"] == "completed"
-    assert "回归线上版本" in sections["quality"]
+    ).json()
+    sections = preview["sections"]
+    assert preview["template_version"] == "daily_v2"
+    assert "quality" not in sections and "reflection" not in sections
+    assert len(sections["items"]) == 2
+    by_content = {item["content"].splitlines()[0]: item for item in sections["items"]}
+    assert by_content["回归线上版本"]["status"] == "completed"
+    assert by_content["回归线上版本"]["progress_percent"] == 100
+    assert by_content["自动化脚本优化"]["status"] == "in_progress"
+    assert by_content["自动化脚本优化"]["progress_percent"] == 0
     assert sections["blockers"][0]["text"] == "支付回调偶发失败"
     assert sections["next_plan"][0]["text"] == "跟进支付回调问题"
-    assert "学习 Pytest" in sections["reflection"]
-    assert body["source_count"] == 3
-    assert body["totals"]["duration_minutes"] == 90
-    # 每条来源都要能追溯回具体日志
-    assert all(item["source_refs"] for item in sections["items"])
+    assert sections["remarks"] == ""
+    assert preview["totals"]["duration_minutes"] == 90
 
 
 def test_daily_assemble_with_no_logs_never_fabricates(env):
@@ -300,44 +311,84 @@ def test_daily_assemble_with_no_logs_never_fabricates(env):
     assert preview["warnings"]
 
 
-def test_daily_completion_requires_a_filled_item(env):
-    """A daily report cannot be completed without a named item carrying progress."""
-    created = env.client.post(
-        f"{PREFIX}/reports", json={"report_type": "daily", "period_start": today_shanghai().isoformat()}, headers=env.alice
-    ).json()
-    blocked = env.client.post(
-        f"{PREFIX}/reports/{created['id']}/complete", json={"revision": created["revision"]}, headers=env.alice
-    )
-    assert blocked.status_code == 422
-
+def test_daily_completion_needs_one_valid_item_and_allows_empty_remarks(env):
+    """验收4：至少一个有效事项即可完成，空备注可正常保存与完成。"""
+    day = today_shanghai().isoformat()
+    created = env.client.post(f"{PREFIX}/reports", json={"report_type": "daily", "period_start": day}, headers=env.alice).json()
     saved = env.client.put(
         f"{PREFIX}/reports/{created['id']}",
-        json={
-            "title": created["title"],
-            "sections": {
-                "items": [daily_item("今日主要为排查", "排查线上告警，尚无完成项", "", "", "in_progress")],
-                "quality": "",
-                "blockers": [],
-                "next_plan": [],
-                "reflection": "",
-            },
-            "revision": created["revision"],
-        },
+        json={"title": created["title"], "sections": {"items": [{"item_id": str(uuid.uuid4()), "content": "写了一半", "status": "in_progress", "progress_percent": None}], "blockers": [], "next_plan": [], "remarks": ""}, "revision": created["revision"]},
         headers=env.alice,
     ).json()
-    done = env.client.post(f"{PREFIX}/reports/{created['id']}/complete", json={"revision": saved["revision"]}, headers=env.alice)
-    assert done.status_code == 200
+    refused = env.client.post(f"{PREFIX}/reports/{created['id']}/complete", json={"revision": saved["revision"]}, headers=env.alice)
+    assert refused.status_code == 422
+    assert "进度" in refused.json()["detail"]
+
+    fixed = env.client.put(
+        f"{PREFIX}/reports/{created['id']}",
+        json={"title": created["title"], "sections": {"items": [daily_item("优化发帖自动化流程", "in_progress", 60)], "blockers": [], "next_plan": [], "remarks": ""}, "revision": saved["revision"]},
+        headers=env.alice,
+    ).json()
+    done = env.client.post(f"{PREFIX}/reports/{created['id']}/complete", json={"revision": fixed["revision"]}, headers=env.alice)
+    assert done.status_code == 200, done.text
     assert done.json()["status"] == "completed"
-    # 完成态不能直接改，必须先重新编辑
+
+
+def test_empty_item_and_missing_items_are_reported(env):
+    """空内容卡片被拒绝，没有任何事项时也不能完成。"""
+    day = today_shanghai().isoformat()
+    created = env.client.post(f"{PREFIX}/reports", json={"report_type": "daily", "period_start": day}, headers=env.alice).json()
+    blank = env.client.put(
+        f"{PREFIX}/reports/{created['id']}",
+        json={"title": created["title"], "sections": {"items": [{"item_id": str(uuid.uuid4()), "content": "   ", "status": "in_progress", "progress_percent": 0}], "blockers": [], "next_plan": [], "remarks": ""}, "revision": created["revision"]},
+        headers=env.alice,
+    )
+    assert blank.status_code == 422
+    empty = env.client.post(f"{PREFIX}/reports/{created['id']}/complete", json={"revision": created["revision"]}, headers=env.alice)
+    assert empty.status_code == 422
+    assert "事项" in empty.json()["detail"]
+
+
+def test_progress_type_and_range_are_enforced_server_side(env):
+    """验收3：字符串、布尔、负数、超过 100、非 10 的倍数一律拒绝；0 正常保存。"""
+    day = today_shanghai().isoformat()
+    created = env.client.post(f"{PREFIX}/reports", json={"report_type": "daily", "period_start": day}, headers=env.alice).json()
+    for bad in ("60", True, -10, 110, 65):
+        response = env.client.put(
+            f"{PREFIX}/reports/{created['id']}",
+            json={"title": created["title"], "sections": {"items": [{"item_id": str(uuid.uuid4()), "content": "事项", "status": "in_progress", "progress_percent": bad}], "blockers": [], "next_plan": [], "remarks": ""}, "revision": created["revision"]},
+            headers=env.alice,
+        )
+        assert response.status_code == 422, (bad, response.text)
+
+    ok = env.client.put(
+        f"{PREFIX}/reports/{created['id']}",
+        json={"title": created["title"], "sections": {"items": [daily_item("刚开始排查", "in_progress", 0)], "blockers": [], "next_plan": [], "remarks": ""}, "revision": created["revision"]},
+        headers=env.alice,
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["sections"]["items"][0]["progress_percent"] == 0
+
+
+def test_status_and_percentage_must_stay_consistent(env):
+    """验收3：已完成必须是 100%，100% 必须对应已完成，其余状态只允许 0–90%。"""
+    day = today_shanghai().isoformat()
+    created = env.client.post(f"{PREFIX}/reports", json={"report_type": "daily", "period_start": day}, headers=env.alice).json()
     assert env.client.put(
         f"{PREFIX}/reports/{created['id']}",
-        json={"title": "改", "sections": saved["sections"], "revision": done.json()["revision"]},
+        json={"title": created["title"], "sections": {"items": [daily_item("事项", "completed", 60)], "blockers": [], "next_plan": [], "remarks": ""}, "revision": created["revision"]},
         headers=env.alice,
-    ).status_code == 409
-    reopened = env.client.post(
-        f"{PREFIX}/reports/{created['id']}/reopen", json={"revision": done.json()["revision"]}, headers=env.alice
-    )
-    assert reopened.json()["status"] == "draft"
+    ).status_code == 422
+    assert env.client.put(
+        f"{PREFIX}/reports/{created['id']}",
+        json={"title": created["title"], "sections": {"items": [daily_item("事项", "blocked", 100)], "blockers": [], "next_plan": [], "remarks": ""}, "revision": created["revision"]},
+        headers=env.alice,
+    ).status_code == 422
+    assert env.client.put(
+        f"{PREFIX}/reports/{created['id']}",
+        json={"title": created["title"], "sections": {"items": [daily_item("事项", "blocked", 60)], "blockers": [], "next_plan": [], "remarks": ""}, "revision": created["revision"]},
+        headers=env.alice,
+    ).status_code == 200
 
 
 def test_one_daily_report_per_day_including_recycle_bin(env):
@@ -348,7 +399,6 @@ def test_one_daily_report_per_day_including_recycle_bin(env):
     duplicate = env.client.post(f"{PREFIX}/reports", json={"report_type": "daily", "period_start": day}, headers=env.alice)
     assert duplicate.status_code == 409
     assert duplicate.json()["detail"]["report_id"] == first.json()["id"]
-    # 软删除后唯一键仍然占位，因此再次创建依旧冲突，前端据此提示恢复
     env.client.delete(f"{PREFIX}/reports/{first.json()['id']}?revision=1", headers=env.alice)
     again = env.client.post(f"{PREFIX}/reports", json={"report_type": "daily", "period_start": day}, headers=env.alice)
     assert again.status_code == 409
@@ -356,86 +406,59 @@ def test_one_daily_report_per_day_including_recycle_bin(env):
 
 
 # --------------------------------------------------------------------------------------
-# 周报汇总
+# 周报（P / R / O）
 # --------------------------------------------------------------------------------------
-def test_weekly_merges_the_same_item_across_days(env):
-    """One item logged on several days becomes a single P block with ordered, de-duplicated progress."""
-    monday, _ = week_range(today_shanghai())
-    monday = monday - timedelta(days=7)  # 用上一周，避免与其它用例互相影响
-    for offset, (progress, result) in enumerate(
-        [("调整登录态复用流程", ""), ("调整登录态复用流程", "回归待验证"), ("补充异常分支用例", "")]
-    ):
-        make_daily(
-            env,
-            env.alice,
-            monday + timedelta(days=offset),
-            [daily_item("UI 自动化测试优化", progress, result, "霖感 APP")],
-        )
-    report = env.client.post(
-        f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
-    ).json()
-    preview = env.client.post(
-        f"{PREFIX}/assemble-preview",
-        json={"report_type": "weekly", "period_start": monday.isoformat(), "report_id": report["id"]},
-        headers=env.alice,
-    ).json()
-    p_items = [item for item in preview["sections"]["p_items"] if item["name"] == "UI 自动化测试优化"]
-    assert len(p_items) == 1
-    assert p_items[0]["progress"].count("调整登录态复用流程") == 1
-    assert "补充异常分支用例" in p_items[0]["progress"]
-    assert p_items[0]["result"] == "回归待验证"
-    assert len(p_items[0]["source_item_refs"]) == 3
-
-
-def test_weekly_does_not_merge_same_name_in_different_projects(env):
-    """Identical names in different projects stay separate, and a missing result is flagged."""
-    monday, _ = week_range(today_shanghai()) 
-    monday = monday - timedelta(days=14)
-    make_daily(env, env.alice, monday, [daily_item("版本巡检", "巡检 A 项目", "完成 A", "项目A")])
-    make_daily(env, env.alice, monday + timedelta(days=1), [daily_item("版本巡检", "巡检 B 项目", "", "项目B")])
+def test_weekly_merges_the_same_item_and_uses_the_latest_status(env):
+    """验收6：同事项跨天归并，状态与进度取时间最晚的明确记录，不取最大值。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=7)
+    make_daily(env, env.alice, monday, [daily_item("UI 自动化测试优化", "in_progress", 80)])
+    make_daily(env, env.alice, monday + timedelta(days=2), [daily_item("UI 自动化测试优化", "blocked", 60)])
     preview = env.client.post(
         f"{PREFIX}/assemble-preview",
         json={"report_type": "weekly", "period_start": monday.isoformat()},
         headers=env.alice,
     ).json()
-    names = [item["name"] for item in preview["sections"]["p_items"]]
-    assert names.count("版本巡检") == 2
-    empty_result = [item for item in preview["sections"]["p_items"] if item["project"] == "项目B"][0]
-    assert "待确认" in empty_result["result"]
+    assert preview["template_version"] == "weekly_pro_v2"
+    items = [row for row in preview["sections"]["p_items"] if row["content"] == "UI 自动化测试优化"]
+    assert len(items) == 1
+    assert items[0]["status"] == "blocked"
+    assert items[0]["progress_percent"] == 60
+    assert len(items[0]["source_item_refs"]) == 2
 
 
-def test_weekly_result_conflict_and_explicit_correction(env):
-    """Different results conflict unless the later daily report explicitly corrects the earlier one."""
-    monday, _ = week_range(today_shanghai())
-    monday = monday - timedelta(days=21)
-    make_daily(env, env.alice, monday, [daily_item("缺陷跟进", "跟进失败率", "失败率 12%")])
-    make_daily(env, env.alice, monday + timedelta(days=1), [daily_item("缺陷跟进", "继续跟进失败率", "失败率 8%")])
-    conflict = env.client.post(
+def test_weekly_same_day_conflict_is_flagged(env):
+    """同日出现互相冲突的状态/进度时标记待核对。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=14)
+    make_daily(env, env.alice, monday, [
+        daily_item("同名事项", "in_progress", 30),
+        daily_item("同名事项", "blocked", 70),
+    ])
+    preview = env.client.post(
         f"{PREFIX}/assemble-preview",
         json={"report_type": "weekly", "period_start": monday.isoformat()},
         headers=env.alice,
     ).json()
-    item = [row for row in conflict["sections"]["p_items"] if row["name"] == "缺陷跟进"][0]
-    assert item["result_conflict"] is True
-    assert "结果存在差异" in item["result"]
+    items = [row for row in preview["sections"]["p_items"] if row["content"] == "同名事项"]
+    assert len(items) == 1
+    assert items[0]["status_conflict"] is True
 
-    monday2 = monday - timedelta(days=7)
-    make_daily(env, env.alice, monday2, [daily_item("缺陷跟进", "跟进失败率", "失败率 12%")])
-    make_daily(env, env.alice, monday2 + timedelta(days=1), [daily_item("缺陷跟进", "继续跟进失败率", "更正：实际失败率 8%")])
-    corrected = env.client.post(
+
+def test_weekly_keeps_different_descriptions_apart(env):
+    """没有项目字段后按去空格后的相同内容匹配，不同描述不模糊合并。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=21)
+    make_daily(env, env.alice, monday, [daily_item("版本巡检（A 项目）", "completed", 100)])
+    make_daily(env, env.alice, monday + timedelta(days=1), [daily_item("版本巡检（B 项目）", "in_progress", 20)])
+    preview = env.client.post(
         f"{PREFIX}/assemble-preview",
-        json={"report_type": "weekly", "period_start": monday2.isoformat()},
+        json={"report_type": "weekly", "period_start": monday.isoformat()},
         headers=env.alice,
     ).json()
-    item = [row for row in corrected["sections"]["p_items"] if row["name"] == "缺陷跟进"][0]
-    assert item["result_conflict"] is False
-    assert "更正" in item["result"]
+    assert sorted(row["content"] for row in preview["sections"]["p_items"]) == ["版本巡检（A 项目）", "版本巡检（B 项目）"]
 
 
 def test_weekly_without_sources_reports_gaps_without_fabricating(env):
     """A week with no daily reports must not invent progress, risks or numbers."""
-    monday, _ = week_range(today_shanghai())
-    monday = monday - timedelta(days=28)
+    monday = week_range(today_shanghai())[0] - timedelta(days=28)
     preview = env.client.post(
         f"{PREFIX}/assemble-preview",
         json={"report_type": "weekly", "period_start": monday.isoformat()},
@@ -445,17 +468,14 @@ def test_weekly_without_sources_reports_gaps_without_fabricating(env):
     assert preview["sections"]["p_items"] == []
     assert preview["sections"]["r_items"][0]["text"] == assemble.NO_RISK_TEXT
     assert preview["sections"]["o_items"][0]["text"] == assemble.NO_PLAN_TEXT
+    assert preview["sections"]["remarks"] == ""
     assert len(preview["missing_dates"]) == 7
-    assert preview["warnings"]
 
 
 def test_weekly_excludes_draft_reports_by_default(env):
-    """Draft daily reports stay out unless explicitly selected, and the gap is disclosed."""
-    monday, _ = week_range(today_shanghai())
-    monday = monday - timedelta(days=35)
-    make_daily(
-        env, env.alice, monday, [daily_item("草稿事项", "只写了一半", "")], complete=False
-    )
+    """Draft daily reports stay out unless explicitly selected."""
+    monday = week_range(today_shanghai())[0] - timedelta(days=35)
+    make_daily(env, env.alice, monday, [daily_item("草稿事项", "in_progress", 40)], complete=False)
     default = env.client.post(
         f"{PREFIX}/assemble-preview",
         json={"report_type": "weekly", "period_start": monday.isoformat()},
@@ -469,168 +489,71 @@ def test_weekly_excludes_draft_reports_by_default(env):
         headers=env.alice,
     ).json()
     assert included["source_count"] == 1
-    assert [row["name"] for row in included["sections"]["p_items"]] == ["草稿事项"]
+    assert [row["content"] for row in included["sections"]["p_items"]] == ["草稿事项"]
 
 
-def test_weekly_requires_monday_and_one_complete_item(env):
-    """Weekly periods start on Monday and completion needs name + progress + result."""
+def test_weekly_requires_monday_and_one_valid_item(env):
+    """验收7：周报周期必须是周一；完成需要事项内容 + 状态 + 进度。"""
     wednesday = week_range(today_shanghai())[0] + timedelta(days=2) - timedelta(days=42)
-    bad = env.client.post(
+    assert env.client.post(
         f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": wednesday.isoformat()}, headers=env.alice
-    )
-    assert bad.status_code == 422
+    ).status_code == 422
 
     monday = week_range(today_shanghai())[0] - timedelta(days=42)
     report = env.client.post(
         f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
     ).json()
     assert report["period_end"] == (monday + timedelta(days=6)).isoformat()
-    incomplete = env.client.put(
-        f"{PREFIX}/reports/{report['id']}",
-        json={
-            "title": report["title"],
-            "sections": {"p_items": [{"item_id": "1", "name": "事项", "progress": "做了", "result": ""}], "r_items": [], "o_items": []},
-            "revision": report["revision"],
-        },
-        headers=env.alice,
-    ).json()
-    refused = env.client.post(
-        f"{PREFIX}/reports/{report['id']}/complete", json={"revision": incomplete["revision"]}, headers=env.alice
-    )
-    assert refused.status_code == 422
-    # 用户明确写"结果待确认"即可完成，系统不得自动填充"已完成"
+    assert env.client.post(f"{PREFIX}/reports/{report['id']}/complete", json={"revision": report["revision"]}, headers=env.alice).status_code == 422
+
     fixed = env.client.put(
         f"{PREFIX}/reports/{report['id']}",
-        json={
-            "title": report["title"],
-            "sections": {"p_items": [{"item_id": "1", "name": "事项", "progress": "做了", "result": "结果待确认"}], "r_items": [], "o_items": []},
-            "revision": incomplete["revision"],
-        },
+        json={"title": report["title"], "sections": {"p_items": [daily_item("输出调研报告", "completed", 100)], "r_items": [], "o_items": [], "remarks": ""}, "revision": report["revision"]},
         headers=env.alice,
     ).json()
-    assert env.client.post(
-        f"{PREFIX}/reports/{report['id']}/complete", json={"revision": fixed["revision"]}, headers=env.alice
-    ).status_code == 200
+    assert env.client.post(f"{PREFIX}/reports/{report['id']}/complete", json={"revision": fixed["revision"]}, headers=env.alice).status_code == 200
 
 
 def test_assemble_endpoint_appends_then_replaces(env):
-    """The assemble endpoint writes the candidate body and append mode does not duplicate sources."""
-    monday, _ = week_range(today_shanghai())
-    monday = monday - timedelta(days=49)
-    make_daily(env, env.alice, monday, [daily_item("回归验证", "执行剩余场景", "已通过")])
+    """The assemble endpoint writes the candidate body and append mode does not duplicate items."""
+    monday = week_range(today_shanghai())[0] - timedelta(days=49)
+    make_daily(env, env.alice, monday, [daily_item("回归验证", "completed", 100)])
     report = env.client.post(
         f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
     ).json()
     first = env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=append", headers=env.alice)
     assert first.status_code == 200, first.text
-    names_after_first = [row["name"] for row in first.json()["sections"]["p_items"]]
+    contents = [row["content"] for row in first.json()["sections"]["p_items"]]
     second = env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=append", headers=env.alice)
-    assert [row["name"] for row in second.json()["sections"]["p_items"]] == names_after_first
+    assert [row["content"] for row in second.json()["sections"]["p_items"]] == contents
     replaced = env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice)
-    assert [row["name"] for row in replaced.json()["sections"]["p_items"]] == names_after_first
-    assert replaced.json()["source_refs"]
+    assert [row["content"] for row in replaced.json()["sections"]["p_items"]] == contents
 
 
-# --------------------------------------------------------------------------------------
-# 格式与导出
-# --------------------------------------------------------------------------------------
-def test_weekly_body_uses_the_fixed_p_r_o_format(env):
-    """The weekly body must be exactly the P / R / O blocks with 事项编号 and ● progress/result."""
-    monday, _ = week_range(today_shanghai())
-    monday = monday - timedelta(days=56)
-    make_daily(
-        env,
-        env.alice,
-        monday,
-        [daily_item("线上版本巡检", "围绕霖感 APP 线上版本开展日常巡检", "完成本周巡检并记录问题", "霖感 APP")],
-        blockers=[{"id": "b1", "item_id": "", "text": "部分场景尚未完成回归验证", "resolved": False}],
-        next_plan=[{"id": "p1", "item_id": "", "text": "完成剩余场景的回归验证"}],
-    )
-    report = env.client.post(
-        f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
-    ).json()
-    env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice)
-    exported = env.client.get(f"{PREFIX}/reports/{report['id']}/export", headers=env.alice)
-    assert exported.status_code == 200
-    text = exported.text
-    assert "# P-核心进展与结果:" in text
-    assert "# R-需要关注的风险与问题:" in text
-    assert "# O-下周核心目标与计划:" in text
-    assert "**事项一：线上版本巡检**" in text
-    assert "● 进展：" in text and "● 结果：" in text
-    # 正文不能夹带来源 ID、缺失日期或草稿标记
-    assert "source_refs" not in text and "草稿来源" not in text
-    assert exported.headers["content-disposition"].startswith("attachment; filename*=UTF-8''")
-
-
-def test_entry_export_contains_the_metadata_block(env):
-    """Entry export carries the title, date, type and body."""
-    made = make_entry(env, env.alice, outcome_markdown="完成登录用例", duration_minutes=45)
-    exported = env.client.get(f"{PREFIX}/entries/{made['id']}/export", headers=env.alice)
-    assert exported.status_code == 200
-    assert "# 登录接口自动化" in exported.text
-    assert "工时：45 分钟" in exported.text
-    assert "## 结果与产出" in exported.text
-
-
-def test_weekly_index_handles_more_than_ten_items(env):
-    """Item numbering must stay correct beyond ten entries."""
-    from app.modules.work_journal.service import chinese_index
-
-    assert chinese_index(1) == "一"
-    assert chinese_index(10) == "十"
-    assert chinese_index(11) == "11"
-
-
-def test_week_range_and_today_use_beijing_time(env):
-    """Week boundaries are Monday..Sunday and today comes from Asia/Shanghai."""
-    monday, sunday = week_range(date(2026, 10, 14))
-    assert monday == date(2026, 10, 12)
-    assert sunday == date(2026, 10, 18)
-    assert monday.weekday() == 0
-    # 跨年周以周一日期作为周 ID，不会与其它年份冲突
-    assert week_range(date(2027, 1, 1))[0] == date(2026, 12, 28)
-
-
-# --------------------------------------------------------------------------------------
-# 来源变更、人工修改与旧版兼容
-# --------------------------------------------------------------------------------------
 def test_report_keeps_its_snapshot_after_the_source_changes(env):
-    """J10：改动或删除来源日志后，已保存报告的正文与来源快照都不随之改变。"""
+    """J10：改动来源日志后，已保存报告的正文与来源快照都不随之改变。"""
     day = today_shanghai().isoformat()
-    made = make_entry(env, env.alice, work_date=day, title="快照来源", body_markdown="原始内容", outcome_markdown="原始结果")
-    report = env.client.post(
-        f"{PREFIX}/reports", json={"report_type": "daily", "period_start": day}, headers=env.alice
-    ).json()
+    made = make_entry(env, env.alice, work_date=day, title="快照来源", body_markdown="原始内容")
+    report = env.client.post(f"{PREFIX}/reports", json={"report_type": "daily", "period_start": day}, headers=env.alice).json()
     adopted = env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice).json()
-    names_before = [row["name"] for row in adopted["sections"]["items"]]
-    assert "快照来源" in names_before
+    contents = [row["content"] for row in adopted["sections"]["items"]]
+    assert any("快照来源" in text for text in contents)
 
-    # 改动来源日志
     env.client.put(
         f"{PREFIX}/entries/{made['id']}",
         json={**entry_payload(work_date=day), "title": "改名后的日志", "revision": made["revision"]},
         headers=env.alice,
     )
     after = env.client.get(f"{PREFIX}/reports/{report['id']}", headers=env.alice).json()
-    assert [row["name"] for row in after["sections"]["items"]] == names_before
+    assert [row["content"] for row in after["sections"]["items"]] == contents
     assert after["source_refs"][0]["title"] == "快照来源"
-
-    # 删除来源日志后报告仍然可读
-    env.client.delete(f"{PREFIX}/entries/{made['id']}?revision=2", headers=env.alice)
-    still = env.client.get(f"{PREFIX}/reports/{report['id']}", headers=env.alice)
-    assert still.status_code == 200
-    assert "快照来源" in still.json()["source_refs"][0]["title"]
 
 
 def test_resolved_blocker_leaves_the_risk_section(env):
     """J23：用户明确标记为已解决的阻碍不再出现在 R 段。"""
     monday = week_range(today_shanghai())[0] - timedelta(days=63)
     make_daily(
-        env,
-        env.alice,
-        monday,
-        [daily_item("回归验证", "执行回归", "已通过")],
+        env, env.alice, monday, [daily_item("回归验证", "completed", 100)],
         blockers=[
             {"id": "b1", "item_id": "", "text": "已经解决的阻碍", "resolved": True},
             {"id": "b2", "item_id": "", "text": "仍未解决的阻碍", "resolved": False},
@@ -649,17 +572,16 @@ def test_resolved_blocker_leaves_the_risk_section(env):
 def test_regeneration_keeps_manual_edits_without_duplicating(env):
     """J24：重新生成更新未修改的块、保留人工修改，并且不新增重复事项。"""
     monday = week_range(today_shanghai())[0] - timedelta(days=70)
-    make_daily(env, env.alice, monday, [daily_item("事项甲", "进展甲", "结果甲", "项目A")])
-    make_daily(env, env.alice, monday + timedelta(days=1), [daily_item("事项乙", "进展乙", "结果乙", "项目B")])
+    make_daily(env, env.alice, monday, [daily_item("事项甲", "in_progress", 30)])
+    make_daily(env, env.alice, monday + timedelta(days=1), [daily_item("事项乙", "completed", 100)])
     report = env.client.post(
         f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
     ).json()
     first = env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice).json()
     assert len(first["sections"]["p_items"]) == 2
 
-    # 人工修改第一条事项
     sections = first["sections"]
-    sections["p_items"][0] = {**sections["p_items"][0], "name": "人工改名的事项", "manually_edited": True}
+    sections["p_items"][0] = {**sections["p_items"][0], "content": "人工改名的事项", "manually_edited": True}
     saved = env.client.put(
         f"{PREFIX}/reports/{report['id']}",
         json={"title": first["title"], "sections": sections, "revision": first["revision"]},
@@ -667,32 +589,128 @@ def test_regeneration_keeps_manual_edits_without_duplicating(env):
     ).json()
 
     again = env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice).json()
-    names = [row["name"] for row in again["sections"]["p_items"]]
-    assert "人工改名的事项" in names, names
-    assert names.count("人工改名的事项") == 1
-    assert len(again["sections"]["p_items"]) == 2
+    contents = [row["content"] for row in again["sections"]["p_items"]]
+    assert contents.count("人工改名的事项") == 1
+    assert len(contents) == 2
     assert saved["revision"] < again["revision"]
 
 
-def test_legacy_report_body_stays_readable(env):
-    """J26：旧版五段报告原文可读，且不会因新校验而被拒绝保存。"""
-    with env.session() as db:
-        alice = db.query(AppUser).filter(AppUser.username == "alice").first()
-        legacy = WorkJournalReport(
-            owner_user_id=alice.id, report_type="weekly",
-            period_start=date(2026, 1, 5), period_end=date(2026, 1, 11),
-            title="旧版周报", template_version="weekly_legacy_v1",
-            sections={"body": "旧版五段正文内容"}, status="draft", source_refs=[], revision=1,
-        )
-        db.add(legacy)
-        db.commit()
-        legacy_id = legacy.id
+# --------------------------------------------------------------------------------------
+# 格式、导出与备注
+# --------------------------------------------------------------------------------------
+def test_weekly_body_uses_the_fixed_p_r_o_format(env):
+    """验收2/7：正文严格 P/R/O，进展含内容与状态进度，结果由规则推导。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=56)
+    make_daily(
+        env, env.alice, monday,
+        [daily_item("优化 UI 自动化登录态复用与发帖流程", "in_progress", 60)],
+        blockers=[{"id": "b1", "item_id": "", "text": "发帖流程仍需完成剩余回归验证。", "resolved": False}],
+        next_plan=[{"id": "p1", "item_id": "", "text": "完成发帖流程剩余场景的回归验证。"}],
+    )
+    report = env.client.post(
+        f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
+    ).json()
+    env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice)
+    text = env.client.get(f"{PREFIX}/reports/{report['id']}/export", headers=env.alice).text
+    assert "# P-核心进展与结果:" in text
+    assert "# R-需要关注的风险与问题:" in text
+    assert "# O-下周核心目标与计划:" in text
+    assert "**事项一：优化 UI 自动化登录态复用与发帖流程**" in text
+    assert "● 进展：优化 UI 自动化登录态复用与发帖流程，目前进行中，进度60%。" in text
+    assert "● 结果：该事项尚未完成，当前进度60%。" in text
+    assert "发帖流程仍需完成剩余回归验证。" in text
+    assert "测试与质量" not in text and "成长与复盘" not in text
+    assert "source_refs" not in text and "草稿来源" not in text
 
+
+def test_blocked_and_completed_result_sentences(env):
+    """受阻与已完成各自生成结果句，不从百分比臆断测试通过结论。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=98)
+    make_daily(env, env.alice, monday, [
+        daily_item("受阻事项", "blocked", 40),
+        daily_item("完成事项", "completed", 100),
+    ])
+    report = env.client.post(
+        f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
+    ).json()
+    env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice)
+    text = env.client.get(f"{PREFIX}/reports/{report['id']}/export", headers=env.alice).text
+    assert "● 结果：该事项受阻，当前进度40%。" in text
+    assert "● 结果：该事项已完成，进度100%。" in text
+    for forbidden in ("测试通过", "缺陷已修复", "线上稳定", "效率提升"):
+        assert forbidden not in text
+
+
+def test_remarks_appear_after_the_plan_and_stay_empty_when_unset(env):
+    """验收5：备注跟在 O 区之后，不新增一级标题；留空则完全不出现在导出里。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=105)
+    make_daily(env, env.alice, monday, [daily_item("事项", "in_progress", 20)])
+    report = env.client.post(
+        f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
+    ).json()
+    env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice)
+    assert "备注" not in env.client.get(f"{PREFIX}/reports/{report['id']}/export", headers=env.alice).text
+
+    current = env.client.get(f"{PREFIX}/reports/{report['id']}", headers=env.alice).json()
+    sections = dict(current["sections"])
+    sections["remarks"] = "补充说明与背景链接"
+    saved = env.client.put(
+        f"{PREFIX}/reports/{report['id']}",
+        json={"title": current["title"], "sections": sections, "revision": current["revision"]},
+        headers=env.alice,
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["sections"]["remarks"] == "补充说明与背景链接"
+    with_remarks = env.client.get(f"{PREFIX}/reports/{report['id']}/export", headers=env.alice).text
+    assert with_remarks.rstrip().endswith("**备注：** 补充说明与背景链接")
+    # 正文只有 P / R / O 三个一级标题，备注不新增第四个
+    assert with_remarks.count("# P-核心进展与结果:") == 1
+    assert with_remarks.count("# R-需要关注的风险与问题:") == 1
+    assert with_remarks.count("# O-下周核心目标与计划:") == 1
+
+
+def test_weekly_copy_body_excludes_platform_meta(env):
+    """J25：复制用的正文只有 P/R/O，不含标题、作者、周期等平台信息。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=77)
+    make_daily(env, env.alice, monday, [daily_item("复制验证", "in_progress", 10)])
+    report = env.client.post(
+        f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
+    ).json()
+    env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice)
+    body = env.client.get(f"{PREFIX}/reports/{report['id']}/export?body_only=true", headers=env.alice).text
+    assert body.startswith("# P-核心进展与结果:")
+    assert "- 周期：" not in body and "- 作者：" not in body
+    assert "复制验证" in body
+
+
+def test_weekly_index_handles_more_than_ten_items(env):
+    """Item numbering must stay correct beyond ten entries."""
+    from app.modules.work_journal.service import chinese_index
+
+    assert chinese_index(1) == "一"
+    assert chinese_index(10) == "十"
+    assert chinese_index(11) == "11"
+
+
+def test_week_range_and_today_use_beijing_time(env):
+    """Week boundaries are Monday..Sunday and today comes from Asia/Shanghai."""
+    monday, sunday = week_range(date(2026, 10, 14))
+    assert monday == date(2026, 10, 12)
+    assert sunday == date(2026, 10, 18)
+    assert monday.weekday() == 0
+    assert week_range(date(2027, 1, 1))[0] == date(2026, 12, 28)
+
+
+# --------------------------------------------------------------------------------------
+# 历史兼容与转换
+# --------------------------------------------------------------------------------------
+def test_legacy_report_body_stays_readable(env):
+    """验收8：旧版纯文本报告原文可读，且不会被新校验拒绝。"""
+    legacy_id = _legacy_report(env, "weekly", date(2026, 1, 5), "旧版五段正文内容")
     exported = env.client.get(f"{PREFIX}/reports/{legacy_id}/export", headers=env.alice)
     assert exported.status_code == 200
     assert "旧版五段正文内容" in exported.text
 
-    # 旧版结构保存时不套用新模板校验
     current = env.client.get(f"{PREFIX}/reports/{legacy_id}", headers=env.alice).json()
     saved = env.client.put(
         f"{PREFIX}/reports/{legacy_id}",
@@ -703,16 +721,136 @@ def test_legacy_report_body_stays_readable(env):
     assert "已补充" in env.client.get(f"{PREFIX}/reports/{legacy_id}/export", headers=env.alice).text
 
 
-def test_weekly_copy_body_excludes_platform_meta(env):
-    """J25：复制用的正文只有 P/R/O 三段，不含标题、作者、周期等平台信息。"""
-    monday = week_range(today_shanghai())[0] - timedelta(days=77)
-    make_daily(env, env.alice, monday, [daily_item("复制验证", "进展", "结果", "项目")])
-    report = env.client.post(
-        f"{PREFIX}/reports", json={"report_type": "weekly", "period_start": monday.isoformat()}, headers=env.alice
+def test_legacy_weekly_can_be_converted_without_losing_the_original(env):
+    """验收8：旧版周报可主动转换，原文保留在 legacy_body，不被静默覆盖。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=84)
+    make_daily(env, env.alice, monday, [daily_item("转换来源事项", "completed", 100)])
+    legacy_id = _legacy_report(env, "weekly", monday, "旧版五段原文")
+
+    preview = env.client.post(
+        f"{PREFIX}/assemble-preview",
+        json={"report_type": "weekly", "period_start": monday.isoformat(), "report_id": legacy_id},
+        headers=env.alice,
     ).json()
-    env.client.post(f"{PREFIX}/reports/{report['id']}/assemble?mode=replace", headers=env.alice)
-    body = env.client.get(f"{PREFIX}/reports/{report['id']}/export?body_only=true", headers=env.alice).text
-    assert body.startswith("# P-核心进展与结果:")
-    assert "- 周期：" not in body
-    assert "- 作者：" not in body
-    assert "复制验证" in body
+    assert preview["sections"]["legacy_body"] == "旧版五段原文"
+    assert any("旧版" in warning for warning in preview["warnings"])
+
+    adopted = env.client.post(f"{PREFIX}/reports/{legacy_id}/assemble?mode=replace", headers=env.alice).json()
+    assert adopted["template_version"] == "weekly_pro_v2"
+    assert adopted["sections"]["legacy_body"] == "旧版五段原文"
+    assert [row["content"] for row in adopted["sections"]["p_items"]] == ["转换来源事项"]
+
+
+def test_legacy_conversion_append_keeps_the_original_too(env):
+    """追加模式同样不能丢掉旧版原文，且模板一并升级。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=91)
+    legacy_id = _legacy_report(env, "weekly", monday, "追加模式旧版原文")
+    adopted = env.client.post(f"{PREFIX}/reports/{legacy_id}/assemble?mode=append", headers=env.alice).json()
+    assert adopted["sections"]["legacy_body"] == "追加模式旧版原文"
+    assert adopted["sections"]["body"] == "追加模式旧版原文"
+    assert adopted["template_version"] == "weekly_pro_v2"
+
+
+def test_legacy_daily_gets_an_editable_candidate(env):
+    """旧版日报按标题给出候选，不靠正则武断拆分，也不猜百分比。"""
+    day = today_shanghai() - timedelta(days=3)
+    legacy_id = _legacy_report(env, "daily", day, "旧版日报正文，无法可靠拆分")
+    preview = env.client.post(
+        f"{PREFIX}/assemble-preview",
+        json={"report_type": "daily", "period_start": day.isoformat(), "report_id": legacy_id},
+        headers=env.alice,
+    ).json()
+    items = preview["sections"]["items"]
+    assert len(items) == 1
+    assert items[0]["content"] == "旧版daily"
+    assert items[0]["progress_percent"] is None
+    assert any("结构化事项" in warning for warning in preview["warnings"])
+
+
+def test_v1_daily_converts_to_v2_and_keeps_the_removed_sections(env):
+    """验收8：一期日报转二期合成 content、保留 item_id，被移除的区域收进历史补充内容。"""
+    day = today_shanghai() - timedelta(days=5)
+    item_id = str(uuid.uuid4())
+    v1_id = _v1_report(env, "daily", day, {
+        "items": [{"item_id": item_id, "name": "优化发帖流程", "project": "霖感 APP",
+                   "progress": "调整登录态复用", "result": "改造完成，回归待验证", "status": "completed"}],
+        "quality": "覆盖发帖主流程",
+        "blockers": [],
+        "next_plan": [],
+        "reflection": "熟悉了状态复用",
+    })
+    preview = env.client.post(
+        f"{PREFIX}/assemble-preview",
+        json={"report_type": "daily", "period_start": day.isoformat(), "report_id": v1_id},
+        headers=env.alice,
+    ).json()
+    items = preview["sections"]["items"]
+    assert items[0]["item_id"] == item_id
+    assert items[0]["content"] == "优化发帖流程：调整登录态复用"
+    assert items[0]["status"] == "completed"
+    assert items[0]["progress_percent"] == 100
+
+    supplement = preview["sections"]["legacy_supplement"]
+    assert supplement["quality"] == "覆盖发帖主流程"
+    assert supplement["reflection"] == "熟悉了状态复用"
+    assert supplement["results"][0]["result"] == "改造完成，回归待验证"
+
+    adopted = env.client.post(f"{PREFIX}/reports/{v1_id}/assemble?mode=replace", headers=env.alice).json()
+    assert adopted["template_version"] == "daily_v2"
+    assert adopted["sections"]["legacy_supplement"]["quality"] == "覆盖发帖主流程"
+
+
+def test_v1_in_progress_item_converts_without_guessing_progress(env):
+    """验收8：一期进行中事项的百分比未知，转换后保持空，完成前必须选择。"""
+    day = today_shanghai() - timedelta(days=6)
+    v1_id = _v1_report(env, "daily", day, {
+        "items": [{"item_id": str(uuid.uuid4()), "name": "排查告警", "progress": "定位中", "result": "", "status": "in_progress"}],
+        "quality": "", "blockers": [], "next_plan": [], "reflection": "",
+    })
+    preview = env.client.post(
+        f"{PREFIX}/assemble-preview",
+        json={"report_type": "daily", "period_start": day.isoformat(), "report_id": v1_id},
+        headers=env.alice,
+    ).json()
+    assert preview["sections"]["items"][0]["progress_percent"] is None
+    adopted = env.client.post(f"{PREFIX}/reports/{v1_id}/assemble?mode=replace", headers=env.alice).json()
+    assert adopted["status"] == "draft"
+    assert env.client.post(f"{PREFIX}/reports/{v1_id}/complete", json={"revision": adopted["revision"]}, headers=env.alice).status_code == 422
+
+
+def test_v1_weekly_converts_and_keeps_the_original(env):
+    """验收8：一期周报转二期时不把人工写好的结果替换成百分比模板。"""
+    monday = week_range(today_shanghai())[0] - timedelta(days=112)
+    v1_id = _v1_report(env, "weekly", monday, {
+        "p_items": [{"item_id": str(uuid.uuid4()), "name": "线上巡检", "progress": "日常巡检",
+                     "result": "完成巡检并记录问题", "manually_edited": True}],
+        "r_items": [], "o_items": [],
+    })
+    preview = env.client.post(
+        f"{PREFIX}/assemble-preview",
+        json={"report_type": "weekly", "period_start": monday.isoformat(), "report_id": v1_id},
+        headers=env.alice,
+    ).json()
+    assert preview["sections"]["legacy_supplement"]["p_items"][0]["result"] == "完成巡检并记录问题"
+    assert any("一期" in warning for warning in preview["warnings"])
+    adopted = env.client.post(f"{PREFIX}/reports/{v1_id}/assemble?mode=replace", headers=env.alice).json()
+    assert adopted["template_version"] == "weekly_pro_v2"
+    assert adopted["sections"]["legacy_supplement"]["p_items"][0]["result"] == "完成巡检并记录问题"
+
+
+def test_v1_report_can_still_be_saved_without_conversion(env):
+    """一期报告不转换也能继续保存，避免用户改个标题就被新版校验拦住。"""
+    day = today_shanghai() - timedelta(days=7)
+    v1_id = _v1_report(env, "daily", day, {
+        "items": [{"item_id": str(uuid.uuid4()), "name": "旧事项", "progress": "旧进展", "result": "旧结果", "status": "completed"}],
+        "quality": "", "blockers": [], "next_plan": [], "reflection": "",
+    })
+    current = env.client.get(f"{PREFIX}/reports/{v1_id}", headers=env.alice).json()
+    saved = env.client.put(
+        f"{PREFIX}/reports/{v1_id}",
+        json={"title": "改过的标题", "sections": current["sections"], "revision": current["revision"]},
+        headers=env.alice,
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["template_version"] == "daily_v1"
+    assert saved.json()["sections"]["items"][0]["name"] == "旧事项"

@@ -437,3 +437,128 @@
     font-size: 11px;
   }
 }
+
+/* ---------- 二期：字号规范化 ----------
+   只作用于本模块；下拉面板挂载在 body，用 popupClassName="work-journal-popup" 单独设置，
+   避免全局覆盖 .ant-select 影响其它模块。不使用 transform/zoom 整体缩放。 */
+.work-journal {
+  font-size: 16px;
+}
+.work-journal__title {
+  font-size: 24px;
+  line-height: 1.4;
+}
+.work-journal__tagline {
+  font-size: 14px;
+}
+.work-journal__ro-heading {
+  font-size: 19px;
+  line-height: 1.5;
+}
+.work-journal__text,
+.work-journal__ro-line,
+.work-journal__ro-name {
+  font-size: 16px;
+  line-height: 1.75;
+}
+.work-journal__item-title {
+  font-size: 16px;
+}
+.work-journal__item-meta,
+.work-journal__item-body,
+.work-journal__group,
+.work-journal__save-state,
+.work-journal__label,
+.work-journal__hint,
+.work-journal__inline-label,
+.work-journal__side-foot {
+  font-size: 14px;
+}
+.work-journal__chip {
+  font-size: 14px;
+}
+.work-journal__empty {
+  font-size: 15px;
+}
+.work-journal__source {
+  font-size: 14px;
+}
+.work-journal__sub {
+  font-size: 13px;
+}
+
+/* 输入、正文、按钮与下拉选项统一 16px，并单独检查各控件的继承字体。 */
+.work-journal .ant-input,
+.work-journal .ant-input-affix-wrapper,
+.work-journal .ant-input-number,
+.work-journal .ant-input-number-input,
+.work-journal textarea.ant-input,
+.work-journal .ant-select-selection-item,
+.work-journal .ant-select-selection-placeholder,
+.work-journal .ant-select-search__field,
+.work-journal .ant-picker-input > input,
+.work-journal .ant-btn,
+.work-journal .ant-tag,
+.work-journal .ant-segmented-item-label {
+  font-size: 16px;
+}
+.work-journal textarea.ant-input,
+.work-journal__textarea {
+  font-size: 16px;
+  line-height: 1.75;
+}
+.work-journal .ant-btn:not(.ant-btn-sm) {
+  min-height: 40px;
+}
+.work-journal .ant-select-single:not(.ant-select-sm) .ant-select-selector,
+.work-journal .ant-input-affix-wrapper,
+.work-journal .ant-picker {
+  min-height: 40px;
+}
+.work-journal__item-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.work-journal__inline-label {
+  color: var(--wj-muted);
+  font-weight: 600;
+}
+.work-journal__legacy-supplement {
+  margin-top: 8px;
+  border-top: 1px dashed var(--wj-line);
+  padding-top: 4px;
+}
+.work-journal__legacy-supplement .ant-collapse-header {
+  font-size: 14px;
+  color: var(--wj-muted);
+  padding-left: 0 !important;
+}
+
+/* 下拉面板挂在 body，用受控 class 局部放大，不影响其它模块。 */
+.work-journal-popup .ant-select-item {
+  font-size: 16px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .work-journal__title {
+    font-size: 22px;
+  }
+  .work-journal__ro-heading {
+    font-size: 18px;
+  }
+  /* 长事项换行后状态与进度可换到第二行，操作栏保持可见。 */
+  .work-journal__item-row {
+    gap: 6px;
+  }
+  .work-journal__item-row .ant-select {
+    flex: 1 1 130px;
+  }
+  .work-journal .ant-btn:not(.ant-btn-sm) {
+    min-height: 44px;
+  }
+}

@@ -575,7 +575,12 @@ export function WorkJournalPanel({ client }) {
         preview={preview}
         reportType={tab}
         includeDraft={includeDraft}
-        hasExistingContent={Boolean(selectedReport && (selectedReport.sections?.items?.length || selectedReport.sections?.p_items?.length))}
+        hasExistingContent={Boolean(selectedReport && (
+          selectedReport.sections?.items?.length
+          || selectedReport.sections?.p_items?.length
+          || selectedReport.sections?.body
+          || String(selectedReport.template_version || '').includes('legacy')
+        ))}
         onToggleDraft={(value) => {
           setIncludeDraft(value);
           setSourceLoading(true);

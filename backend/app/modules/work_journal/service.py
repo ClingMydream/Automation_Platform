@@ -27,13 +27,19 @@ from app.modules.work_journal.dates import (
 from app.modules.work_journal.schemas import (
     DAILY_TEMPLATE_VERSION,
     LEGACY_TEMPLATE_VERSIONS,
+    PROGRESS_OPTIONS,
+    PROGRESS_STATUSES,
     REPORT_TYPES,
+    V1_TEMPLATE_VERSIONS,
     WEEKLY_TEMPLATE_VERSION,
     AssemblePreviewRequest,
     EntryCreate,
     EntryUpdate,
     ReportCreate,
     ReportUpdate,
+    clean_remarks,
+    normalize_item,
+    summary_line,
 )
 
 PROGRESS_LABELS = {"in_progress": "进行中", "completed": "已完成", "blocked": "受阻"}
@@ -127,6 +133,7 @@ def _entry_values(payload: EntryCreate | EntryUpdate) -> dict[str, Any]:
         "outcome_markdown": payload.outcome_markdown,
         "blocker_markdown": payload.blocker_markdown,
         "next_step_markdown": payload.next_step_markdown,
+        "remarks_markdown": payload.remarks_markdown,
     }
 
 
@@ -252,10 +259,10 @@ def default_report_title(report_type: str, period_start: date, period_end: date)
 
 
 def empty_sections(report_type: str) -> dict[str, Any]:
-    """Return the empty body for a report type."""
+    """Return the empty body for the current (v2) template."""
     if report_type == "daily":
-        return {"items": [], "quality": "", "blockers": [], "next_plan": [], "reflection": ""}
-    return {"p_items": [], "r_items": [], "o_items": []}
+        return {"items": [], "blockers": [], "next_plan": [], "remarks": ""}
+    return {"p_items": [], "r_items": [], "o_items": [], "remarks": ""}
 
 
 def template_version_for(report_type: str) -> str:
@@ -365,42 +372,88 @@ def update_report(db: Session, owner: AppUser, report_id: int, payload: ReportUp
 
 
 def validate_sections(report_type: str, template_version: str, sections: dict[str, Any] | None) -> None:
-    """Validate the JSON body shape for the current templates; legacy bodies pass through untouched."""
+    """Validate the JSON body for the report's own template version.
+
+    旧版（legacy）原文原样放行；一期结构保持可读可存，避免用户改个标题就被拒；
+    二期结构逐项校验内容、状态与进度，类型与范围都由后端把关。
+    """
     if template_version in LEGACY_TEMPLATE_VERSIONS:
         return
     if not isinstance(sections, dict):
         raise HTTPException(status_code=422, detail="正文结构不合法")
-    if report_type == "daily":
-        for key, expected in (("items", list), ("blockers", list), ("next_plan", list)):
-            if not isinstance(sections.get(key, []), expected):
-                raise HTTPException(status_code=422, detail=f"日报 {key} 必须是数组")
-        for key in ("quality", "reflection"):
-            if not isinstance(sections.get(key, ""), str):
-                raise HTTPException(status_code=422, detail=f"日报 {key} 必须是文本")
-    else:
-        for key in ("p_items", "r_items", "o_items"):
-            if not isinstance(sections.get(key, []), list):
-                raise HTTPException(status_code=422, detail=f"周报 {key} 必须是数组")
+
+    if template_version in V1_TEMPLATE_VERSIONS:
+        if report_type == "daily":
+            for key in ("items", "blockers", "next_plan"):
+                if not isinstance(sections.get(key, []), list):
+                    raise HTTPException(status_code=422, detail=f"日报 {key} 必须是数组")
+            for key in ("quality", "reflection"):
+                if not isinstance(sections.get(key, ""), str):
+                    raise HTTPException(status_code=422, detail=f"日报 {key} 必须是文本")
+        else:
+            for key in ("p_items", "r_items", "o_items"):
+                if not isinstance(sections.get(key, []), list):
+                    raise HTTPException(status_code=422, detail=f"周报 {key} 必须是数组")
+        return
+
+    item_key = "items" if report_type == "daily" else "p_items"
+    items = sections.get(item_key, [])
+    if not isinstance(items, list):
+        raise HTTPException(status_code=422, detail=f"{item_key} 必须是数组")
+    for index, item in enumerate(items, start=1):
+        try:
+            normalize_item(item, require_progress=False)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"第 {index} 个事项：{exc}") from exc
+    for key in (("blockers", "next_plan") if report_type == "daily" else ("r_items", "o_items")):
+        if not isinstance(sections.get(key, []), list):
+            raise HTTPException(status_code=422, detail=f"{key} 必须是数组")
+    try:
+        clean_remarks(sections.get("remarks", ""))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-def completion_gap(report_type: str, sections: dict[str, Any]) -> str | None:
+def completion_gap(report_type: str, sections: dict[str, Any], template_version: str | None = None) -> str | None:
     """Return the blocking reason when a report cannot be completed, else None."""
-    if report_type == "daily":
-        items = sections.get("items") or []
-        filled = [item for item in items if str(item.get("name") or "").strip() and str(item.get("progress") or "").strip()]
-        if not filled:
-            return "请至少在「今日完成」中填写一个事项的名称与进展"
+    if template_version in LEGACY_TEMPLATE_VERSIONS:
+        # 旧版原文报告是自由文本，不受新版结构约束，用户可自行确认完成。
         return None
-    items = sections.get("p_items") or []
-    filled = [
-        item
-        for item in items
-        if str(item.get("name") or "").strip()
-        and str(item.get("progress") or "").strip()
-        and str(item.get("result") or "").strip()
-    ]
-    if not filled:
-        return "请至少填写一个核心事项的名称、进展与结果（结果未定可写「结果待确认」）"
+    if template_version in V1_TEMPLATE_VERSIONS:
+        if report_type == "daily":
+            filled = [
+                item for item in (sections.get("items") or [])
+                if str(item.get("name") or "").strip() and str(item.get("progress") or "").strip()
+            ]
+            return None if filled else "请至少在「今日完成」中填写一个事项的名称与进展"
+        filled = [
+            item for item in (sections.get("p_items") or [])
+            if str(item.get("name") or "").strip()
+            and str(item.get("progress") or "").strip()
+            and str(item.get("result") or "").strip()
+        ]
+        return None if filled else "请至少填写一个核心事项的名称、进展与结果（结果未定可写「结果待确认」）"
+
+    # 二期：至少一个事项，且每个保留事项的内容、状态、进度都有效。
+    # 报告「已完成」表示本人确认提交，不要求所有事项都到 100%。
+    items = sections.get("items" if report_type == "daily" else "p_items") or []
+    if not items:
+        return "请至少添加一个事项"
+    for index, item in enumerate(items, start=1):
+        if not str(item.get("content") or "").strip():
+            return f"第 {index} 个事项还没有内容，请补充或删除这张空卡片"
+        status = item.get("status")
+        if status not in PROGRESS_STATUSES:
+            return f"第 {index} 个事项的状态无效，请重新选择"
+        percent = item.get("progress_percent")
+        if percent is None:
+            return f"请为第 {index} 个事项选择进度"
+        if isinstance(percent, bool) or not isinstance(percent, int) or percent not in PROGRESS_OPTIONS:
+            return f"第 {index} 个事项的进度必须是 0 到 100 之间 10 的倍数"
+        if status == "completed" and percent != 100:
+            return f"第 {index} 个事项已完成，进度必须是 100%"
+        if status != "completed" and percent == 100:
+            return f"第 {index} 个事项进度 100% 时状态应为已完成"
     return None
 
 
@@ -409,7 +462,7 @@ def complete_report(db: Session, owner: AppUser, report_id: int, revision: int) 
     report = get_report(db, owner, report_id)
     if report.status == "completed":
         raise HTTPException(status_code=409, detail="报告已完成")
-    gap = completion_gap(report.report_type, report.sections or {})
+    gap = completion_gap(report.report_type, report.sections or {}, report.template_version)
     if gap:
         raise HTTPException(status_code=422, detail=gap)
     _atomic_update(
@@ -472,6 +525,11 @@ def save_assembled(db: Session, owner: AppUser, report: WorkJournalReport, previ
     report.sections = dict(sections)
     report.source_refs = list(preview["source_refs"])
     report.assembled_at = now_utc()
+    # 用户主动采纳后升级到当前模板（旧版原文与一期结构升级到二期）。
+    # 原文已随 sections.legacy_body / legacy_supplement 保留，不会被覆盖。
+    current_version = template_version_for(report.report_type)
+    if report.template_version != current_version:
+        report.template_version = current_version
     report.revision += 1
     report.updated_at = now_utc()
     db.commit()
@@ -627,6 +685,9 @@ def entry_markdown(entry: WorkJournalEntry, author: str) -> str:
     for heading, value in (("结果与产出", entry.outcome_markdown), ("风险与阻碍", entry.blocker_markdown), ("下一步", entry.next_step_markdown)):
         if value:
             lines.extend(["", f"## {heading}", value])
+    # 备注留空时不出现在导出里。
+    if (entry.remarks_markdown or "").strip():
+        lines.extend(["", "## 备注", entry.remarks_markdown.strip()])
     return "\n".join(lines).strip() + "\n"
 
 
@@ -640,6 +701,32 @@ def format_report_body(report: WorkJournalReport) -> str:
     return format_report_markdown(report, author=None, include_meta=False)
 
 
+def item_progress_text(item: dict[str, Any]) -> str:
+    """二期进度文案；老记录没有百分比时显示待确认，不推断 50%。"""
+    percent = item.get("progress_percent")
+    return "进度待确认" if percent is None else f"进度{percent}%"
+
+
+def item_progress_line(item: dict[str, Any]) -> str:
+    """进展行 = 事项内容 + 当前状态与进度。"""
+    content = str(item.get("content") or "").strip()
+    status = item.get("status") or "in_progress"
+    return f"{content}，目前{PROGRESS_LABELS.get(status, status)}，{item_progress_text(item)}。"
+
+
+def item_progress_sentence(item: dict[str, Any]) -> str:
+    """结果句由状态与百分比推导，绝不从百分比臆断测试通过或质量结论。"""
+    status = item.get("status") or "in_progress"
+    percent = item.get("progress_percent")
+    if percent is None:
+        return f"该事项处于{PROGRESS_LABELS.get(status, status)}，进度待确认。"
+    if status == "completed":
+        return f"该事项已完成，进度{percent}%。"
+    if status == "blocked":
+        return f"该事项受阻，当前进度{percent}%。"
+    return f"该事项尚未完成，当前进度{percent}%。"
+
+
 def format_report_markdown(report: WorkJournalReport, author: str | None, *, include_meta: bool) -> str:
     """Render the report body; meta lines stay optional so copied text stays paste-ready."""
     sections = report.sections or {}
@@ -649,6 +736,11 @@ def format_report_markdown(report: WorkJournalReport, author: str | None, *, inc
         meta = _meta_lines(report, author) if include_meta else []
         return "\n".join([line for line in [head, *meta, "", legacy_body] if line is not None]).strip() + "\n"
 
+    # 一期结构用 name/progress/result 渲染，二期用 content/status/progress_percent 渲染，
+    # 复制、Markdown 导出与阅读态共用同一份规则。
+    is_v1 = report.template_version in V1_TEMPLATE_VERSIONS
+    remarks = clean_remarks(sections.get("remarks"))
+
     lines: list[str] = []
     if include_meta:
         lines.append(f"# {report.title}")
@@ -656,22 +748,28 @@ def format_report_markdown(report: WorkJournalReport, author: str | None, *, inc
         lines.append("")
 
     if report.report_type == "daily":
-        lines.append("## 今日完成")
+        lines.append("## 今日完成" if is_v1 else "## 今日事项")
         items = sections.get("items") or []
         if items:
             for item in items:
-                name = str(item.get("name") or "").strip()
-                project = str(item.get("project") or "").strip()
-                suffix = f"（{project}）" if project else ""
-                lines.append(f"- **{name}**{suffix}")
-                lines.append(f"  - 进展：{str(item.get('progress') or '').strip()}")
-                lines.append(f"  - 结果：{str(item.get('result') or '').strip() or '结果待确认'}")
-                if item.get("status"):
-                    lines.append(f"  - 状态：{PROGRESS_LABELS.get(item.get('status'), item.get('status'))}")
+                if is_v1:
+                    name = str(item.get("name") or "").strip()
+                    project = str(item.get("project") or "").strip()
+                    suffix = f"（{project}）" if project else ""
+                    lines.append(f"- **{name}**{suffix}")
+                    lines.append(f"  - 进展：{str(item.get('progress') or '').strip()}")
+                    lines.append(f"  - 结果：{str(item.get('result') or '').strip() or '结果待确认'}")
+                    if item.get("status"):
+                        lines.append(f"  - 状态：{PROGRESS_LABELS.get(item.get('status'), item.get('status'))}")
+                else:
+                    lines.append(f"- **{summary_line(item.get('content')) or '未命名事项'}**")
+                    lines.append(f"  - 进展：{item_progress_line(item)}")
+                    lines.append(f"  - 结果：{item_progress_sentence(item)}")
         else:
             lines.append("- 未填写")
-        for heading, key in (("测试与质量", "quality"), ("成长与复盘", "reflection")):
-            lines.extend(["", f"## {heading}", str(sections.get(key) or "").strip() or "未填写"])
+        if is_v1:
+            for heading, key in (("测试与质量", "quality"), ("成长与复盘", "reflection")):
+                lines.extend(["", f"## {heading}", str(sections.get(key) or "").strip() or "未填写"])
         for heading, key in (("风险与阻碍", "blockers"), ("明日计划", "next_plan")):
             lines.extend(["", f"## {heading}"])
             rows = sections.get(key) or []
@@ -685,20 +783,30 @@ def format_report_markdown(report: WorkJournalReport, author: str | None, *, inc
                     lines.append(f"- {text}")
             else:
                 lines.append("未填写")
+        if remarks:
+            lines.extend(["", f"**备注：** {remarks}"])
         return "\n".join(lines).strip() + "\n"
 
     # 周报固定 P / R / O 三段，编号与「● 进展 / ● 结果」标签不能改。
     lines.append("# P-核心进展与结果:")
     lines.append("")
-    p_items = [item for item in (sections.get("p_items") or [])]
+    p_items = list(sections.get("p_items") or [])
     if p_items:
         for index, item in enumerate(p_items, start=1):
-            name = str(item.get("name") or "").strip()
-            lines.append(f"**事项{chinese_index(index)}：{name}**")
-            lines.append("")
-            lines.append(f"● 进展：{str(item.get('progress') or '').strip()}")
-            lines.append("")
-            lines.append(f"● 结果：{str(item.get('result') or '').strip() or '结果待确认'}")
+            if is_v1:
+                name = str(item.get("name") or "").strip()
+                lines.append(f"**事项{chinese_index(index)}：{name}**")
+                lines.append("")
+                lines.append(f"● 进展：{str(item.get('progress') or '').strip()}")
+                lines.append("")
+                lines.append(f"● 结果：{str(item.get('result') or '').strip() or '结果待确认'}")
+            else:
+                content = str(item.get("content") or "").strip()
+                lines.append(f"**事项{chinese_index(index)}：{summary_line(content)}**")
+                lines.append("")
+                lines.append(f"● 进展：{item_progress_line(item)}")
+                lines.append("")
+                lines.append(f"● 结果：{item_progress_sentence(item)}")
             lines.append("")
     else:
         lines.extend(["未填写", ""])
@@ -719,6 +827,9 @@ def format_report_markdown(report: WorkJournalReport, author: str | None, *, inc
             lines.append(f"● {str(item.get('text') or '').strip()}")
     else:
         lines.append("● 下周计划待补充")
+    # 备注跟在 O 区之后，不新增第四个一级标题。
+    if remarks:
+        lines.extend(["", f"**备注：** {remarks}"])
     return "\n".join(lines).strip() + "\n"
 
 

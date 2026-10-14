@@ -12,9 +12,16 @@ REPORT_TYPES = ("daily", "weekly")
 REPORT_STATUSES = ("draft", "completed")
 
 # 模板版本写入报告，便于将来兼容旧结构而不覆盖历史正文。
-DAILY_TEMPLATE_VERSION = "daily_v1"
-WEEKLY_TEMPLATE_VERSION = "weekly_pro_v1"
+# 二期把「事项内容 / 状态 / 进度百分比」作为当前模板，一期结构保留为可读的旧模板。
+DAILY_TEMPLATE_VERSION = "daily_v2"
+WEEKLY_TEMPLATE_VERSION = "weekly_pro_v2"
+V1_TEMPLATE_VERSIONS = ("daily_v1", "weekly_pro_v1")
 LEGACY_TEMPLATE_VERSIONS = ("daily_legacy_v1", "weekly_legacy_v1")
+
+# 进度只允许 0/10/…/100，后端保存数字而不是「60%」字符串。
+PROGRESS_OPTIONS = tuple(range(0, 101, 10))
+MAX_CONTENT_LENGTH = 5000
+MAX_REMARKS_LENGTH = 10000
 
 MAX_TAGS = 10
 MAX_TAG_LENGTH = 24
@@ -56,6 +63,62 @@ def _clean_tags(value: list[str] | None) -> list[str]:
     return tags
 
 
+def clean_remarks(value: Any) -> str:
+    """Normalize the optional remarks field; empty stays empty and never blocks saving."""
+    text = str(value or "").strip()
+    if len(text) > MAX_REMARKS_LENGTH:
+        raise ValueError(f"备注不能超过 {MAX_REMARKS_LENGTH} 字")
+    return text
+
+
+def summary_line(content: Any, limit: int = 40) -> str:
+    """Use the first line of an item as its title summary, keeping the full text in 进展."""
+    text = str(content or "").strip()
+    if not text:
+        return ""
+    first = text.splitlines()[0].strip()
+    return first if len(first) <= limit else f"{first[:limit]}…"
+
+
+def normalize_progress(value: Any) -> int | None:
+    """Validate a progress value; booleans and strings are rejected so the API stays type-safe."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("进度必须是整数百分比")
+    if value not in PROGRESS_OPTIONS:
+        raise ValueError("进度必须是 0 到 100 之间 10 的倍数")
+    return value
+
+
+def normalize_status(value: Any) -> str:
+    """Validate the status enum."""
+    if value not in PROGRESS_STATUSES:
+        raise ValueError("状态必须是 in_progress、completed 或 blocked")
+    return value
+
+
+def normalize_item(item: Any, *, require_progress: bool) -> dict[str, Any]:
+    """Normalize one item and keep status/percentage consistent.
+
+    已完成必须是 100%，100% 必须对应已完成；其余状态只允许 0–90%。
+    草稿允许进度为空（历史数据里进行中事项的百分比本来就未知）。
+    """
+    if not isinstance(item, dict):
+        raise ValueError("事项必须是对象")
+    content = _clean_text(item.get("content"), field="事项内容", max_length=MAX_CONTENT_LENGTH, required=True)
+    status = normalize_status(item.get("status"))
+    percent = normalize_progress(item.get("progress_percent"))
+    if percent is None:
+        if require_progress:
+            raise ValueError("请为每个事项选择进度")
+    elif status == "completed" and percent != 100:
+        raise ValueError("已完成事项的进度必须是 100%")
+    elif status != "completed" and percent == 100:
+        raise ValueError("进度 100% 必须对应已完成状态")
+    return {"content": content, "status": status, "progress_percent": percent}
+
+
 class EntryPayload(BaseModel):
     """Shared editable fields for creating and updating one work log entry."""
 
@@ -70,6 +133,7 @@ class EntryPayload(BaseModel):
     outcome_markdown: str | None = None
     blocker_markdown: str | None = None
     next_step_markdown: str | None = None
+    remarks_markdown: str | None = None
 
     @field_validator("title", mode="before")
     @classmethod
@@ -90,6 +154,12 @@ class EntryPayload(BaseModel):
     @classmethod
     def _check_optional_markdown(cls, value: Any) -> Any:
         return _clean_text(value if isinstance(value, str) else None, field="补充内容", max_length=MAX_BODY_LENGTH, required=False)
+
+    @field_validator("remarks_markdown", mode="before")
+    @classmethod
+    def _check_remarks(cls, value: Any) -> Any:
+        text = clean_remarks(value)
+        return text or None
 
     @field_validator("category")
     @classmethod
@@ -148,6 +218,7 @@ class EntryRead(BaseModel):
     outcome_markdown: str | None
     blocker_markdown: str | None
     next_step_markdown: str | None
+    remarks_markdown: str | None = None
     revision: int
     created_at: datetime
     updated_at: datetime

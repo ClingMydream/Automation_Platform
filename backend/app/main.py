@@ -102,6 +102,11 @@ def on_startup() -> None:
         if "uq_learning_checkin_date" in indexes:
             with engine.begin() as connection:
                 connection.execute(text("ALTER TABLE learning_checkins DROP INDEX uq_learning_checkin_date"))
+    # 工作手记二期给日志增加选填备注列；create_all 不会为已存在的表补列，因此在这里做兼容迁移。
+    journal_columns = {column["name"] for column in inspect(engine).get_columns("work_journal_entries")}
+    if "remarks_markdown" not in journal_columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE work_journal_entries ADD COLUMN remarks_markdown TEXT"))
 
 
 # All feature routers are grouped under /api for a clean Nginx reverse-proxy rule.

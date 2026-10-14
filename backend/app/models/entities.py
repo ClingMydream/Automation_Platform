@@ -497,6 +497,8 @@ class WorkJournalEntry(Base, TimestampMixin):
     outcome_markdown: Mapped[str | None] = mapped_column(Text)
     blocker_markdown: Mapped[str | None] = mapped_column(Text)
     next_step_markdown: Mapped[str | None] = mapped_column(Text)
+    # 二期新增：日志末尾的选填备注。create_all 不会给已有表补列，由 main.py 的兼容迁移负责。
+    remarks_markdown: Mapped[str | None] = mapped_column(Text)
     revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
 

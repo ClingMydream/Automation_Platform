@@ -7,6 +7,13 @@ export const STATUS_LABELS = { draft: '草稿', completed: '已完成' };
 export const CATEGORIES = ['测试执行', '缺陷跟进', '自动化开发', '需求评审', '学习成长', '会议沟通', '其他'];
 export const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
 
+// 二期：事项只有内容 / 状态 / 进度三个字段，进度只允许 0/10/…/100。
+export const PROGRESS_OPTIONS = Array.from({ length: 11 }, (_, index) => index * 10);
+export const PROGRESS_PLACEHOLDER = '请选择进度';
+export const CONTENT_MAX = 5000;
+export const REMARKS_MAX = 10000;
+export const SUMMARY_LIMIT = 40;
+
 const SHANGHAI = 'Asia/Shanghai';
 
 // 工作日期一律按北京时间计算，不能依赖浏览器本地时区，也不能用 toISOString()。
@@ -146,6 +153,55 @@ export function saveBlob(blob, filename) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+// 事项标题只取首行摘要，完整内容必须保留在正文里，不生成未经输入的成果。
+export function contentSummary(content, limit = SUMMARY_LIMIT) {
+  const text = String(content || '').trim();
+  if (!text) return '';
+  const first = text.split('\n')[0].trim();
+  return first.length <= limit ? first : `${first.slice(0, limit)}…`;
+}
+
+export function progressText(percent) {
+  return percent === null || percent === undefined ? '进度待确认' : `进度${percent}%`;
+}
+
+// 与后端 service.item_progress_line / item_progress_sentence 保持一致，
+// 保证编辑预览、阅读态、复制与下载看到的是同一套文案。
+export function progressLine(item) {
+  const content = String(item?.content || '').trim();
+  const status = PROGRESS_LABELS[item?.status] || '进行中';
+  return `${content}，目前${status}，${progressText(item?.progress_percent)}。`;
+}
+
+export function progressSentence(item) {
+  const status = item?.status || 'in_progress';
+  const percent = item?.progress_percent;
+  if (percent === null || percent === undefined) return `该事项处于${PROGRESS_LABELS[status] || '进行中'}，进度待确认。`;
+  if (status === 'completed') return `该事项已完成，进度${percent}%。`;
+  if (status === 'blocked') return `该事项受阻，当前进度${percent}%。`;
+  return `该事项尚未完成，当前进度${percent}%。`;
+}
+
+// 选「已完成」自动补 100%；从已完成改回进行中/受阻时清空 100%，
+// 由用户重新选择低于 100% 的进度，不偷偷降级成 90%。
+export function applyStatusChange(item, status) {
+  const next = { ...item, status };
+  if (status === 'completed') {
+    next.progress_percent = 100;
+  } else if (item.progress_percent === 100) {
+    next.progress_percent = null;
+  }
+  return next;
+}
+
+// 选 100% 自动切到已完成；已完成改到低于 100% 时回到进行中。
+export function applyProgressChange(item, percent) {
+  const next = { ...item, progress_percent: percent };
+  if (percent === 100) next.status = 'completed';
+  else if (item.status === 'completed') next.status = 'in_progress';
+  return next;
 }
 
 // 只做首行摘要，长正文在详情里完整展示，不静默截断来源内容。

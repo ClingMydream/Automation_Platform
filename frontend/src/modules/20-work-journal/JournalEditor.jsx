@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
-  CATEGORIES, PROGRESS_LABELS, copyText, downloadText, formatClock, newId, shanghaiToday,
+  CATEGORIES, PROGRESS_LABELS, REMARKS_MAX, copyText, downloadText, formatClock, newId, shanghaiToday,
 } from './workJournalUtils.js';
 
 const API = '/v1/work-journal';
@@ -30,6 +30,7 @@ function blankEntry(workDate) {
     outcome_markdown: '',
     blocker_markdown: '',
     next_step_markdown: '',
+    remarks_markdown: '',
     revision: 1,
   };
 }
@@ -42,6 +43,7 @@ function toForm(entry, workDate) {
     outcome_markdown: entry.outcome_markdown || '',
     blocker_markdown: entry.blocker_markdown || '',
     next_step_markdown: entry.next_step_markdown || '',
+    remarks_markdown: entry.remarks_markdown || '',
     tags: entry.tags || [],
   };
 }
@@ -94,6 +96,7 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
             outcome_markdown: snapshot.outcome_markdown || null,
             blocker_markdown: snapshot.blocker_markdown || null,
             next_step_markdown: snapshot.next_step_markdown || null,
+            remarks_markdown: snapshot.remarks_markdown || null,
           };
           const saved = recordId.current
             ? await client.put(`${API}/entries/${recordId.current}`, { ...payload, revision: revision.current })
@@ -332,6 +335,18 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
           <Tag>工时未记录</Tag>
         </Tooltip>
       ) : null}
+
+      <div className="work-journal__field" style={{ marginTop: 12 }}>
+        <span className="work-journal__label">备注（选填）</span>
+        <Input.TextArea
+          className="work-journal__textarea"
+          value={form.remarks_markdown || ''}
+          autoSize={{ minRows: 2, maxRows: 6 }}
+          maxLength={REMARKS_MAX}
+          placeholder="补充说明、背景或链接（选填）"
+          onChange={(event) => patch({ remarks_markdown: event.target.value })}
+        />
+      </div>
     </div>
   );
 }
