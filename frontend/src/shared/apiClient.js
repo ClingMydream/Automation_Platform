@@ -34,7 +34,12 @@ export function apiClient(token) {
       notifyAuthExpired();
       throw authExpiredError();
     }
-    if (!res.ok) throw new Error(data.detail || '请求失败');
+    if (!res.ok) {
+      const error = new Error(typeof data.detail === 'string' ? data.detail : '请求失败');
+      error.status = res.status; error.detail = data.detail;
+      error.requestId = res.headers.get('x-request-id');
+      throw error;
+    }
     return data;
   }
 

@@ -553,10 +553,12 @@
   }
   /* 长事项换行后状态与进度可换到第二行，操作栏保持可见。 */
   .work-journal__item-row {
-    gap: 6px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
   }
   .work-journal__item-row .ant-select {
-    flex: 1 1 130px;
+    width: 100% !important;
   }
   .work-journal .ant-btn:not(.ant-btn-sm) {
     min-height: 44px;

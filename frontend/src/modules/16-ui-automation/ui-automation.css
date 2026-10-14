@@ -48,6 +48,9 @@
 .ui-auto-report--partial,.ui-auto-report--interrupted{border-color:#ffe0a3;background:#fffbf0}
 .ui-auto-report--failed{border-color:#ffccc7;background:#fff5f5}
 .ui-auto-report__head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ui-auto-report__head{flex-wrap:wrap}
+.ui-auto-report__head .ant-tag{white-space:normal}
+.ui-auto-report{overflow-wrap:anywhere}
 .ui-auto-report__head>b{font-size:14px}
 .ui-auto-report__copy{margin-left:auto}
 .ui-auto-report__scope{margin-bottom:6px;color:#4e5969;font-size:13px}
@@ -62,4 +65,5 @@
   .ui-auto-page .ui-auto-left{position:static;height:auto;max-height:none;min-height:0;padding:12px}
   .ui-auto-case-scroll{max-height:56dvh;overflow-y:auto}
   .ui-auto-report__line{flex-direction:column;gap:0}
+  .ui-auto-report__copy{margin-left:0}
 }

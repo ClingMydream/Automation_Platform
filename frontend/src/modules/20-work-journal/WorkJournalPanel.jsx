@@ -57,6 +57,7 @@ export function WorkJournalPanel({ client }) {
   const [selectedReport, setSelectedReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const saveHandler = useRef(null);
 
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceLoading, setSourceLoading] = useState(false);
@@ -159,7 +160,9 @@ export function WorkJournalPanel({ client }) {
       okText: '保存后离开',
       cancelText: '留在当前页',
       onOk: async () => {
-        message.info('请先点击「保存草稿」，确认保存后再切换');
+        if (!(await saveHandler.current?.())) throw new Error('保存未完成，请重试或留在当前记录');
+        setDirty(false);
+        action();
       },
       onCancel: () => {},
     });
@@ -513,13 +516,14 @@ export function WorkJournalPanel({ client }) {
           {tab === 'logs' ? (
             selectedEntry ? (
               <JournalEditor
-                key={selectedEntry.id ?? `new-${date}`}
+                key={selectedEntry.editorKey ?? selectedEntry.id ?? `new-${date}`}
                 client={client}
                 entry={selectedEntry}
                 workDate={date}
                 onDirtyChange={setDirty}
+                onRegisterSave={(save) => { saveHandler.current = save; }}
                 onSaved={(saved) => {
-                  setSelectedEntry((current) => (current ? { ...current, ...saved } : saved));
+                  setSelectedEntry((current) => (current ? { ...current, ...saved, editorKey: current.editorKey ?? current.id ?? `new-${date}` } : saved));
                   loadList();
                   loadContext();
                 }}
@@ -538,11 +542,12 @@ export function WorkJournalPanel({ client }) {
             )
           ) : selectedReport ? (
             <ReportEditor
-              key={`${selectedReport.id}-${selectedReport.revision}`}
+              key={selectedReport.id}
               client={client}
               report={selectedReport}
               onDirtyChange={setDirty}
-              onOpenSources={openSources}
+              onRegisterSave={(save) => { saveHandler.current = save; }}
+              onOpenSources={() => guard(openSources)}
               onSaved={(saved) => { setSelectedReport(saved); loadList(); }}
               onDeleted={() => { setSelectedReport(null); loadList(); }}
             />

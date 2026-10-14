@@ -1,3 +1,4 @@
+import { copyText } from '../../shared/clipboard.js';
 import React,{useEffect,useMemo,useState} from 'react';
 import {Button,Card,Col,Form,Input,Modal,Popconfirm,Row,Select,Space,Table,Tag,Typography,Upload,message} from 'antd';
 import {CopyOutlined,DeleteOutlined,EditOutlined,ExportOutlined,ImportOutlined,PlusOutlined} from '@ant-design/icons';
@@ -18,9 +19,9 @@ export function ApiWorkspacePanel({client}){
   async function reload(){setLoading(true);try{setRows(await client.get(`${BASE}/records?q=${encodeURIComponent(query)}`))}catch(e){message.error(e.message)}finally{setLoading(false)}}
   useEffect(()=>{reload()},[query]);
   function openEditor(item=null){setEditing(item||{});form.setFieldsValue(item?{...item,custom_fields:Object.entries(item.custom_fields||{}).map(([key,value])=>({key,value}))}:{method:'GET',tags:[],custom_fields:[]})}
-  async function save(){const value=await form.validateFields();const payload={...value,custom_fields:Object.fromEntries((value.custom_fields||[]).filter(x=>x?.key).map(x=>[x.key,x.value||'']))};editing?.id?await client.put(`${BASE}/records/${editing.id}`,payload):await client.post(`${BASE}/records`,payload);message.success('接口记录已保存');setEditing(null);reload()}
-  async function remove(id){await client.delete(`${BASE}/records/${id}`);message.success('已删除');reload()}
-  async function copy(text){await navigator.clipboard.writeText(text);message.success('地址已复制')}
+  async function save(){try{const value=await form.validateFields();const payload={...value,custom_fields:Object.fromEntries((value.custom_fields||[]).filter(x=>x?.key).map(x=>[x.key,x.value||'']))};editing?.id?await client.put(`${BASE}/records/${editing.id}`,payload):await client.post(`${BASE}/records`,payload);message.success('接口记录已保存');setEditing(null);reload()}catch(e){if(e.message)message.error(e.message)}}
+  async function remove(id){try{await client.delete(`${BASE}/records/${id}`);message.success('已删除');reload()}catch(e){message.error(e.message)}}
+  async function copy(text){if (!(await copyText(text))) { message.warning('复制失败，请手动选择文本'); return; }message.success('地址已复制')}
   const columns=useMemo(()=>[
     {title:'接口',dataIndex:'name',render:(value,row)=><div><b>{value}</b><div className="api-url" title={row.url}>{row.url}</div></div>},
     {title:'方式',dataIndex:'method',width:90,render:value=><Tag color={COLORS[value]}>{value}</Tag>},

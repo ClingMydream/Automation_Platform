@@ -1,3 +1,4 @@
+import { copyText } from '../../shared/clipboard.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Card, Empty, Modal, Popconfirm, Space, Typography, Upload, message } from 'antd';
 import { CopyOutlined, DeleteOutlined, ExportOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
@@ -588,7 +589,7 @@ export function EffectStudio({ client, isAdmin }) {
   const [phoneScale, setPhoneScale] = useState(1);
   const [builtinEnabled, setBuiltinEnabled] = useState(false);
   const url = `${window.location.origin}${HAPPY_ZHAO_PATH}`;
-  const copy = async () => { await navigator.clipboard.writeText(url); message.success('公开链接已复制'); };
+  const copy = async () => { if (!(await copyText(url))) { message.warning('复制失败，请手动选择链接'); return; } message.success('公开链接已复制'); };
   const refresh = async () => {
     try { setItems(await client.get('/effects/workspace')); }
     catch (error) { message.error(error.message); }
@@ -631,7 +632,7 @@ export function EffectStudio({ client, isAdmin }) {
       className="effect-studio__card"
       extra={isAdmin && <Space><Upload accept=".zip" showUploadList={false} beforeUpload={upload}><Button loading={busy} icon={<UploadOutlined />}>上传网页 ZIP</Button></Upload><Popconfirm title="确认清空全部临时效果？" description="会永久删除此工作空间内的所有文件，不影响其他项目。" okText="确认清空" cancelText="取消" onConfirm={clearEffects}><Button danger disabled={!items.length} loading={busy} icon={<DeleteOutlined />}>清空</Button></Popconfirm></Space>}
     >
-      {!items.length ? <Empty description="还没有上传临时效果" /> : items.map(item => <div className="effect-row" key={item.id}><div><b>{item.name}</b><p>独立临时文件，可随时删除</p><code>{window.location.origin}{item.url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={async () => { await navigator.clipboard.writeText(`${window.location.origin}${item.url}`); message.success('链接已复制'); }}>复制链接</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => setPreview(item)}>平台内预览</Button>{isAdmin && <Popconfirm title="删除这个临时效果？" onConfirm={() => remove(item.id)}><Button danger icon={<DeleteOutlined />}>删除</Button></Popconfirm>}</Space></div>)}
+      {!items.length ? <Empty description="还没有上传临时效果" /> : items.map(item => <div className="effect-row" key={item.id}><div><b>{item.name}</b><p>独立临时文件，可随时删除</p><code>{window.location.origin}{item.url}</code></div><Space wrap><Button icon={<CopyOutlined />} onClick={async () => { if (!(await copyText(`${window.location.origin}${item.url}`))) { message.warning('复制失败，请手动选择链接'); return; } message.success('链接已复制'); }}>复制链接</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => setPreview(item)}>平台内预览</Button>{isAdmin && <Popconfirm title="删除这个临时效果？" onConfirm={() => remove(item.id)}><Button danger icon={<DeleteOutlined />}>删除</Button></Popconfirm>}</Space></div>)}
     </Card>
     <Modal title={preview?.name || '临时效果预览'} open={!!preview} onCancel={() => setPreview(null)} footer={<Space><Button icon={<ReloadOutlined />} onClick={() => setPreviewVersion((value) => value + 1)}>刷新预览</Button><Button onClick={() => window.open(preview?.url, '_blank', 'noopener,noreferrer')}>新窗口打开</Button></Space>} width="min(96vw, 620px)" destroyOnHidden>
       <div className="effect-phone-preview">

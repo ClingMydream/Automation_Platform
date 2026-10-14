@@ -6,3 +6,7 @@
 .emote-mobile-frame__screen{display:block;width:390px;height:844px;border:0;border-radius:31px;background:#fff;transform-origin:top left}
 .emote-mobile-preview__actions{display:flex;justify-content:center;width:100%;margin-top:14px}
 @media(max-width:620px){.emote-mobile-preview-page{padding:12px}.emote-mobile-preview-page__header{align-items:flex-start;flex-direction:column}.emote-mobile-frame{transform:scale(.8);transform-origin:top center;margin-bottom:-170px}.emote-mobile-frame__speaker{top:6px}}
+.online-preview-panel{min-width:0;overflow-wrap:anywhere}
+.online-preview-panel .ant-space{max-width:100%}
+.online-preview-panel .ant-space-item{min-width:0;max-width:100%}
+@media(max-width:560px){.online-preview-panel .ant-card-body{padding:14px}.online-preview-panel .ant-descriptions{overflow-wrap:anywhere}}

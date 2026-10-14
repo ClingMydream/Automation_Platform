@@ -7,6 +7,7 @@ import {
   ArrowLeftOutlined, BranchesOutlined, CopyOutlined, DatabaseOutlined, DeleteOutlined, EditOutlined, ExperimentOutlined,
   FileAddOutlined, MoreOutlined, PlayCircleOutlined, ReloadOutlined, SyncOutlined, VideoCameraOutlined,
 } from '@ant-design/icons';
+import { buildReportView } from './reportView.js';
 import './ui-automation.css';
 import './ui-automation-timeline.css';
 
@@ -52,42 +53,6 @@ function formatClock(value) {
   return date.toLocaleString('zh-CN', { hour12: false });
 }
 
-// 简短报告优先使用 Runner 下发的 report；旧执行记录用 timeline/failure 兼容展示。
-function buildReportView(run, caseList) {
-  if (!run) return null;
-  const summary = run.result_summary || {};
-  const raw = summary.report;
-  if (raw && raw.status) return { ...raw, legacy: false };
-  const timeline = summary.timeline || [];
-  const caseIds = run.case_ids || [];
-  const nameOf = (id) => (caseList.find((item) => item.id === id) || {}).name || `用例 ${id}`;
-  const passedIds = [...new Set(timeline.filter((step) => step.status === 'passed' && step.case_id).map((step) => step.case_id))];
-  const failedIds = [...new Set(timeline.filter((step) => step.status === 'failed' && step.case_id).map((step) => step.case_id))];
-  const passedItems = passedIds.map((id) => ({ case_id: id, case_name: nameOf(id), feature_name: '' }));
-  const problemItems = failedIds.map((id) => ({ case_id: id, case_name: nameOf(id), feature_name: '', status: 'failed', reason: summary.failure?.reason || '执行失败' }));
-  let status = 'running';
-  if (run.status === 'passed') status = 'passed';
-  else if (run.status === 'failed') status = problemItems.length ? (passedItems.length ? 'partial' : 'failed') : 'interrupted';
-  else if (run.status === 'interrupted') status = 'interrupted';
-  return {
-    status,
-    legacy: true,
-    conclusion: status === 'passed' ? '本次测试全部通过。'
-      : status === 'interrupted' ? '测试未完成，部分用例未执行。'
-        : `${passedItems.length} 条通过，${problemItems.length} 条失败，请查看详细失败信息。`,
-    total: caseIds.length,
-    passed: passedItems.length,
-    failed: problemItems.length,
-    interrupted: 0,
-    started_at: run.started_at,
-    finished_at: run.finished_at,
-    duration_ms: 0,
-    tested_features: [],
-    passed_items: passedItems,
-    problem_items: problemItems,
-  };
-}
-
 function reportToText(run, view) {
   if (!run || !view) return '';
   const environment = run.target_url ? `线上地址 ${run.target_url}` : '平台预览';
@@ -98,7 +63,7 @@ function reportToText(run, view) {
     'Emote UI 自动化简短测试报告',
     `执行编号：#${run.id}`,
     `测试环境：${environment} / ${run.branch} / ${viewport}`,
-    `测试范围：${(view.tested_features || []).length || view.total} 个功能，${view.total} 条用例`,
+    `测试范围：${view.tested_features?.length ? view.tested_features.length : '未记录'} 个功能，${view.total} 条用例`,
     `通过：${passed}`,
     `有问题：${problems}`,
     `结论：${view.conclusion}`,
@@ -135,6 +100,7 @@ export function ArtifactViewer({ client, artifact, refreshKey = '' }) {
   useEffect(() => {
     let disposed = false;
     let delayTimer;
+    let pendingUrl;
     if (artifact?.kind !== 'video' && artifact?.kind !== 'screenshot') {
       setLoading(false);
       return undefined;
@@ -148,6 +114,7 @@ export function ArtifactViewer({ client, artifact, refreshKey = '' }) {
     };
     client.download(artifact.url).then(({ blob }) => {
       const nextUrl = URL.createObjectURL(blob);
+      pendingUrl = nextUrl;
       finishAfterMinimumTime(() => {
         if (disposed) {
           URL.revokeObjectURL(nextUrl);
@@ -155,6 +122,7 @@ export function ArtifactViewer({ client, artifact, refreshKey = '' }) {
         }
         if (activeUrlRef.current) URL.revokeObjectURL(activeUrlRef.current);
         activeUrlRef.current = nextUrl;
+        pendingUrl = undefined;
         setUrl(nextUrl);
         setLoading(false);
       });
@@ -168,6 +136,7 @@ export function ArtifactViewer({ client, artifact, refreshKey = '' }) {
     return () => {
       disposed = true;
       if (delayTimer) window.clearTimeout(delayTimer);
+      if (pendingUrl) URL.revokeObjectURL(pendingUrl);
     };
   }, [artifact?.id, refreshKey, retry]);
   if (!artifact) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="执行后会在这里显示录屏和截图" />;
@@ -208,6 +177,8 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [editingDataSet, setEditingDataSet] = useState(null);
   const [editingCase, setEditingCase] = useState(null);
   const [caseForm] = Form.useForm();
+  const caseSteps = Form.useWatch('steps', caseForm) || [];
+  const usesLocator = index => !['goto', 'wait', 'screenshot', 'switch_account', 'assert_url', 'assert_watering_result'].includes(caseSteps[index]?.action);
   const [credentialForm] = Form.useForm();
   const [requirementForm] = Form.useForm();
   const [dataSetForm] = Form.useForm();
@@ -228,13 +199,12 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   useEffect(() => { load(); }, []);
   useEffect(() => {
     if (!selectedRunId) { setSelectedRun(null); return undefined; }
-    let active = true;
+    let active = true, timer;
     const read = async () => {
-      try { const row = await client.get(`/v1/ui-automation/runs/${selectedRunId}`); if (active) setSelectedRun(row); }
-      catch (error) { if (active) message.error(error.message); }
+      try { const row = await client.get(`/v1/ui-automation/runs/${selectedRunId}`); if (active) { setSelectedRun(row); if (['queued', 'running'].includes(row.status)) timer = window.setTimeout(read, 3000); } }
+      catch (error) { if (active) { message.error({ key: 'ui-run-connection', content: error.message }); timer = window.setTimeout(read, 6000); } }
     };
     read();
-    const timer = window.setInterval(read, 3000);
     return () => { active = false; window.clearInterval(timer); };
   }, [selectedRunId]);
 
@@ -448,7 +418,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
                 {reportView.legacy && <Tag color="default">历史数据，信息可能不完整</Tag>}
                 <Button size="small" icon={<CopyOutlined />} className="ui-auto-report__copy" onClick={() => copyDiagnostic(reportToText(selectedRun, reportView), '测试报告')}>复制测试报告</Button>
               </div>
-              <div className="ui-auto-report__scope">测试范围：<b>{(reportView.tested_features || []).length || reportView.total}</b> 个功能 / <b>{reportView.total}</b> 条用例</div>
+              <div className="ui-auto-report__scope">测试范围：<b>{reportView.tested_features?.length || '未记录'}</b> 个功能 / <b>{reportView.total}</b> 条用例</div>
               <div className="ui-auto-report__line ui-auto-report__line--ok"><span>通过（{reportView.passed}）：</span><span>{(reportView.passed_items || []).map((item) => item.feature_name || item.case_name).join('、') || '无'}</span></div>
               <div className="ui-auto-report__line ui-auto-report__line--bad">
                 <span>有问题（{(reportView.problem_items || []).length}）：</span>
@@ -500,7 +470,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
         <Row gutter={12}><Col span={12}><Form.Item name="preconditions" label="前置条件"><Input.TextArea rows={2} /></Form.Item></Col><Col span={12}><Form.Item name="cleanup_note" label="清理说明"><Input.TextArea rows={2} /></Form.Item></Col></Row>
         <Form.List name="steps">{(fields, { add, remove, move }) => <div className="ui-auto-steps">
           <div className="ui-auto-step-title"><b>可视化步骤</b><Button size="small" onClick={() => add({ action: 'click', locator_type: 'testid' })}>添加步骤</Button></div>
-          {fields.map((field, index) => <div className="ui-auto-step" key={field.key}><span>{index + 1}</span><Form.Item name={[field.name, 'action']} rules={[{ required: true }]}><Select options={ACTIONS.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item name={[field.name, 'locator_type']}><Select placeholder="定位方式" options={LOCATOR_TYPES.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item name={[field.name, 'role']}><Select allowClear placeholder="角色（role 时）" options={['button', 'heading', 'link', 'textbox', 'checkbox', 'radio', 'tab', 'dialog', 'listitem', 'img'].map((value) => ({ value, label: value }))} /></Form.Item><Form.Item name={[field.name, 'locator']}><Input placeholder="元素名称 / 选择器" /></Form.Item><Form.Item name={[field.name, 'value']}><Input placeholder="输入值 / 页面地址" /></Form.Item><Form.Item name={[field.name, 'match']}><Select allowClear placeholder="重复匹配" options={[{ value: 'first', label: '第一个' }, { value: 'last', label: '最后一个' }, { value: 'nth', label: '指定序号' }]} /></Form.Item><Form.Item name={[field.name, 'index']}><Input type="number" min={0} placeholder="序号(从0开始)" /></Form.Item><Form.Item name={[field.name, 'exact']} valuePropName="checked"><Checkbox>精确匹配</Checkbox></Form.Item><Space><Button size="small" disabled={index === 0} onClick={() => move(index, index - 1)}>↑</Button><Button size="small" disabled={index === fields.length - 1} onClick={() => move(index, index + 1)}>↓</Button><Button danger size="small" onClick={() => remove(field.name)}>删</Button></Space></div>)}
+          {fields.map((field, index) => <div className="ui-auto-step" key={field.key}><span>{index + 1}</span><Form.Item name={[field.name, 'action']} rules={[{ required: true }]}><Select options={ACTIONS.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'locator_type']}><Select placeholder="定位方式" options={LOCATOR_TYPES.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item hidden={!usesLocator(index) || caseSteps[index]?.locator_type !== 'role'} name={[field.name, 'role']}><Select allowClear placeholder="角色（role 时）" options={['button', 'heading', 'link', 'textbox', 'checkbox', 'radio', 'tab', 'dialog', 'listitem', 'img'].map((value) => ({ value, label: value }))} /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'locator']}><Input placeholder="元素名称 / 选择器" /></Form.Item><Form.Item hidden={!['goto', 'fill', 'append', 'select', 'press', 'wait', 'assert_text', 'assert_url', 'assert_count', 'switch_account'].includes(caseSteps[index]?.action)} name={[field.name, 'value']}><Input placeholder="输入值 / 页面地址" /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'match']}><Select allowClear placeholder="重复匹配" options={[{ value: 'first', label: '第一个' }, { value: 'last', label: '最后一个' }, { value: 'nth', label: '指定序号' }]} /></Form.Item><Form.Item hidden={!usesLocator(index) || caseSteps[index]?.match !== 'nth'} name={[field.name, 'index']}><Input type="number" min={0} placeholder="序号(从0开始)" /></Form.Item><Form.Item hidden={!usesLocator(index) || !['role', 'text', 'label', 'placeholder', 'alt', 'title'].includes(caseSteps[index]?.locator_type)} name={[field.name, 'exact']} valuePropName="checked"><Checkbox>精确匹配</Checkbox></Form.Item><Space><Button size="small" disabled={index === 0} onClick={() => move(index, index - 1)}>↑</Button><Button size="small" disabled={index === fields.length - 1} onClick={() => move(index, index + 1)}>↓</Button><Button danger size="small" onClick={() => remove(field.name)}>删</Button></Space></div>)}
         </div>}</Form.List>
       </Form>
     </Modal>

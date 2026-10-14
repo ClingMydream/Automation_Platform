@@ -1,3 +1,4 @@
+import { copyText } from '../../shared/clipboard.js';
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Card, Col, DatePicker, Form, Input, Modal, Row, Space, Table, Tabs, Tag, Typography, message } from 'antd';
 import { BookOutlined, CopyOutlined, HomeOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
@@ -56,19 +57,21 @@ export function RestfulBookerPanel({ client }) {
   useEffect(() => { load(); }, []);
 
   async function copyDocs() {
-    await navigator.clipboard.writeText(API_DOCS);
+    if (!(await copyText(API_DOCS))) { message.warning('复制失败，请手动选择文档地址'); return; }
     message.success('接口文档地址已复制');
   }
 
   async function runBookingExample(url, label) {
     setApiResponse({ label, loading: true });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
       const body = await response.json();
       setApiResponse({ label, status: response.status, body });
     } catch (error) {
-      setApiResponse({ label, error: '请求失败：' + error.message });
-    }
+      setApiResponse({ label, error: error.name === 'AbortError' ? '请求超时，请检查练习服务后重试' : '请求失败：' + error.message });
+    } finally { clearTimeout(timer); }
   }
 
   async function submitBooking() {

@@ -48,7 +48,7 @@ function toForm(entry, workDate) {
   };
 }
 
-export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onDirtyChange }) {
+export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onDirtyChange, onRegisterSave }) {
   const [form, setForm] = useState(() => toForm(entry, workDate));
   const [saveState, setSaveState] = useState('idle');
   const [savedAt, setSavedAt] = useState(null);
@@ -59,12 +59,15 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
   const revision = useRef(entry?.revision || 1);
   const recordId = useRef(entry?.id || null);
   const sequence = useRef(0);
+  const edits = useRef(0);
   const queue = useRef(Promise.resolve());
   const timer = useRef(null);
   const dirty = useRef(false);
 
   // 切换记录时整体重置编辑器，避免上一条的内容串到下一条。
   useEffect(() => {
+    // First create response belongs to this editor; keep any input typed during saving.
+    if (entry?.id && recordId.current === entry.id) return;
     setForm(toForm(entry, workDate));
     setSaveState(entry?.id ? 'saved' : 'idle');
     setSavedAt(entry?.id ? new Date() : null);
@@ -77,10 +80,12 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
   }, [entry?.id, workDate]);
 
   useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => { onRegisterSave?.(saveNow); });
 
   const runSave = useCallback(
     (snapshot, { silent }) => {
       const seq = (sequence.current += 1);
+      const editVersion = edits.current;
       setSaveState('saving');
       queue.current = queue.current.then(async () => {
         try {
@@ -105,16 +110,17 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
           revision.current = saved.revision;
           setConflict(false);
           // 只有这次提交仍是最新输入时才显示"已保存"，否则等下一轮防抖保存。
-          if (seq === sequence.current) {
+          if (seq === sequence.current && editVersion === edits.current) {
             setSaveState('saved');
             setSavedAt(new Date());
             dirty.current = false;
             onDirtyChange?.(false);
           }
           onSaved?.(saved);
+          return editVersion === edits.current;
         } catch (error) {
           const text = String(error?.message || '');
-          if (seq === sequence.current) {
+          if (seq === sequence.current && editVersion === edits.current) {
             if (text.includes('已被修改') || text.includes('409')) {
               setConflict(true);
               setSaveState('error');
@@ -123,6 +129,7 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
               if (!silent) message.error(text || '保存失败，请重试');
             }
           }
+          return false;
         }
       });
       return queue.current;
@@ -131,6 +138,7 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
   );
 
   function patch(values) {
+    edits.current++;
     setForm((current) => {
       const next = { ...current, ...values };
       dirty.current = true;
@@ -148,9 +156,9 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
     if (!form.title.trim() || !form.body_markdown.trim()) {
       message.warning('标题和内容为必填项');
       setSaveState('error');
-      return;
+      return false;
     }
-    await runSave(form, { silent: false });
+    return runSave(form, { silent: false });
   }
 
   async function remove() {

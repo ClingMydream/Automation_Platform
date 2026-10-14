@@ -6,3 +6,9 @@
 .answer-reveal .ant-collapse-content-box{padding:14px 16px!important;color:#334155}
 .answer-reveal .ant-typography:last-child{margin-bottom:0}
 .reference-code{margin-top:12px}.reference-code>.mastery-code{margin:8px 0;padding:14px;font-size:13px;line-height:1.7}.reference-code>.ant-typography{display:block}
+
+.mastery-learning{font-size:16px}.mastery-learning .ant-input,.mastery-learning .ant-radio-wrapper{font-size:16px}.mastery-learning .route-title,.mastery-learning .mastery-route small{font-size:14px}
+.mastery-learning{min-width:0;grid-template-columns:minmax(0,1fr)}
+.mastery-learning>*{min-width:0}.mastery-header>div{min-width:0;overflow-wrap:anywhere}
+.mastery-learning .route-title{flex-wrap:wrap}.mastery-learning .mastery-code{overflow-wrap:anywhere}
+@media(max-width:380px){.mastery-learning .ant-card-body{padding:14px}.mastery-learning .lesson-nav .ant-btn{max-width:100%;height:auto;min-height:40px;white-space:normal}}

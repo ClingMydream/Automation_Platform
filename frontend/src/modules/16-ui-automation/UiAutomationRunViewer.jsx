@@ -11,12 +11,12 @@ export function UiAutomationRunViewer({ client, runId }) {
   const [error, setError] = useState('');
   useEffect(() => {
     if (runId === 'waiting') return undefined;
-    let active = true;
+    let active = true, timer;
     const read = async () => {
-      try { const value = await client.get(`/v1/ui-automation/runs/${runId}`); if (active) { setRun(value); setError(''); } }
-      catch (reason) { if (active) setError(reason.message); }
+      try { const value = await client.get(`/v1/ui-automation/runs/${runId}`); if (active) { setRun(value); setError(''); if (['queued', 'running'].includes(value.status)) timer = window.setTimeout(read, 1500); } }
+      catch (reason) { if (active) { setError(reason.message); timer = window.setTimeout(read, 5000); } }
     };
-    read(); const timer = window.setInterval(read, 1500);
+    read();
     return () => { active = false; window.clearInterval(timer); };
   }, [runId]);
 

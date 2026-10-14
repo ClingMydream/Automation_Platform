@@ -5,6 +5,7 @@ const { Text } = Typography;
 
 function formatTime(value) {
   if (!value) return '未知时间';
+  if (Number.isNaN(Date.parse(value))) return '未知时间';
   return new Intl.DateTimeFormat('zh-CN', {
     timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
@@ -20,6 +21,7 @@ export function BranchRevisionStatus({ client, branch, buildStatus, label = '代
     if (!branch) return;
     let active = true;
     setLoading(true);
+    setRevision(null);
     setError('');
     client.get(`/v1/online-preview/revision?branch=${encodeURIComponent(branch)}`)
       .then((data) => { if (active) setRevision(data); })

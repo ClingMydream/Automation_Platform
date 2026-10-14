@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Alert, Button, Card, Descriptions, Select, Space, Steps, Tag, Typography, message } from 'antd';
 import { CheckCircleOutlined, ExportOutlined, MobileOutlined, ReloadOutlined, SafetyCertificateOutlined, SyncOutlined } from '@ant-design/icons';
 import { BranchRevisionStatus } from './BranchRevisionStatus.jsx';
+import './online-preview.css';
 
 const { Paragraph, Text, Title } = Typography;
 const PREVIEW_URL = '/emote-preview/';
@@ -17,6 +18,8 @@ function stageState(stage) {
 }
 
 export function OnlinePreviewPanel({ client }) {
+  const compareVersion = useRef(0);
+  const [connectionError, setConnectionError] = useState('');
   const [branches, setBranches] = useState([]);
   const [branch, setBranch] = useState('dev-20260811-1.9.1');
   const [status, setStatus] = useState(null);
@@ -32,16 +35,18 @@ export function OnlinePreviewPanel({ client }) {
   };
   const compare = async (showMessage = false) => {
     if (!branch) return null;
+    const generation = ++compareVersion.current;
     setChecking(true);
     try {
       const result = await client.get(`/v1/online-preview/comparison?branch=${encodeURIComponent(branch)}`);
+      if (generation !== compareVersion.current) return null;
       setComparison(result);
       if (showMessage) message[result.matches ? 'success' : 'warning'](result.message);
       return result;
     } catch (error) {
       if (showMessage) message.error(error.message);
       return null;
-    } finally { setChecking(false); }
+    } finally { if (generation === compareVersion.current) setChecking(false); }
   };
   const load = async () => {
     setLoading(true);
@@ -52,19 +57,24 @@ export function OnlinePreviewPanel({ client }) {
     } catch (error) { message.error(error.message); } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
-  useEffect(() => { compare(); }, [branch]);
+  useEffect(() => { setComparison(null); compare(); return () => { compareVersion.current++; }; }, [branch]);
   useEffect(() => {
     if (!status?.building && !syncing) return undefined;
-    const timer = window.setInterval(async () => {
+    let active = true, timer;
+    const poll = async () => {
       try {
         const nextStatus = await loadStatus();
+        if (!active) return;
+        setConnectionError('');
         if (!nextStatus.building && nextStatus.result) {
           setSyncing(false);
           if (nextStatus.result === 'SUCCESS') compare(true);
         }
-      } catch { /* 下一轮会重试 */ }
-    }, 3500);
-    return () => window.clearInterval(timer);
+        if (nextStatus.building) timer = window.setTimeout(poll, 3500);
+      } catch (error) { if (active) { setConnectionError(error.message); timer = window.setTimeout(poll, 6000); } }
+    };
+    timer = window.setTimeout(poll, 3500);
+    return () => { active = false; window.clearTimeout(timer); };
   }, [status?.building, syncing, branch]);
   const synchronize = async () => {
     if (!branch) return message.warning('请先选择分支');
@@ -72,7 +82,7 @@ export function OnlinePreviewPanel({ client }) {
     try {
       const task = await client.post('/v1/online-preview/sync', { branch });
       message.success(`${branch} 已进入构建队列${task.queue_id ? `（队列 #${task.queue_id}）` : ''}`);
-      window.setTimeout(loadStatus, 1200);
+      window.setTimeout(() => loadStatus().catch(error => setConnectionError(error.message)), 1200);
     } catch (error) { setSyncing(false); message.error(error.message); }
   };
   const statusValue = status?.building ? ['正在构建', 'processing'] : (STATUS_LABELS[status?.result] || [status?.result || '读取中', 'default']);
@@ -81,6 +91,7 @@ export function OnlinePreviewPanel({ client }) {
   const stages = status?.stages || [];
   return <div className="online-preview-panel">
     <section className="effect-studio__hero"><div><span>Emote 网页测试环境</span><Title level={2}>📱 在线预览</Title><Paragraph>同步过程、构建阶段与线上实际版本均可核验。系统仅以只读方式拉取代码，不会提交或推送项目代码。</Paragraph></div><div>🔄</div></section>
+    {connectionError && <Alert type="warning" showIcon title="构建服务连接暂时中断" description={connectionError} action={<Button onClick={() => load()}>重试</Button>} />}
     <Card title="分支同步与版本核验" extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={load}>刷新状态</Button>}>
       <Space orientation="vertical" size={18} style={{ width: '100%' }}>
         <Alert type="info" showIcon title="不再黑盒构建" description="同步后可看到当前构建阶段；构建成功后会自动比较远程最新提交与线上实际服务的提交，只有两者一致才会显示“已确认一致”。" />

@@ -65,9 +65,14 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState([]);
   const [selectedNote, setSelectedNote] = useState(null);
+  const [noteDirty, setNoteDirty] = useState(false);
   const [notesListCollapsed, setNotesListCollapsed] = useState(false);
   const hydrated = useRef(false);
   const saveTimer = useRef(null);
+  const latestEvidence = useRef(evidence);
+  latestEvidence.current = evidence;
+  const saveQueue = useRef(Promise.resolve());
+  const inputVersion = useRef(0);
 
   async function loadOverview(preferredLessonId) {
     const data = await client.get(`${API}/overview`);
@@ -86,6 +91,7 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
   }
 
   function editNote(patch) {
+    setNoteDirty(true);
     setSelectedNote((current) => current ? { ...current, ...patch } : current);
   }
 
@@ -104,8 +110,16 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
         title: selectedNote.title.trim() || '未命名笔记', content_markdown: selectedNote.content_markdown,
         tags: selectedNote.tags || [], is_pinned: selectedNote.is_pinned || false,
       });
-      setNotes((rows) => rows.map((row) => row.id === saved.id ? saved : row)); setSelectedNote(saved); message.success('笔记已保存');
-    } catch (error) { message.error(error.message); }
+      setNotes((rows) => rows.map((row) => row.id === saved.id ? saved : row)); setSelectedNote(saved); setNoteDirty(false); message.success('笔记已保存');
+      return true;
+    } catch (error) { message.error(error.message); return false; }
+  }
+
+  function noteGuard(action) {
+    if (!noteDirty) { action(); return; }
+    Modal.confirm({ title: '笔记有未保存修改', content: '保存成功后再切换，保存失败会保留当前内容。', okText: '保存后继续', cancelText: '继续编辑',
+      onOk: async () => { if (!(await saveSelectedNote())) throw new Error('笔记保存失败'); action(); },
+    });
   }
 
   function deleteSelectedNote() {
@@ -120,7 +134,8 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
   }
 
   async function openLesson(id, saveCurrent = true) {
-    if (saveCurrent && lesson && hydrated.current) await saveDraft(false);
+    clearTimeout(saveTimer.current);
+    if (saveCurrent && lesson && hydrated.current && !(await saveDraft(true))) return;
     setLoading(true); hydrated.current = false;
     try {
       const data = await client.get(`${API}/lessons/${id}`);
@@ -139,24 +154,33 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
   }, [timer.timer_status]);
 
   function changeEvidence(patch) {
-    setEvidence((value) => ({ ...value, ...patch })); setSaveState('等待保存');
+    latestEvidence.current = { ...latestEvidence.current, ...patch };
+    inputVersion.current++;
+    setEvidence(latestEvidence.current); setSaveState('等待保存');
     clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => saveDraft(false, patch), 1200);
   }
 
-  async function saveDraft(showMessage = true, immediatePatch = null) {
-    if (!lessonId || !hydrated.current) return;
+  async function saveDraft(showMessage = true) {
+    if (!lessonId || !hydrated.current) return false;
+    const id = lessonId, version = inputVersion.current;
+    const payload = { ...latestEvidence.current, current_step: LEARNING_PHASES[step].progressStep, complete: false };
     setSaving(true); setSaveState('保存中…');
-    try {
-      const payloadEvidence = { ...evidence, ...(immediatePatch || {}) };
-      const data = await client.put(`${API}/lessons/${lessonId}/progress`, { ...payloadEvidence, current_step: LEARNING_PHASES[step].progressStep, complete: false });
-      setLesson(data); setSaveState('已保存');
-      if (showMessage) message.success('学习证据已保存，并已同步到关卡笔记');
-    } catch (error) { setSaveState('保存失败'); if (showMessage) message.error(error.message); }
-    finally { setSaving(false); }
+    const request = saveQueue.current.then(async () => {
+      try {
+        const data = await client.put(`${API}/lessons/${id}/progress`, payload);
+        if (version === inputVersion.current) { setLesson(data); setSaveState('已保存'); }
+        if (showMessage) message.success('学习证据已保存，并已同步到关卡笔记');
+        return version === inputVersion.current;
+      } catch (error) { setSaveState('保存失败'); if (showMessage) message.error(error.message); return false; }
+      finally { setSaving(false); }
+    });
+    saveQueue.current = request;
+    return request;
   }
 
   async function completeLesson() {
+    if (!(await saveDraft(true))) return;
     clearTimeout(saveTimer.current); setSaving(true);
     try {
       const data = await client.put(`${API}/lessons/${lessonId}/progress`, { ...evidence, current_step: 8, complete: true });
@@ -166,6 +190,7 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
   }
 
   async function changePhase(nextPhase) {
+    if (!(await saveDraft(true))) return;
     clearTimeout(saveTimer.current);
     setSaving(true); setSaveState('保存中…');
     try {
@@ -185,8 +210,10 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
 
   async function addBlocker() {
     if (blocker.trim().length < 2) return message.warning('请写下具体哪一点不理解');
-    const progress = await client.post(`${API}/lessons/${lessonId}/blockers`, { content: blocker.trim() });
-    setLesson((value) => ({ ...value, progress })); setBlocker(''); message.success('卡点已记录，可以先停下来复习');
+    try {
+      const progress = await client.post(`${API}/lessons/${lessonId}/blockers`, { content: blocker.trim() });
+      setLesson((value) => ({ ...value, progress })); setBlocker(''); message.success('卡点已记录，可以先停下来复习');
+    } catch (error) { message.error(error.message); }
   }
 
   async function resetLearning() {
@@ -199,7 +226,7 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
 
   const gates = lesson?.gates || {};
   const gateRows = useMemo(() => [
-    ['run', '代码真实运行并保存输出'], ['rewrite', '完成一次有解释的改写'],
+    ['run', '本人确认已运行并保存输出'], ['rewrite', '完成一次有解释的改写'],
     ['exercise', '独立完成当前小题'], ['understanding', '理解题正确且个人解释不少于 20 字'],
   ], [lesson]);
   if (!overview || !lesson) return <Card loading={loading} />;
@@ -228,9 +255,9 @@ export function MasteryLearningPanel({ client, isAdmin = false }) {
         <div className="lesson-workbench document-workbench"><Steps className="mastery-phase-nav" current={step} responsive items={LEARNING_PHASES.map((phase) => ({ title: phase.title, description: phase.description }))} onChange={changePhase} /><Card loading={loading} className="lesson-content lesson-document"><article className="learning-document">{PHASE_STEP_GROUPS[step].map((contentIndex) => <section key={contentIndex}>{stepBody[contentIndex]}</section>)}</article><div className="lesson-nav"><Button disabled={step === 0} onClick={() => changePhase(step - 1)}>上一阶段</Button><Space wrap><Button icon={<SaveOutlined />} loading={saving} onClick={() => saveDraft(true)}>保存当前内容</Button>{step < LEARNING_PHASES.length - 1 ? <Button type="primary" loading={saving} onClick={() => changePhase(step + 1)}>进入下一阶段</Button> : <Button type="primary" loading={saving} onClick={completeLesson}>完成本关并解锁下一关</Button>}</Space></div></Card></div>
       </main>
     </div>
-    <Drawer title="📒 关卡笔记" open={notesOpen} onClose={() => setNotesOpen(false)} width={760} extra={<Space><Button icon={notesListCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setNotesListCollapsed((value) => !value)}>{notesListCollapsed ? '展开目录' : '收起目录'}</Button><Button type="primary" icon={<PlusOutlined />} onClick={createNote}>新建笔记</Button></Space>}>
+    <Drawer title="📒 关卡笔记" open={notesOpen} onClose={() => noteGuard(() => setNotesOpen(false))} width={760} extra={<Space><Button icon={notesListCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={() => setNotesListCollapsed((value) => !value)}>{notesListCollapsed ? '展开目录' : '收起目录'}</Button><Button type="primary" icon={<PlusOutlined />} onClick={() => noteGuard(createNote)}>新建笔记</Button></Space>}>
       <Paragraph type="secondary">每次保存学习内容后，系统都会自动同步一篇关卡笔记，也可在这里新建、编辑或删除。</Paragraph>
-      <div className={`mastery-notes-drawer ${notesListCollapsed ? 'notes-list-collapsed' : ''}`}><List className="mastery-note-list" dataSource={notes} locale={{ emptyText: <Empty description="还没有笔记" /> }} renderItem={(item) => <List.Item className={selectedNote?.id === item.id ? 'selected' : ''} onClick={() => setSelectedNote(item)}><List.Item.Meta title={item.title} description={(item.content_markdown || '空白笔记').replace(/\n/g, ' ').slice(0, 58)} /></List.Item>} /><section className="mastery-note-content">{selectedNote ? <><Space className="mastery-note-actions"><Button type="primary" icon={<SaveOutlined />} onClick={saveSelectedNote}>保存</Button><Button danger icon={<DeleteOutlined />} onClick={deleteSelectedNote}>删除</Button></Space><Input className="mastery-note-title" value={selectedNote.title} onChange={(event) => editNote({ title: event.target.value })} placeholder="笔记标题" /><Input.TextArea value={selectedNote.content_markdown} onChange={(event) => editNote({ content_markdown: event.target.value })} placeholder="记录你的学习笔记" autoSize={{ minRows: 18 }} /></> : <Empty description="选择或新建一篇笔记" />}</section></div>
+      <div className={`mastery-notes-drawer ${notesListCollapsed ? 'notes-list-collapsed' : ''}`}><List className="mastery-note-list" dataSource={notes} locale={{ emptyText: <Empty description="还没有笔记" /> }} renderItem={(item) => <List.Item className={selectedNote?.id === item.id ? 'selected' : ''} onClick={() => noteGuard(() => setSelectedNote(item))}><List.Item.Meta title={item.title} description={(item.content_markdown || '空白笔记').replace(/\n/g, ' ').slice(0, 58)} /></List.Item>} /><section className="mastery-note-content">{selectedNote ? <><Space className="mastery-note-actions"><Button type="primary" icon={<SaveOutlined />} onClick={saveSelectedNote}>保存</Button><Button danger icon={<DeleteOutlined />} onClick={deleteSelectedNote}>删除</Button></Space><Input className="mastery-note-title" value={selectedNote.title} onChange={(event) => editNote({ title: event.target.value })} placeholder="笔记标题" /><Input.TextArea value={selectedNote.content_markdown} onChange={(event) => editNote({ content_markdown: event.target.value })} placeholder="记录你的学习笔记" autoSize={{ minRows: 18 }} /></> : <Empty description="选择或新建一篇笔记" />}</section></div>
     </Drawer>
     <Modal open={resetOpen} title="备份并彻底重置学习空间" okText="确认备份并重置" okButtonProps={{ danger: true, disabled: resetText !== '彻底重置学习空间' }} onOk={resetLearning} onCancel={() => { setResetOpen(false); setResetText(''); }}><Alert type="warning" showIcon title="旧课程、进度、笔记和附件会先备份，再从页面清空。其他平台模块不受影响。" /><Paragraph style={{ marginTop: 16 }}>请输入：<Text code>彻底重置学习空间</Text></Paragraph><Input value={resetText} onChange={(event) => setResetText(event.target.value)} /></Modal>
   </div>;

@@ -85,7 +85,7 @@ function ItemFields({ item, onChange }) {
         <span className="work-journal__inline-label">状态</span>
         <Select
           value={item.status || 'in_progress'}
-          popupClassName="work-journal-popup"
+          classNames={{ popup: { root: 'work-journal-popup' } }}
           style={{ width: 132 }}
           options={Object.entries(PROGRESS_LABELS).map(([value, label]) => ({ value, label }))}
           onChange={(value) => onChange(applyStatusChange(item, value))}
@@ -94,7 +94,7 @@ function ItemFields({ item, onChange }) {
         <Select
           value={item.progress_percent ?? undefined}
           placeholder={PROGRESS_PLACEHOLDER}
-          popupClassName="work-journal-popup"
+          classNames={{ popup: { root: 'work-journal-popup' } }}
           style={{ width: 132 }}
           options={progressOptions()}
           onChange={(value) => onChange(applyProgressChange(item, value))}
@@ -154,7 +154,7 @@ function LegacySupplement({ supplement }) {
   );
 }
 
-export function ReportEditor({ client, report, onSaved, onDeleted, onDirtyChange, onOpenSources }) {
+export function ReportEditor({ client, report, onSaved, onDeleted, onDirtyChange, onOpenSources, onRegisterSave }) {
   const [title, setTitle] = useState(report?.title || '');
   const [sections, setSections] = useState(() => normalizeSections(report));
   const [status, setStatus] = useState(report?.status || 'draft');
@@ -165,13 +165,20 @@ export function ReportEditor({ client, report, onSaved, onDeleted, onDirtyChange
 
   const revision = useRef(report?.revision || 1);
   const sequence = useRef(0);
+  const edits = useRef(0);
   const queue = useRef(Promise.resolve());
   const timer = useRef(null);
   const latest = useRef({ title, sections });
+  const activeReport = useRef(null);
 
   latest.current = { title, sections };
 
   useEffect(() => {
+    if (activeReport.current === report?.id) {
+      if (revision.current === report?.revision) return;
+      if (['dirty', 'saving', 'error'].includes(saveState)) { setConflict(true); return; }
+    }
+    activeReport.current = report?.id;
     setTitle(report?.title || '');
     setSections(normalizeSections(report));
     setStatus(report?.status || 'draft');
@@ -183,11 +190,14 @@ export function ReportEditor({ client, report, onSaved, onDeleted, onDirtyChange
     onDirtyChange?.(false);
   }, [report?.id, report?.revision]);
 
+  useEffect(() => { onRegisterSave?.(saveNow); });
+
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const runSave = useCallback(
     (snapshotTitle, snapshotSections, { silent } = {}) => {
       const seq = (sequence.current += 1);
+      const editVersion = edits.current;
       setSaveState('saving');
       queue.current = queue.current.then(async () => {
         try {
@@ -198,19 +208,21 @@ export function ReportEditor({ client, report, onSaved, onDeleted, onDirtyChange
           });
           revision.current = saved.revision;
           setConflict(false);
-          if (seq === sequence.current) {
+          if (seq === sequence.current && editVersion === edits.current) {
             setSaveState('saved');
             setSavedAt(new Date());
             onDirtyChange?.(false);
           }
           onSaved?.(saved);
+          return editVersion === edits.current;
         } catch (error) {
           const text = String(error?.message || '');
-          if (seq === sequence.current) {
-            setConflict(text.includes('修改') || text.includes('409'));
+          if (seq === sequence.current && editVersion === edits.current) {
+            setConflict(error.status === 409 || text.includes('修改') || text.includes('409'));
             setSaveState('error');
             if (!silent) message.error(text || '保存失败，请重试');
           }
+          return false;
         }
       });
       return queue.current;
@@ -219,6 +231,7 @@ export function ReportEditor({ client, report, onSaved, onDeleted, onDirtyChange
   );
 
   function schedule(nextTitle, nextSections) {
+    edits.current++;
     onDirtyChange?.(true);
     setSaveState('dirty');
     clearTimeout(timer.current);
@@ -244,13 +257,12 @@ export function ReportEditor({ client, report, onSaved, onDeleted, onDirtyChange
       message.warning('标题不能为空');
       return null;
     }
-    await runSave(latest.current.title, latest.current.sections, { silent: false });
-    return true;
+    return runSave(latest.current.title, latest.current.sections, { silent: false });
   }
 
   async function complete() {
     clearTimeout(timer.current);
-    await runSave(latest.current.title, latest.current.sections, { silent: false });
+    if (!(await runSave(latest.current.title, latest.current.sections, { silent: false }))) return;
     try {
       const saved = await client.post(`${API}/reports/${report.id}/complete`, { revision: revision.current });
       revision.current = saved.revision;
@@ -276,7 +288,7 @@ export function ReportEditor({ client, report, onSaved, onDeleted, onDirtyChange
   }
 
   async function copyBody() {
-    if (saveState === 'dirty') await saveNow();
+    if (editing && ['dirty', 'saving', 'error'].includes(saveState) && !(await saveNow())) return;
     try {
       const { blob } = await client.download(`${API}/reports/${report.id}/export?body_only=true`);
       const text = await blob.text();
@@ -288,7 +300,7 @@ export function ReportEditor({ client, report, onSaved, onDeleted, onDirtyChange
   }
 
   async function download() {
-    if (saveState === 'dirty') await saveNow();
+    if (editing && ['dirty', 'saving', 'error'].includes(saveState) && !(await saveNow())) return;
     try {
       const { blob, filename } = await client.download(`${API}/reports/${report.id}/export`);
       saveBlob(blob, filename);
