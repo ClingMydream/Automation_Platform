@@ -486,6 +486,9 @@ def prepare_authenticated_state(browser, base_url, viewport, credentials, state_
     if reusable:
         options["storage_state"] = str(reusable)
     context = browser.new_context(**options)
+    # 首屏要等 index.html 解析完成；外部字体等资源偶发抖动时 30s 偏紧，放宽到 60s。
+    context.set_default_navigation_timeout(60000)
+    block_external_fonts(context)
     page = context.new_page()
     try:
         page.goto(base_url.rstrip("/") + "/", wait_until="domcontentloaded")
@@ -505,6 +508,8 @@ def prepare_authenticated_state(browser, base_url, viewport, credentials, state_
                 context.close()
                 state_path.unlink(missing_ok=True)
                 context = browser.new_context(viewport=viewport)
+                context.set_default_navigation_timeout(60000)
+                block_external_fonts(context)
                 page = context.new_page()
                 page.goto(base_url.rstrip("/") + "/", wait_until="domcontentloaded")
 
@@ -542,6 +547,37 @@ def prepare_authenticated_state(browser, base_url, viewport, credentials, state_
     finally:
         try: context.close()
         except Exception: pass
+
+
+def prepare_authenticated_state_with_retry(browser, base_url, viewport, credentials, state_path, attempts=3):
+    """登录态准备只在任务开始时做一次，失败会让整轮回归 0 条执行。
+
+    首屏导航偶发超时属于环境抖动（实测正常时 0.3s 即可完成），因此这里重试，
+    避免一次网络抖动把整轮任务判死。
+    """
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return prepare_authenticated_state(browser, base_url, viewport, credentials, state_path)
+        except Exception as error:  # noqa: BLE001
+            last_error = error
+            if attempt < attempts:
+                time.sleep(3)
+    raise last_error
+
+
+# 外部字体样式表是渲染阻塞资源：请求挂起时 domcontentloaded 会一直等到超时，
+# 在国内网络下偶发出现。回归验证的是业务功能而不是字体渲染，因此直接拦掉。
+BLOCKED_RESOURCE_PATTERNS = ("**/fonts.googleapis.com/**", "**/fonts.gstatic.com/**")
+
+
+def block_external_fonts(context):
+    """Abort third-party font requests so the first paint never blocks on them."""
+    for pattern in BLOCKED_RESOURCE_PATTERNS:
+        try:
+            context.route(pattern, lambda route: route.abort())
+        except Exception: pass
+    return context
 
 
 def run_task(task):
@@ -690,7 +726,7 @@ def run_task(task):
             viewport = {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900}
             account_a = task.get("credentials", {}).get("account_a", {})
             state_path = auth_state_path(task["base_url"], str(account_a.get("username", "")))
-            prepare_authenticated_state(browser, task["base_url"], viewport, account_a, state_path)
+            prepare_authenticated_state_with_retry(browser, task["base_url"], viewport, account_a, state_path)
             for case in task["cases"]:
                 current_case = case
                 case_id = case["id"]
@@ -722,6 +758,9 @@ def run_task(task):
                             if name == "account_a" and reuse_auth:
                                 context_options["storage_state"] = str(reusable_state)
                             contexts[name] = browser.new_context(**context_options)
+                            # 用例里的 goto 也要容忍首屏偶发抖动，与登录态准备保持一致的 60s。
+                            contexts[name].set_default_navigation_timeout(60000)
+                            block_external_fonts(contexts[name])
                             new_page = contexts[name].new_page()
                             new_page.on("request", remember_request)
                             new_page.on("response", remember_response)
