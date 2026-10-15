@@ -63,7 +63,7 @@ export function PhoneBatches({ client, rows, onRowsChange }) {
           { title: '备注', dataIndex: 'remark', render: (v, r, i) => <Input aria-label={`账号备注 ${i + 1}`} maxLength={1000} value={v} onChange={e => changeRow(draft.rows.indexOf(r), { remark: e.target.value })} /> },
           { title: '操作', render: (_, r) => <Popconfirm title="移除此账号？保存后生效。" onConfirm={() => setDraft(d => ({ ...d, rows: d.rows.filter(x => x !== r) }))}><Button danger disabled={busy}>移除</Button></Popconfirm> },
         ]} />
-        <Typography.Text type="secondary">仅允许 TEST-PHONE- 加 32 位大写十六进制字符。修改后点击保存生效；不接受真实手机号。</Typography.Text>
+        <Typography.Text type="secondary">新号码使用 000 开头的 11 位纯数字；不支持真实号段校验或短信。历史字母标识仍可编辑备注。修改后点击保存生效。</Typography.Text>
       </Space>}
     </Modal>
   </Card>;

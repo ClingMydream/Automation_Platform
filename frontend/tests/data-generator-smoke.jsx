@@ -8,7 +8,7 @@ const client = {
  get: async path => path.includes('?') ? { items: [...saved], total: saved.length } : structuredClone(saved.find(r => r.id === Number(path.split('/').pop()))),
  post: async (path, body) => {
   if(path.endsWith('/batches')) { const item = {...structuredClone(body), id: saved.length + 1}; saved.push(item); return item; }
-  return { rows: Array.from({length: body.count}, () => ({phone: `TEST-PHONE-${crypto.randomUUID().replaceAll('-', '').toUpperCase()}`, remark: '', source: 'synthetic', sms_capable: false})), warning: '虚拟测试号码，不是真实手机号' };
+  return { rows: Array.from({length: body.count}, () => ({phone: `000${String(Math.floor(Math.random()*100000000)).padStart(8,'0')}`, remark: '', source: 'synthetic', sms_capable: false})), warning: '虚拟测试号码，不是真实手机号' };
  },
  put: async (path, body) => { const item = {...structuredClone(body), revision: body.revision+1}; saved.splice(saved.findIndex(r=>r.id===body.id),1,item); return item; },
  delete: async path => { saved.splice(saved.findIndex(r=>r.id===Number(path.split('/').pop().split('?')[0])),1); return {deleted:true}; },

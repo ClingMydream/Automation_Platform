@@ -24,7 +24,7 @@ import { CuteIcon } from '../../shared/CuteIcon.jsx';
 
 const { Text, Title } = Typography;
 
-const PHONE_MODES = [{ value: 'synthetic', label: '虚拟测试号码', description: 'TEST-PHONE 标识，无法拨打或收发短信，不符合真实手机号格式' }];
+const PHONE_MODES = [{ value: 'synthetic', label: '虚拟测试号码', description: '11 位纯数字，000 开头，不对应真实手机号码，无法拨打或收发短信' }];
 const SOURCE_LABELS = { synthetic: '虚拟测试' };
 
 function downloadFile(content, filename, type) {

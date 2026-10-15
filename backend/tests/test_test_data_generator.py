@@ -29,5 +29,5 @@ def test_id_cards_have_valid_checksum_birth_date_and_requested_gender():
 def test_all_phone_modes_are_non_dialable(mode):
     rows = generate_phone_numbers(100, mode=mode, configured_numbers="+8613800138000")
     assert len({r["phone"] for r in rows}) == 100
-    assert all(re.fullmatch(r"TEST-PHONE-[A-F0-9]{32}", r["phone"]) for r in rows)
+    assert all(re.fullmatch(r"000[0-9]{8}", r["phone"]) for r in rows)
     assert all(r["sms_capable"] is False for r in rows)

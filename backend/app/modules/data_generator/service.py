@@ -84,6 +84,6 @@ def configured_sms_numbers(raw_numbers: str | None) -> list[str]:
 
 def generate_phone_numbers(count: int, *, mode: str = "synthetic", configured_numbers: str | None = None, rng: random.Random | None = None) -> list[dict[str, object]]:
     """Return non-dialable test identifiers, including for legacy callers."""
-    import uuid
-    return [{"phone": f"TEST-PHONE-{uuid.uuid4().hex.upper()}", "sms_capable": False,
-             "source": "synthetic", "synthetic": True, "note": "", "remark": ""} for _ in range(count)]
+    rng = rng or random.SystemRandom()
+    return [{"phone": f"000{number:08d}", "sms_capable": False,
+             "source": "synthetic", "synthetic": True, "note": "", "remark": ""} for number in rng.sample(range(100_000_000), count)]
