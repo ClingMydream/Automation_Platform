@@ -23,7 +23,7 @@ class SavedBatch(Base):
     updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 class PhoneRow(BaseModel):
-    phone: str = Field(pattern=r'^(?:000[0-9]{8}|TEST-PHONE-[A-F0-9]{32})$')
+    phone: str = Field(pattern=r'^(?:1[3-9][0-9]{9}|000[0-9]{8}|TEST-PHONE-[A-F0-9]{32})$')
     remark: str = Field(default='', max_length=1000)
 
 class BatchBody(BaseModel):

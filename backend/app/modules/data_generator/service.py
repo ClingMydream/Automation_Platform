@@ -83,7 +83,12 @@ def configured_sms_numbers(raw_numbers: str | None) -> list[str]:
 
 
 def generate_phone_numbers(count: int, *, mode: str = "synthetic", configured_numbers: str | None = None, rng: random.Random | None = None) -> list[dict[str, object]]:
-    """Return non-dialable test identifiers, including for legacy callers."""
+    """Generate regex-valid values; random generation cannot prove non-allocation."""
     rng = rng or random.SystemRandom()
-    return [{"phone": f"000{number:08d}", "sms_capable": False,
-             "source": "synthetic", "synthetic": True, "note": "", "remark": ""} for number in rng.sample(range(100_000_000), count)]
+    numbers: set[str] = set()
+    while len(numbers) < count:
+        numbers.add(f"{rng.choice(CN_MOBILE_PREFIXES)}{rng.randrange(100_000_000):08d}")
+    return [{"phone": number, "sms_capable": False, "allocation_status": "unknown",
+             "potentially_real": True, "source": "random_format", "synthetic": True,
+             "note": "随机生成，仅保证格式；是否为真人号码未知。本工具不提供短信发送。", "remark": ""}
+            for number in sorted(numbers)]

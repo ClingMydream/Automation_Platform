@@ -24,8 +24,8 @@ import { CuteIcon } from '../../shared/CuteIcon.jsx';
 
 const { Text, Title } = Typography;
 
-const PHONE_MODES = [{ value: 'synthetic', label: '虚拟测试号码', description: '11 位纯数字，000 开头，不对应真实手机号码，无法拨打或收发短信' }];
-const SOURCE_LABELS = { synthetic: '虚拟测试' };
+const PHONE_MODES = [{ value: 'synthetic', label: '手机号格式测试', description: '符合常见手机号正则；可能对应真人，仅限隔离测试，禁止真实拨打或发送短信' }];
+const SOURCE_LABELS = { synthetic: '历史测试数据', random_format: '随机格式测试' };
 
 function downloadFile(content, filename, type) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -60,7 +60,7 @@ export function DataGeneratorPanel({ client }) {
     return [
       { title: '电话号码', dataIndex: 'phone', render: (value) => <Text copyable code>{value}</Text> },
       { title: '来源', dataIndex: 'source', width: 140, render: (value) => <Tag>{SOURCE_LABELS[value] || value}</Tag> },
-      { title: '短信能力', dataIndex: 'sms_capable', width: 120, render: (value) => <Tag color={value ? 'green' : 'default'}>{value ? '已配置' : '不可用'}</Tag> },
+      { title: '本工具发送短信', dataIndex: 'sms_capable', width: 120, render: (value) => <Tag color={value ? 'green' : 'default'}>{value ? '已配置' : '不提供'}</Tag> },
       { title: '备注（选填）', dataIndex: 'remark', render: (value, row) => <Input maxLength={1000} aria-label={`备注 ${row.phone}`} value={value || ''} onChange={e => setResult(current => ({ ...current, rows: current.rows.map(r => r.phone === row.phone ? { ...r, remark: e.target.value } : r) }))} /> },
     ];
   }, [kind]);
@@ -171,7 +171,7 @@ export function DataGeneratorPanel({ client }) {
         </Col>
       </Row>
 
-      {kind === 'phone' && <PhoneBatches client={client} rows={result.rows} onRowsChange={rows => setResult({ rows: rows.map(r => ({ ...r, source: 'synthetic', sms_capable: false, synthetic: true })), warning: '已载入保存批次的副本，可导出；修改原批次请使用“查看 / 编辑”。' })} />}
+      {kind === 'phone' && <PhoneBatches client={client} rows={result.rows} onRowsChange={rows => setResult({ rows: rows.map(r => ({ ...r, source: /^1[3-9][0-9]{9}$/.test(r.phone) ? 'random_format' : 'synthetic', sms_capable: false, synthetic: true })), warning: '已载入保存批次的副本，可导出；修改原批次请使用“查看 / 编辑”。' })} />}
       <div className="generator-footnote">
         <span>身份证号码通过 MOD 11-2 校验</span>
         <span>支持 CSV、JSON 导出</span>

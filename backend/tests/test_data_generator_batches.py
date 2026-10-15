@@ -57,11 +57,11 @@ def test_crud_idempotency_ownership_and_conflicts(env):
     assert client.delete(key, params={'revision': 2}).status_code == 200
     assert client.get(key).status_code == 404
 
-@pytest.mark.parametrize('case', ['real', 'duplicate', 'empty', 'blank'])
+@pytest.mark.parametrize('case', ['invalid_phone', 'duplicate', 'empty', 'blank'])
 def test_invalid_batches_rejected(env, case):
     client, _ = env
     payload = body()
-    if case == 'real': payload['rows'][0]['phone'] = '13800138000'
+    if case == 'invalid_phone': payload['rows'][0]['phone'] = '12800138000'
     if case == 'duplicate': payload['rows'] *= 2
     if case == 'empty': payload['rows'] = []
     if case == 'blank': payload['name'] = '  '

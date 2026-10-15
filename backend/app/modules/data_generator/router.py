@@ -28,7 +28,7 @@ def generate_data(payload: DataGenerateRequest, _: AuthContext = Depends(require
             mode=payload.phone_mode,
             configured_numbers=get_settings().test_sms_phone_numbers,
         )
-        warning = "11 位纯数字虚拟测试号码，000 开头，不是真实手机号，不支持拨打、短信及真实号段校验。"
+        warning = "符合常见手机号正则 ^1[3-9]\\d{9}$。号码是否已分配未知，可能属于真人；仅限隔离测试，禁止拨打或发送真实短信。本工具不提供短信发送。"
     return DataGenerateResponse(rows=rows, warning=warning)
 
 from . import batches  # Register additive saved-batch routes and model.

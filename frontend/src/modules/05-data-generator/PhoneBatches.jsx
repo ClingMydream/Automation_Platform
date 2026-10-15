@@ -46,24 +46,24 @@ export function PhoneBatches({ client, rows, onRowsChange }) {
       setDraft(d => ({ ...d, rows: [...d.rows, { phone: data.rows[0].phone, _key: data.rows[0].phone, remark: '' }] }));
     } catch (e) { message.error(e.message); } finally { setBusy(false); }
   }
-  return <Card title="已保存的虚拟账号批次" style={{ marginTop: 24 }} extra={<Button disabled={!rows.length} onClick={() => setDraft({ name: `测试账号 ${new Date().toLocaleString()}`, remark: '', rows: rows.map(r => ({ phone: r.phone, _key: r.phone, remark: r.remark || '' })), request_id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, revision: 1 })}>保存当前批次</Button>}>
+  return <Card title="已保存的测试账号批次" style={{ marginTop: 24 }} extra={<Button disabled={!rows.length} onClick={() => setDraft({ name: `测试账号 ${new Date().toLocaleString()}`, remark: '', rows: rows.map(r => ({ phone: r.phone, _key: r.phone, remark: r.remark || '' })), request_id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, revision: 1 })}>保存当前批次</Button>}>
     <Space wrap style={{ marginBottom: 16 }}><Input.Search aria-label="查询批次" placeholder="搜索名称、号码或备注" value={query} onChange={e => setQuery(e.target.value)} onSearch={() => { setPage(1); load(query, 1); }} enterButton="查询" /><Button onClick={() => load()}>刷新</Button></Space>
     {error && <Typography.Paragraph type="danger">加载失败：{error}，请点击刷新重试。</Typography.Paragraph>}
     <Table rowKey="id" dataSource={items} scroll={{ x: 650 }} pagination={{ current: page, total, pageSize: 10, onChange: setPage }} columns={[
       { title: '批次名称', dataIndex: 'name' }, { title: '数量', render: (_, r) => r.rows.length }, { title: '备注', dataIndex: 'remark', ellipsis: true },
       { title: '操作', render: (_, r) => <Space><Button onClick={() => open(r)}>查看 / 编辑</Button><Button onClick={async () => { try { const d = await client.get(`${base}/${r.id}`); onRowsChange(d.rows); message.success('已载入生成结果'); } catch(e) { message.error(e.message); } }}>载入 / 导出</Button><Popconfirm title="删除整个批次？无法撤销。" onConfirm={async () => { try { await client.delete(`${base}/${r.id}?revision=${r.revision}`); await load(); } catch (e) { message.error(e.message); } }}><Button danger>删除</Button></Popconfirm></Space> },
     ]} />
-    <Modal title={draft?.id ? '查看 / 编辑账号批次' : '保存虚拟账号批次'} open={!!draft} onCancel={busy ? undefined : close} onOk={save} confirmLoading={busy} okButtonProps={{ disabled: !draft?.name?.trim() || !draft?.rows.length }} okText="保存" cancelText="取消" width={900} mask={{ closable: false }} styles={{ body: { maxHeight: '65vh', overflowY: 'auto' } }}>
+    <Modal title={draft?.id ? '查看 / 编辑账号批次' : '保存测试账号批次'} open={!!draft} onCancel={busy ? undefined : close} onOk={save} confirmLoading={busy} okButtonProps={{ disabled: !draft?.name?.trim() || !draft?.rows.length }} okText="保存" cancelText="取消" width={900} mask={{ closable: false }} styles={{ body: { maxHeight: '65vh', overflowY: 'auto' } }}>
       {draft && <Space orientation="vertical" style={{ width: '100%' }}>
         <Typography.Text>批次名称</Typography.Text><Input aria-label="批次名称" maxLength={120} value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
         <Typography.Text>批次备注（选填）</Typography.Text><Input.TextArea aria-label="批次备注" maxLength={2000} value={draft.remark} onChange={e => setDraft(d => ({ ...d, remark: e.target.value }))} />
-        <Button disabled={busy || draft.rows.length >= 100} onClick={addRow}>新增虚拟账号</Button>
+        <Button disabled={busy || draft.rows.length >= 100} onClick={addRow}>新增测试账号</Button>
         <Table rowKey="_key" dataSource={draft.rows} pagination={{ pageSize: 5 }} scroll={{ x: 650 }} columns={[
-          { title: '虚拟手机号', dataIndex: 'phone', render: (v, r, i) => <Input aria-label={`虚拟手机号 ${i + 1}`} value={v} onChange={e => changeRow(draft.rows.indexOf(r), { phone: e.target.value })} /> },
+          { title: '测试手机号', dataIndex: 'phone', render: (v, r, i) => <Input aria-label={`测试手机号 ${i + 1}`} value={v} onChange={e => changeRow(draft.rows.indexOf(r), { phone: e.target.value })} /> },
           { title: '备注', dataIndex: 'remark', render: (v, r, i) => <Input aria-label={`账号备注 ${i + 1}`} maxLength={1000} value={v} onChange={e => changeRow(draft.rows.indexOf(r), { remark: e.target.value })} /> },
           { title: '操作', render: (_, r) => <Popconfirm title="移除此账号？保存后生效。" onConfirm={() => setDraft(d => ({ ...d, rows: d.rows.filter(x => x !== r) }))}><Button danger disabled={busy}>移除</Button></Popconfirm> },
         ]} />
-        <Typography.Text type="secondary">新号码使用 000 开头的 11 位纯数字；不支持真实号段校验或短信。历史字母标识仍可编辑备注。修改后点击保存生效。</Typography.Text>
+        <Typography.Text type="secondary">新号码符合常见手机号正则，但可能属于真人，仅限隔离测试；请禁用测试环境的真实短信和拨号。历史号码仍可编辑备注。修改后点击保存生效。</Typography.Text>
       </Space>}
     </Modal>
   </Card>;
