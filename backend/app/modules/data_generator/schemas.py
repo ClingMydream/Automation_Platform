@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 GeneratorKind = Literal["phone", "id_card"]
-PhoneMode = Literal["cn_format", "twilio_magic", "configured_receivers"]
+PhoneMode = Literal["synthetic", "cn_format", "twilio_magic", "configured_receivers"]
 Gender = Literal["any", "male", "female"]
 
 
@@ -15,7 +15,7 @@ class DataGenerateRequest(BaseModel):
 
     kind: GeneratorKind
     count: int = Field(default=1, ge=1, le=100)
-    phone_mode: PhoneMode = "cn_format"
+    phone_mode: PhoneMode = "synthetic"
     gender: Gender = "any"
     min_birth_year: int = Field(default=1970, ge=1900, le=2099)
     max_birth_year: int = Field(default=2005, ge=1900, le=2099)

@@ -7,6 +7,7 @@ import {
   Col,
   Form,
   InputNumber,
+  Input,
   Radio,
   Row,
   Select,
@@ -16,22 +17,15 @@ import {
   Typography,
 } from 'antd';
 import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
+import { PhoneBatches } from './PhoneBatches.jsx';
+import { copyText } from '../../shared/clipboard.js';
 import { CuteIcon } from '../../shared/CuteIcon.jsx';
 
 
 const { Text, Title } = Typography;
 
-const PHONE_MODES = [
-  { value: 'cn_format', label: '中国大陆格式', description: '只保证格式，不进行真实通信' },
-  { value: 'twilio_magic', label: 'Twilio 模拟', description: '模拟供应商 API，不会真实投递' },
-  { value: 'configured_receivers', label: '受控接收号码', description: '读取服务端配置的自有或租用号码' },
-];
-
-const SOURCE_LABELS = {
-  cn_format_only: '大陆格式',
-  twilio_test_credentials: 'Twilio 模拟',
-  configured_receiver: '受控号码池',
-};
+const PHONE_MODES = [{ value: 'synthetic', label: '虚拟测试号码', description: 'TEST-PHONE 标识，无法拨打或收发短信，不符合真实手机号格式' }];
+const SOURCE_LABELS = { synthetic: '虚拟测试' };
 
 function downloadFile(content, filename, type) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -67,7 +61,7 @@ export function DataGeneratorPanel({ client }) {
       { title: '电话号码', dataIndex: 'phone', render: (value) => <Text copyable code>{value}</Text> },
       { title: '来源', dataIndex: 'source', width: 140, render: (value) => <Tag>{SOURCE_LABELS[value] || value}</Tag> },
       { title: '短信能力', dataIndex: 'sms_capable', width: 120, render: (value) => <Tag color={value ? 'green' : 'default'}>{value ? '已配置' : '不可用'}</Tag> },
-      { title: '说明', dataIndex: 'note', ellipsis: true },
+      { title: '备注（选填）', dataIndex: 'remark', render: (value, row) => <Input maxLength={1000} aria-label={`备注 ${row.phone}`} value={value || ''} onChange={e => setResult(current => ({ ...current, rows: current.rows.map(r => r.phone === row.phone ? { ...r, remark: e.target.value } : r) }))} /> },
     ];
   }, [kind]);
 
@@ -86,8 +80,8 @@ export function DataGeneratorPanel({ client }) {
 
   async function copyAll() {
     const key = kind === 'phone' ? 'phone' : 'id_card';
-    await navigator.clipboard.writeText(result.rows.map((row) => row[key]).join('\n'));
-    message.success('全部数据已复制');
+    const ok = await copyText(result.rows.map((row) => row[key]).join('\n'));
+    if (ok) message.success('全部数据已复制'); else message.error('复制失败，请使用导出');
   }
 
   function exportJson() {
@@ -95,7 +89,7 @@ export function DataGeneratorPanel({ client }) {
   }
 
   function exportCsv() {
-    const keys = kind === 'phone' ? ['phone', 'source', 'sms_capable', 'note'] : ['id_card', 'birth_date', 'gender', 'synthetic'];
+    const keys = kind === 'phone' ? ['phone', 'remark'] : ['id_card', 'birth_date', 'gender', 'synthetic'];
     const content = [keys.map(csvCell).join(','), ...result.rows.map((row) => keys.map((key) => csvCell(row[key])).join(','))].join('\n');
     downloadFile(`\uFEFF${content}`, `cling-${kind}.csv`, 'text/csv;charset=utf-8');
   }
@@ -130,7 +124,7 @@ export function DataGeneratorPanel({ client }) {
             <Form
               form={form}
               layout="vertical"
-              initialValues={{ count: 10, phone_mode: 'cn_format', gender: 'any', min_birth_year: 1980, max_birth_year: 2005 }}
+              initialValues={{ count: 10, phone_mode: 'synthetic', gender: 'any', min_birth_year: 1980, max_birth_year: 2005 }}
               onFinish={generate}
             >
               <Form.Item label="生成数量" name="count"><InputNumber min={1} max={100} className="full-width" /></Form.Item>
@@ -177,6 +171,7 @@ export function DataGeneratorPanel({ client }) {
         </Col>
       </Row>
 
+      {kind === 'phone' && <PhoneBatches client={client} rows={result.rows} onRowsChange={rows => setResult({ rows: rows.map(r => ({ ...r, source: 'synthetic', sms_capable: false, synthetic: true })), warning: '已载入保存批次的副本，可导出；修改原批次请使用“查看 / 编辑”。' })} />}
       <div className="generator-footnote">
         <span>身份证号码通过 MOD 11-2 校验</span>
         <span>支持 CSV、JSON 导出</span>

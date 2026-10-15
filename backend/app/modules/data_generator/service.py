@@ -82,52 +82,8 @@ def configured_sms_numbers(raw_numbers: str | None) -> list[str]:
     return list(dict.fromkeys(numbers))
 
 
-def generate_phone_numbers(
-    count: int,
-    *,
-    mode: str,
-    configured_numbers: str | None = None,
-    rng: random.Random | None = None,
-) -> list[dict[str, object]]:
-    """Generate format-only numbers, a provider simulator, or controlled receivers."""
-    rng = rng or random.SystemRandom()
-    if mode == "configured_receivers":
-        numbers = configured_sms_numbers(configured_numbers)
-        if not numbers:
-            raise HTTPException(
-                status_code=409,
-                detail="No controlled receivers configured; set TEST_SMS_PHONE_NUMBERS to owned E.164 numbers",
-            )
-        return [
-            {
-                "phone": numbers[index % len(numbers)],
-                "sms_capable": True,
-                "source": "configured_receiver",
-                "synthetic": False,
-            }
-            for index in range(count)
-        ]
-    if mode == "twilio_magic":
-        return [
-            {
-                "phone": TWILIO_MAGIC_NUMBER,
-                "sms_capable": False,
-                "source": "twilio_test_credentials",
-                "synthetic": True,
-                "note": "仅模拟供应商 API 校验，不会产生真实短信。",
-            }
-            for _ in range(count)
-        ]
-    seen: set[str] = set()
-    while len(seen) < count:
-        seen.add(f"{rng.choice(CN_MOBILE_PREFIXES)}{rng.randint(0, 99_999_999):08d}")
-    return [
-        {
-            "phone": number,
-            "sms_capable": False,
-            "source": "cn_format_only",
-            "synthetic": True,
-            "note": "仅用于格式测试，禁止拨打或发送短信。",
-        }
-        for number in seen
-    ]
+def generate_phone_numbers(count: int, *, mode: str = "synthetic", configured_numbers: str | None = None, rng: random.Random | None = None) -> list[dict[str, object]]:
+    """Return non-dialable test identifiers, including for legacy callers."""
+    import uuid
+    return [{"phone": f"TEST-PHONE-{uuid.uuid4().hex.upper()}", "sms_capable": False,
+             "source": "synthetic", "synthetic": True, "note": "", "remark": ""} for _ in range(count)]

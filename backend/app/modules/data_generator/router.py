@@ -28,10 +28,7 @@ def generate_data(payload: DataGenerateRequest, _: AuthContext = Depends(require
             mode=payload.phone_mode,
             configured_numbers=get_settings().test_sms_phone_numbers,
         )
-        if payload.phone_mode == "configured_receivers":
-            warning = "号码来自服务端配置的受控号码；收信能力仍取决于运营商和供应商配置。"
-        elif payload.phone_mode == "twilio_magic":
-            warning = "Twilio 魔术号码只模拟 API 校验，不会收到真实短信。"
-        else:
-            warning = "随机号码仅保证格式，可能与真实号码碰撞，禁止拨打或发送短信。"
+        warning = "虚拟测试标识，不是真实手机号，不能拨打、收发短信或通过真实手机号格式校验。"
     return DataGenerateResponse(rows=rows, warning=warning)
+
+from . import batches  # Register additive saved-batch routes and model.

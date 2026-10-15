@@ -25,23 +25,9 @@ def test_id_cards_have_valid_checksum_birth_date_and_requested_gender():
         assert int(value[16]) % 2 == 0
 
 
-def test_cn_format_phone_numbers_are_unique_and_not_marked_sms_capable():
-    rows = generate_phone_numbers(30, mode="cn_format", rng=random.Random(11))
-
-    assert len({row["phone"] for row in rows}) == 30
-    assert all(re.fullmatch(r"1\d{10}", row["phone"]) for row in rows)
-    assert all(row["sms_capable"] is False for row in rows)
-
-
-def test_configured_receivers_only_return_controlled_e164_numbers():
-    rows = generate_phone_numbers(3, mode="configured_receivers", configured_numbers="+14155550100, +442079460018")
-
-    assert [row["phone"] for row in rows] == ["+14155550100", "+442079460018", "+14155550100"]
-    assert all(row["sms_capable"] is True for row in rows)
-
-
-def test_configured_receivers_fail_closed_when_not_configured():
-    with pytest.raises(HTTPException) as exc_info:
-        generate_phone_numbers(1, mode="configured_receivers", configured_numbers="")
-
-    assert exc_info.value.status_code == 409
+@pytest.mark.parametrize("mode", ["synthetic", "cn_format", "twilio_magic", "configured_receivers"])
+def test_all_phone_modes_are_non_dialable(mode):
+    rows = generate_phone_numbers(100, mode=mode, configured_numbers="+8613800138000")
+    assert len({r["phone"] for r in rows}) == 100
+    assert all(re.fullmatch(r"TEST-PHONE-[A-F0-9]{32}", r["phone"]) for r in rows)
+    assert all(r["sms_capable"] is False for r in rows)
