@@ -26,6 +26,9 @@ from app.db import get_db
 from app.models.entities import UiAutomationArtifact, UiAutomationCase, UiAutomationDataSet, UiAutomationFeature, UiAutomationRequirement, UiAutomationRun
 from app.modules.online_preview.router import _jenkins_job_status, _remote_revision, _validate_branch
 
+from .smoke_catalog import CATALOG_VERSION, SMOKE_CATALOG, SMOKE_KEYS, SENSITIVE_KEYS, catalog_rows
+from .catalog_state import UiAutomationCatalogInstall
+
 router = APIRouter(prefix="/v1/ui-automation", tags=["Emote UI 自动化"])
 guard = Depends(require_menu("emote_ui_automation"))
 
@@ -186,7 +189,7 @@ FEATURE_TEMPLATE_STEPS = {
         {"action": "screenshot"},
     ),
 }
-SAFE_ACTIONS = {"goto", "click", "click_random", "fill", "append", "select", "check", "uncheck", "press", "wait", "detect_visible", "detect_enabled", "assert_watering_result", "validate_onboarding_page", "assert_visible", "assert_hidden", "assert_in_viewport", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
+SAFE_ACTIONS = {"emote_smoke", "goto", "click", "click_random", "fill", "append", "select", "check", "uncheck", "press", "wait", "detect_visible", "detect_enabled", "assert_watering_result", "validate_onboarding_page", "assert_visible", "assert_hidden", "assert_in_viewport", "assert_text", "assert_url", "assert_count", "screenshot", "switch_account"}
 SAFE_LOCATOR_TYPES = {"testid", "role", "label", "placeholder", "text", "alt", "title", "id", "css", "xpath", "post_action", "post_tags", "chat_friend_action", "avatar_option", "garden_water", "daily_task_button", "nav_entry"}
 
 
@@ -224,6 +227,7 @@ class RunInput(BaseModel):
     data_set_id: int | None = None
     credentials: dict = Field(default_factory=dict)
     target_url: str | None = Field(default=None, max_length=2048)
+    allow_sensitive: bool = False
 
 
 class DataSetInput(BaseModel):
@@ -241,7 +245,7 @@ class RunnerUpdate(BaseModel):
     artifacts: list[dict] = Field(default_factory=list)
 
 
-def _seed(db: Session):
+def _seed_base(db: Session):
     if db.query(UiAutomationFeature).count():
         # Upgrade only the untouched first-version login template. User-edited cases
         # are never overwritten by this idempotent seed migration.
@@ -286,7 +290,7 @@ def _seed(db: Session):
                 case.steps = normalized_steps
                 steps = normalized_steps
                 changed = True
-            if case and feature.key != "register" and case.name == f"{feature.name}基础流程" \
+            if case and feature.key in FEATURE_TEMPLATE_STEPS and feature.key != "register" and case.name == f"{feature.name}基础流程" \
                     and len(steps) >= len(LOGIN_FORM_STEPS) and not all(
                         steps[index].get("flow") == "authentication" for index in range(1, len(LOGIN_FORM_STEPS))
                     ):
@@ -495,7 +499,7 @@ def _seed(db: Session):
                 changed = True
             # Version 3 runs one authentication preflight per task. Migrate the
             # platform-owned base cases that still embed a login form in every case.
-            if case and feature.key != "register" and case.name == f"{feature.name}基础流程" and any(
+            if case and feature.key in FEATURE_TEMPLATE_STEPS and feature.key != "register" and case.name == f"{feature.name}基础流程" and any(
                 step.get("flow") == "authentication" for step in (case.steps or [])
             ):
                 case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
@@ -521,12 +525,12 @@ def _seed(db: Session):
                 changed = True
         for feature in db.query(UiAutomationFeature).all():
             case = db.query(UiAutomationCase).filter_by(feature_id=feature.id).order_by(UiAutomationCase.id).first()
-            if case and case.steps == legacy_steps:
+            if case and feature.key in FEATURE_TEMPLATE_STEPS and case.steps == legacy_steps:
                 case.steps = FEATURE_TEMPLATE_STEPS[feature.key]
                 case.preconditions = "按页面提示填写运行时账号；脚本从登录或注册开始连续执行，每一步都会截图并生成本用例录像。"
                 case.enabled = True
                 changed = True
-            elif (case and case.name == f"{feature.name}基础流程" and (
+            elif (case and feature.key in FEATURE_TEMPLATE_STEPS and case.name == f"{feature.name}基础流程" and (
                   not any(step.get("locator") == "同意并继续" for step in (case.steps or []))
                   or (len(case.steps or []) > 1 and case.steps[1].get("locator") == "欢迎来到 Emote"
                       and case.steps[1].get("locator_type") == "text")
@@ -554,6 +558,31 @@ def _seed(db: Session):
             enabled=True,
         ))
     db.commit()
+
+
+def _seed(db: Session):
+    _seed_base(db)
+    if db.get(UiAutomationCatalogInstall, CATALOG_VERSION):
+        return
+    # Serialize catalog installation across backend workers on an existing feature row.
+    db.query(UiAutomationFeature).order_by(UiAutomationFeature.id).with_for_update().first()
+    if db.get(UiAutomationCatalogInstall, CATALOG_VERSION):
+        return
+    existing = {tag for case in db.query(UiAutomationCase).all() for tag in (case.tags or [])}
+    for key, feature_key, feature_name, name, priority in SMOKE_CATALOG:
+        tag = f"emote192:{key}"
+        if tag in existing:
+            continue
+        feature = db.query(UiAutomationFeature).filter_by(key=feature_key).first()
+        if feature is None:
+            feature = UiAutomationFeature(key=feature_key, name=feature_name, description="1.9.2 专项冒烟", sort_order=100)
+            db.add(feature); db.flush()
+        db.add(UiAutomationCase(feature_id=feature.id, name=f"1.9.2 · {name}", priority=priority,
+            tags=["emote192", "regression", tag] + (["sensitive"] if key in SENSITIVE_KEYS else []),
+            preconditions="使用测试数据集；只验证真实响应，缺少可控夹具会标为受限。注销需本次明确授权且仅使用账号 B。",
+            cleanup_note="仅删除明确属于本轮的测试帖；保留私密交互记录；恢复备注、拉黑关系及注销状态。",
+            steps=[{"action":"emote_smoke", "scenario":key, "flow":"authenticated_home", "description":name}, {"action":"screenshot"}], enabled=True))
+    db.add(UiAutomationCatalogInstall(version=CATALOG_VERSION)); db.commit()
 
 
 def _case_dict(case: UiAutomationCase):
@@ -592,6 +621,8 @@ def _validate_steps(steps: list[dict]):
             raise HTTPException(400, f"第 {index} 步动作不允许")
         if step.get("action") == "fill" and not step.get("value") and not step.get("variable"):
             raise HTTPException(400, f"第 {index} 步缺少输入值或变量")
+        if step.get("action") == "emote_smoke" and step.get("scenario") not in SMOKE_KEYS:
+            raise HTTPException(400, "专项场景不在白名单中")
         locator_type = step.get("locator_type")
         if locator_type and locator_type not in SAFE_LOCATOR_TYPES:
             raise HTTPException(400, f"第 {index} 步定位方式不支持")
@@ -623,7 +654,7 @@ def _data_set_dict(item: UiAutomationDataSet):
         values = data.get(group, {}) if isinstance(data.get(group), dict) else {}
         return {key: ("******" if key in {"password", "code"} and value else value) for key, value in values.items()}
     return {"id": item.id, "name": item.name, "is_default": item.is_default,
-            "credentials": {key: masked(key) for key in ("account_a", "account_b", "registration")},
+            "credentials": {key: masked(key) for key in ("account_a", "account_b", "registration", "smoke")},
             "updated_at": item.updated_at}
 
 
@@ -648,7 +679,7 @@ def update_data_set(data_set_id: int, payload: DataSetInput, db: Session = Depen
     if not item: raise HTTPException(404, "测试数据集不存在")
     old = _decrypt_credentials(item.encrypted_data)
     incoming = payload.credentials
-    for group in ("account_a", "account_b", "registration"):
+    for group in ("account_a", "account_b", "registration", "smoke"):
         for key, value in (incoming.get(group, {}) or {}).items():
             if value == "******": incoming[group][key] = (old.get(group, {}) or {}).get(key, "")
     if payload.is_default: db.query(UiAutomationDataSet).update({UiAutomationDataSet.is_default: False})
@@ -675,7 +706,7 @@ def overview(db: Session = Depends(get_db)):
     return {"features": [{"id": x.id, "key": x.key, "name": x.name, "description": x.description} for x in features],
             "cases": [_case_dict(x) for x in cases],
             "requirements": [{"id": x.id, "feature_id": x.feature_id, "content": x.content, "status": x.status, "created_at": x.created_at} for x in requirements],
-            "runs": [_run_dict(x, db) for x in runs]}
+            "runs": [_run_dict(x, db) for x in runs], "smoke_catalog": catalog_rows()}
 
 
 @router.post("/requirements", dependencies=[guard])
@@ -801,11 +832,17 @@ def _validate_target_url(value: str | None) -> tuple[str, str]:
 @router.post("/runs", dependencies=[guard])
 def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(get_db)):
     _seed(db)
-    if payload.mode not in {"regression", "selected", "smoke"} or payload.viewport not in {"desktop", "mobile"}:
+    if payload.mode not in {"regression", "selected", "smoke", "emote192"} or payload.viewport not in {"desktop", "mobile"}:
         raise HTTPException(400, "执行模式或视口不合法")
     branch = _validate_branch(payload.branch)
     query = db.query(UiAutomationCase).filter(UiAutomationCase.enabled.is_(True))
     cases = query.filter(UiAutomationCase.id.in_(payload.case_ids)).all() if payload.case_ids else query.all()
+    if payload.mode == "emote192":
+        cases = [case for case in cases if "emote192" in (case.tags or [])]
+    elif payload.mode != "selected" and not payload.allow_sensitive:
+        cases = [case for case in cases if "sensitive" not in (case.tags or [])]
+    if payload.allow_sensitive and payload.target_url:
+        raise HTTPException(400, "注销专项仅允许平台测试预览环境，不能针对自填线上地址")
     seed = payload.random_seed or secrets.token_hex(6)
     if payload.mode == "smoke":
         cases = [x for x in cases if "smoke" in (x.tags or [])]
@@ -833,7 +870,7 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
     feature_names = {feature.id: feature.name for feature in db.query(UiAutomationFeature).all()}
     runner_payload = {"run_id": run.id, "base_url": runner_base_url, "viewport": payload.viewport,
                       "cases": [{**_case_dict(x), "feature_name": feature_names.get(x.feature_id, "")} for x in cases],
-                      "credentials": credentials}
+                      "credentials": credentials, "allow_sensitive": payload.allow_sensitive and not bool(payload.target_url)}
     settings = get_settings()
     try:
         response = httpx.post(f"{settings.ui_runner_url}/execute", json=runner_payload,

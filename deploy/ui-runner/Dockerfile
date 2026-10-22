@@ -11,5 +11,9 @@ RUN pip install --no-cache-dir -i https://mirrors.cloud.tencent.com/pypi/simple 
     fastapi==0.115.6 uvicorn==0.34.0 httpx==0.28.1 playwright==1.55.0
 COPY deploy/ui-runner/runner.py /app/runner.py
 
+COPY deploy/ui-runner/emote_smoke.py /app/emote_smoke.py
+COPY backend/app/modules/ui_automation/smoke_catalog.py /app/smoke_catalog.py
+COPY deploy/ui-runner/execution_report.py /app/execution_report.py
+
 EXPOSE 8090
 CMD ["uvicorn", "runner:app", "--host", "0.0.0.0", "--port", "8090"]

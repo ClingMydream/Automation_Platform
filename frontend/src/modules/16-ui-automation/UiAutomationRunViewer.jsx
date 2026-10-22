@@ -32,8 +32,8 @@ export function UiAutomationRunViewer({ client, runId }) {
       <section className="ui-run-viewer__screen"><div className="ui-run-viewer__browser"><i /><i /><i /><span>{run.current_step || 'Emote 自动化页面'}</span></div><ArtifactViewer client={client} artifact={latestScreenshot} refreshKey={run.status === 'running' ? run.progress : ''} /></section>
       <aside>
         {failure && <Alert type="error" showIcon title={`${failure.case_name} · 第 ${failure.step_index} 步`} description={<div className="ui-auto-failure"><b>{failure.reason}</b><span>执行动作：{failure.action}</span>{failure.locator && <span>目标元素：{failure.locator_type} = {failure.locator}</span>}<span>处理建议：{failure.suggestion}</span><details><summary>技术详情</summary><pre>{failure.technical_detail}</pre></details></div>} />}
-        {!run.result_summary?.timeline?.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="等待第一步执行" /> : <Timeline items={run.result_summary.timeline.map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', content: <div className="ui-run-viewer__step"><b>{step.case_name || step.name}</b><span>第 {step.step_index || '-'} 步 · {step.action || ''}</span><small>{step.duration_ms} ms</small></div> }))} />}
-        {(run.status === 'passed' || run.status === 'failed') && <Button type="primary" block onClick={() => window.close()}>关闭执行窗口</Button>}
+        {!run.result_summary?.timeline?.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="等待第一步执行" /> : <Timeline items={run.result_summary.timeline.map((step) => ({ color: step.status === 'failed' ? 'red' : step.status === 'blocked' ? 'orange' : 'green', content: <div className="ui-run-viewer__step"><b>{step.case_name || step.name}</b><span>第 {step.step_index || '-'} 步 · {step.action || ''}</span><small>{step.duration_ms} ms</small></div> }))} />}
+        {(['passed', 'failed', 'interrupted'].includes(run.status)) && <Button type="primary" block onClick={() => window.close()}>关闭执行窗口</Button>}
       </aside>
     </div>
   </main>;

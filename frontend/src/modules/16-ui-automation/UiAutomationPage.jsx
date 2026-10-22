@@ -17,7 +17,7 @@ const ACTIONS = [
   ['goto', '打开页面'], ['click', '点击'], ['fill', '输入'], ['select', '选择'],
   ['press', '键盘操作'], ['wait', '等待'], ['detect_visible', '检测元素是否出现'], ['validate_onboarding_page', '确认引导页并继续'], ['assert_visible', '断言元素可见'], ['assert_hidden', '断言元素已隐藏'], ['assert_in_viewport', '检查元素完整显示'],
   ['assert_text', '断言文本'], ['assert_url', '断言地址'], ['assert_count', '断言数量'],
-  ['screenshot', '截图'], ['switch_account', '切换账号'],
+  ['emote_smoke', '1.9.2 专项验证'], ['screenshot', '截图'], ['switch_account', '切换账号'],
 ];
 const LOCATOR_TYPES = [
   ['testid', '测试 ID'], ['role', '角色 + 名称'], ['label', '表单标签'], ['placeholder', '占位文字'],
@@ -57,15 +57,16 @@ function reportToText(run, view) {
   if (!run || !view) return '';
   const environment = run.target_url ? `线上地址 ${run.target_url}` : '平台预览';
   const viewport = run.viewport === 'mobile' ? '手机 390×844' : '桌面 1440×900';
-  const passed = (view.passed_items || []).map((item) => item.feature_name || item.case_name).join('、') || '无';
-  const problems = (view.problem_items || []).map((item) => `${item.feature_name || item.case_name}（${item.reason || '执行失败'}）`).join('；') || '无';
+  const passed = (view.passed_items || []).map((item) => item.case_name || item.feature_name).join('、') || '无';
+  const problems = (view.problem_items || []).map((item) => `${item.case_name || item.feature_name}（${item.reason || '执行失败'}）`).join('；') || '无';
   return [
     'Emote UI 自动化简短测试报告',
     `执行编号：#${run.id}`,
     `测试环境：${environment} / ${run.branch} / ${viewport}`,
     `测试范围：${view.tested_features?.length ? view.tested_features.length : '未记录'} 个功能，${view.total} 条用例`,
     `通过：${passed}`,
-    `有问题：${problems}`,
+    `失败：${view.failed || 0} 条；前置受限：${view.blocked || 0} 条`,
+    `有问题或受限：${problems}`,
     `结论：${view.conclusion}`,
     `执行时间：${formatClock(view.started_at || run.started_at)} - ${formatClock(view.finished_at || run.finished_at)}（${formatDuration(view.duration_ms)}）`,
   ].join('\n');
@@ -178,7 +179,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [editingCase, setEditingCase] = useState(null);
   const [caseForm] = Form.useForm();
   const caseSteps = Form.useWatch('steps', caseForm) || [];
-  const usesLocator = index => !['goto', 'wait', 'screenshot', 'switch_account', 'assert_url', 'assert_watering_result'].includes(caseSteps[index]?.action);
+  const usesLocator = index => !['emote_smoke', 'goto', 'wait', 'screenshot', 'switch_account', 'assert_url', 'assert_watering_result'].includes(caseSteps[index]?.action);
   const [credentialForm] = Form.useForm();
   const [requirementForm] = Form.useForm();
   const [dataSetForm] = Form.useForm();
@@ -254,7 +255,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
     if (mode === 'selected' && !caseIds.length) return message.warning('请先勾选要执行的用例');
     if (targetMode === 'online' && !targetUrl.trim()) return message.warning('请填写要验证的线上地址');
     setRunRequest({ mode, case_ids: mode === 'selected' ? caseIds : [] });
-    credentialForm.setFieldsValue({ data_set_id: dataSets.find((item) => item.is_default)?.id || dataSets[0]?.id }); setCredentialOpen(true);
+    credentialForm.setFieldsValue({ allow_sensitive: false, data_set_id: dataSets.find((item) => item.is_default)?.id || dataSets[0]?.id }); setCredentialOpen(true);
   };
 
   const startRun = async () => {
@@ -270,6 +271,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
         ...runRequest, branch, viewport, smoke_count: 10,
         target_url: targetMode === 'online' ? targetUrl.trim() : null,
         data_set_id: credentials.data_set_id,
+        allow_sensitive: targetMode === 'preview' && Boolean(credentials.allow_sensitive),
       });
       setSelectedRunId(run.id); setSelectedRun(run); setCredentialOpen(false);
       if (executionWindow) executionWindow.location.replace(`/emote-ui-automation/run/${run.id}`);
@@ -367,6 +369,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
         <span>已选 <b>{selectedCases.length}</b> 个用例</span>
         <Button icon={<PlayCircleOutlined />} disabled={!selectedCases.length} onClick={() => requestRun('selected')}>运行已选</Button>
         <Button icon={<ExperimentOutlined />} onClick={() => requestRun('smoke')}>随机冒烟</Button>
+        <Button icon={<ExperimentOutlined />} onClick={() => requestRun('emote192')}>1.9.2 专项</Button>
         <Button type="primary" icon={<VideoCameraOutlined />} onClick={() => requestRun('regression')}>全部回归</Button>
         <Dropdown trigger={['click']} menu={{ items: [
           { key: 'data', icon: <DatabaseOutlined />, label: '测试数据集' },
@@ -419,10 +422,10 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
                 <Button size="small" icon={<CopyOutlined />} className="ui-auto-report__copy" onClick={() => copyDiagnostic(reportToText(selectedRun, reportView), '测试报告')}>复制测试报告</Button>
               </div>
               <div className="ui-auto-report__scope">测试范围：<b>{reportView.tested_features?.length || '未记录'}</b> 个功能 / <b>{reportView.total}</b> 条用例</div>
-              <div className="ui-auto-report__line ui-auto-report__line--ok"><span>通过（{reportView.passed}）：</span><span>{(reportView.passed_items || []).map((item) => item.feature_name || item.case_name).join('、') || '无'}</span></div>
+              <div className="ui-auto-report__line ui-auto-report__line--ok"><span>通过（{reportView.passed}）：</span><span>{(reportView.passed_items || []).map((item) => item.case_name || item.feature_name).join('、') || '无'}</span></div>
               <div className="ui-auto-report__line ui-auto-report__line--bad">
-                <span>有问题（{(reportView.problem_items || []).length}）：</span>
-                <span>{(reportView.problem_items || []).length === 0 ? '无' : (reportShowAll ? reportView.problem_items : reportView.problem_items.slice(0, 5)).map((item) => `${item.feature_name || item.case_name}——${item.reason || '执行失败'}`).join('；')}</span>
+                <span>失败 {reportView.failed || 0} / 受限 {reportView.blocked || 0}：</span>
+                <span>{(reportView.problem_items || []).length === 0 ? '无' : (reportShowAll ? reportView.problem_items : reportView.problem_items.slice(0, 5)).map((item) => `${item.case_name || item.feature_name}——${item.reason || '执行失败'}`).join('；')}</span>
                 {(reportView.problem_items || []).length > 5 && <Button type="link" size="small" onClick={() => setReportShowAll((value) => !value)}>{reportShowAll ? '收起' : `查看全部问题（${reportView.problem_items.length}）`}</Button>}
               </div>
               <div className="ui-auto-report__conclusion">结论：{reportView.conclusion}</div>
@@ -440,7 +443,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
                   <div className="ui-auto-meta"><span>环境 <b>{selectedRun.target_url ? '线上环境' : '平台预览'}</b></span>{selectedRun.target_url && <span>地址 <a href={selectedRun.target_url} target="_blank" rel="noreferrer">{selectedRun.target_url}</a></span>}<span>分支 <b>{selectedRun.branch}</b></span><span>提交 <code>{selectedRun.commit_sha?.slice(0, 10) || '-'}</code></span><span>随机种子 <code>{selectedRun.random_seed || '-'}</code></span><span>视口 <b>{selectedRun.viewport === 'mobile' ? '390 × 844' : '1440 × 900'}</b></span></div>
                   {selectedRun.result_summary?.failure ? <Alert type="error" showIcon title={`${selectedRun.result_summary.failure.case_name} · 第 ${selectedRun.result_summary.failure.step_index} 步失败`} description={<div className="ui-auto-failure"><b>{selectedRun.result_summary.failure.reason}</b><span>动作：{selectedRun.result_summary.failure.action}{selectedRun.result_summary.failure.locator ? ` · 元素：${selectedRun.result_summary.failure.locator}` : ''}</span><span>建议：{selectedRun.result_summary.failure.suggestion}</span>{!!selectedRun.result_summary.failure.network_issues?.length && <details className="ui-auto-network-details" open><summary>接口排查记录（测试数据原样保留）</summary>{selectedRun.result_summary.failure.network_issues.map((item, index) => <div className="ui-auto-network-item" key={`${item.method}-${item.url}-${index}`}><b>{item.method} · {item.type === 'pending' ? '请求未返回（疑似超时）' : item.status ? `HTTP ${item.status}` : '网络失败'}</b><code>{item.url}</code><Button size="small" icon={<CopyOutlined />} onClick={() => copyDiagnostic(item.url, '接口地址')}>复制 URL</Button>{item.error && <span>{item.error}</span>}{item.curl && <><pre>{item.curl}</pre><Button size="small" icon={<CopyOutlined />} onClick={() => copyDiagnostic(item.curl, 'cURL')}>复制 cURL</Button></>}</div>)}</details>}<details><summary>查看技术详情</summary><pre>{selectedRun.result_summary.failure.technical_detail}</pre></details></div>} /> : selectedRun.error_message && <Alert type="error" showIcon title="执行失败" description={selectedRun.error_message} />}
                   <Button size="small" icon={<VideoCameraOutlined />} disabled={!displayArtifacts.some((item) => item.kind === 'screenshot')} onClick={downloadCaseScreenshots}>下载关键截图</Button>
-                  {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.filter((step) => !evidenceCaseId || step.case_id === evidenceCaseId).map((step) => ({ color: step.status === 'failed' ? 'red' : 'green', content: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
+                  {!!selectedRun.result_summary?.timeline?.length && <Timeline className="ui-auto-timeline" items={selectedRun.result_summary.timeline.filter((step) => !evidenceCaseId || step.case_id === evidenceCaseId).map((step) => ({ color: step.status === 'failed' ? 'red' : step.status === 'blocked' ? 'orange' : 'green', content: <span>{step.name}<small>{step.duration_ms} ms</small></span> }))} />}
                 </Space>
               </Col>
             </Row>
@@ -454,12 +457,12 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
 
     <Modal title="选择测试数据" open={credentialOpen} onCancel={() => setCredentialOpen(false)} onOk={startRun} okText="确认并开始执行" confirmLoading={runBusy} width={520} destroyOnHidden>
       <Alert type="info" showIcon title="登录 Token 当天复用" description="账号首次登录成功后，Runner 会在受限目录保存登录态 24 小时；后续用例直接复用，过期或失效时自动重新登录。Token 不进入数据库、日志或测试报告。" />
-      <Form form={credentialForm} layout="vertical" className="ui-auto-credentials"><Form.Item name="data_set_id" label="测试数据集" rules={[{ required: true, message: '请先选择或新建测试数据集' }]}><Select placeholder="选择账号数据" options={dataSets.map((item) => ({ value: item.id, label: `${item.name}${item.is_default ? '（默认）' : ''}` }))} /></Form.Item><Button icon={<DatabaseOutlined />} onClick={() => editDataSet()}>新建测试数据集</Button></Form>
+      <Form form={credentialForm} layout="vertical" className="ui-auto-credentials"><Form.Item name="data_set_id" label="测试数据集" rules={[{ required: true, message: '请先选择或新建测试数据集' }]}><Select placeholder="选择账号数据" options={dataSets.map((item) => ({ value: item.id, label: `${item.name}${item.is_default ? '（默认）' : ''}` }))} /></Form.Item><Form.Item name="allow_sensitive" valuePropName="checked"><Checkbox disabled={targetMode !== 'preview'}>本次允许专用账号 B 申请注销并取消（仅测试环境）</Checkbox></Form.Item><Alert type="warning" showIcon message="注销默认不执行；仅使用可恢复的独立测试账号 B。恢复无法确认时整轮停止。原野删帖需在数据集中指定可丢弃的本人公开测试帖子。" /><Button style={{ marginTop: 12 }} icon={<DatabaseOutlined />} onClick={() => editDataSet()}>新建测试数据集</Button></Form>
     </Modal>
 
     <Modal title={editingDataSet ? '编辑测试数据集' : '新建测试数据集'} open={dataSetOpen} onCancel={() => setDataSetOpen(false)} onOk={saveDataSet} okText="加密保存" width={760} destroyOnHidden>
       <Alert type="warning" showIcon title="敏感数据安全" description="密码与验证码使用服务器密钥加密入库；列表接口只返回 ******，不会返回密文或明文。" />
-      <Form form={dataSetForm} layout="vertical" style={{ marginTop: 16 }}><Row gutter={16}><Col span={18}><Form.Item name="name" label="数据集名称" rules={[{ required: true }]}><Input placeholder="例如：Emote 测试环境账号" /></Form.Item></Col><Col span={6}><Form.Item name="is_default" label="默认使用" valuePropName="checked"><Checkbox>设为默认</Checkbox></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Card size="small" title="账号 A"><Form.Item name={['credentials', 'account_a', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_a', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col><Col span={12}><Card size="small" title="账号 B（好友/聊天）"><Form.Item name={['credentials', 'account_b', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_b', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col></Row><Row gutter={16} style={{ marginTop: 12 }}><Col span={12}><Form.Item name={['credentials', 'registration', 'phone']} label="注册手机号"><Input /></Form.Item></Col><Col span={12}><Form.Item name={['credentials', 'registration', 'code']} label="注册验证码"><Input.Password /></Form.Item></Col></Row></Form>
+      <Form form={dataSetForm} layout="vertical" style={{ marginTop: 16 }}><Row gutter={16}><Col span={18}><Form.Item name="name" label="数据集名称" rules={[{ required: true }]}><Input placeholder="例如：Emote 测试环境账号" /></Form.Item></Col><Col span={6}><Form.Item name="is_default" label="默认使用" valuePropName="checked"><Checkbox>设为默认</Checkbox></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Card size="small" title="账号 A"><Form.Item name={['credentials', 'account_a', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_a', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col><Col span={12}><Card size="small" title="账号 B（好友/聊天）"><Form.Item name={['credentials', 'account_b', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_b', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col></Row><Row gutter={16} style={{ marginTop: 12 }}><Col span={12}><Form.Item name={['credentials', 'registration', 'phone']} label="注册手机号"><Input /></Form.Item></Col><Col span={12}><Form.Item name={['credentials', 'registration', 'code']} label="注册验证码"><Input.Password /></Form.Item></Col></Row><Card size="small" title="1.9.2 专项前置数据（可选）"><Form.Item name={['credentials', 'smoke', 'chat_friend_name']} label="测试聊天好友"><Input placeholder="默认：霖感小秘书" /></Form.Item><Form.Item name={['credentials', 'smoke', 'public_fixture_id']} label="原野可删除测试帖子 ID"><Input placeholder="仅限账号 A 自己的、可丢弃的公开测试帖；不填则标为前置受限" /></Form.Item><Form.Item name={['credentials', 'smoke', 'allow_delete_public_fixture']} valuePropName="checked"><Checkbox>确认上述帖子是可删除的测试数据</Checkbox></Form.Item></Card></Form>
       {!!dataSets.length && <div className="ui-auto-datasets"><Text type="secondary">已保存数据集</Text>{dataSets.map((item) => <Space key={item.id}><Button size="small" onClick={() => editDataSet(item)}>{item.name}{item.is_default ? '（默认）' : ''}</Button><Button danger size="small" icon={<DeleteOutlined />} onClick={async () => { await client.delete(`/v1/ui-automation/data-sets/${item.id}`); await load(true); }} /></Space>)}</div>}
     </Modal>
 
@@ -470,7 +473,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
         <Row gutter={12}><Col span={12}><Form.Item name="preconditions" label="前置条件"><Input.TextArea rows={2} /></Form.Item></Col><Col span={12}><Form.Item name="cleanup_note" label="清理说明"><Input.TextArea rows={2} /></Form.Item></Col></Row>
         <Form.List name="steps">{(fields, { add, remove, move }) => <div className="ui-auto-steps">
           <div className="ui-auto-step-title"><b>可视化步骤</b><Button size="small" onClick={() => add({ action: 'click', locator_type: 'testid' })}>添加步骤</Button></div>
-          {fields.map((field, index) => <div className="ui-auto-step" key={field.key}><span>{index + 1}</span><Form.Item name={[field.name, 'action']} rules={[{ required: true }]}><Select options={ACTIONS.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'locator_type']}><Select placeholder="定位方式" options={LOCATOR_TYPES.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item hidden={!usesLocator(index) || caseSteps[index]?.locator_type !== 'role'} name={[field.name, 'role']}><Select allowClear placeholder="角色（role 时）" options={['button', 'heading', 'link', 'textbox', 'checkbox', 'radio', 'tab', 'dialog', 'listitem', 'img'].map((value) => ({ value, label: value }))} /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'locator']}><Input placeholder="元素名称 / 选择器" /></Form.Item><Form.Item hidden={!['goto', 'fill', 'append', 'select', 'press', 'wait', 'assert_text', 'assert_url', 'assert_count', 'switch_account'].includes(caseSteps[index]?.action)} name={[field.name, 'value']}><Input placeholder="输入值 / 页面地址" /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'match']}><Select allowClear placeholder="重复匹配" options={[{ value: 'first', label: '第一个' }, { value: 'last', label: '最后一个' }, { value: 'nth', label: '指定序号' }]} /></Form.Item><Form.Item hidden={!usesLocator(index) || caseSteps[index]?.match !== 'nth'} name={[field.name, 'index']}><Input type="number" min={0} placeholder="序号(从0开始)" /></Form.Item><Form.Item hidden={!usesLocator(index) || !['role', 'text', 'label', 'placeholder', 'alt', 'title'].includes(caseSteps[index]?.locator_type)} name={[field.name, 'exact']} valuePropName="checked"><Checkbox>精确匹配</Checkbox></Form.Item><Space><Button size="small" disabled={index === 0} onClick={() => move(index, index - 1)}>↑</Button><Button size="small" disabled={index === fields.length - 1} onClick={() => move(index, index + 1)}>↓</Button><Button danger size="small" onClick={() => remove(field.name)}>删</Button></Space></div>)}
+          {fields.map((field, index) => <div className="ui-auto-step" key={field.key}><span>{index + 1}</span><Form.Item name={[field.name, 'action']} rules={[{ required: true }]}><Select options={ACTIONS.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item hidden={caseSteps[index]?.action !== 'emote_smoke'} name={[field.name, 'scenario']}><Select placeholder="专项场景" options={(data.smoke_catalog || []).map(item => ({ value: item.key, label: item.name }))} /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'locator_type']}><Select placeholder="定位方式" options={LOCATOR_TYPES.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item hidden={!usesLocator(index) || caseSteps[index]?.locator_type !== 'role'} name={[field.name, 'role']}><Select allowClear placeholder="角色（role 时）" options={['button', 'heading', 'link', 'textbox', 'checkbox', 'radio', 'tab', 'dialog', 'listitem', 'img'].map((value) => ({ value, label: value }))} /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'locator']}><Input placeholder="元素名称 / 选择器" /></Form.Item><Form.Item hidden={!['goto', 'fill', 'append', 'select', 'press', 'wait', 'assert_text', 'assert_url', 'assert_count', 'switch_account'].includes(caseSteps[index]?.action)} name={[field.name, 'value']}><Input placeholder="输入值 / 页面地址" /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'match']}><Select allowClear placeholder="重复匹配" options={[{ value: 'first', label: '第一个' }, { value: 'last', label: '最后一个' }, { value: 'nth', label: '指定序号' }]} /></Form.Item><Form.Item hidden={!usesLocator(index) || caseSteps[index]?.match !== 'nth'} name={[field.name, 'index']}><Input type="number" min={0} placeholder="序号(从0开始)" /></Form.Item><Form.Item hidden={!usesLocator(index) || !['role', 'text', 'label', 'placeholder', 'alt', 'title'].includes(caseSteps[index]?.locator_type)} name={[field.name, 'exact']} valuePropName="checked"><Checkbox>精确匹配</Checkbox></Form.Item><Space><Button size="small" disabled={index === 0} onClick={() => move(index, index - 1)}>↑</Button><Button size="small" disabled={index === fields.length - 1} onClick={() => move(index, index + 1)}>↓</Button><Button danger size="small" onClick={() => remove(field.name)}>删</Button></Space></div>)}
         </div>}</Form.List>
       </Form>
     </Modal>

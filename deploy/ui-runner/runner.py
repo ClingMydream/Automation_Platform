@@ -10,13 +10,15 @@ from datetime import datetime
 from pathlib import Path
 from queue import Queue
 from threading import Thread
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit, parse_qsl, urlencode
 from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 from playwright.sync_api import sync_playwright
+from emote_smoke import run_scenario, ScenarioBlocked, SafetyStop
+from execution_report import make_report
 
 app = FastAPI(title="cling UI Runner", docs_url=None, redoc_url=None)
 TOKEN = os.environ.get("UI_RUNNER_TOKEN", "")
@@ -77,6 +79,7 @@ class ExecuteInput(BaseModel):
     viewport: str = "mobile"
     cases: list[dict]
     credentials: dict = Field(default_factory=dict)
+    allow_sensitive: bool = False
 
 
 def callback(run_id: int, **payload):
@@ -106,23 +109,28 @@ def redact_error(error, credentials):
 
 
 def diagnostic_url(url: str) -> str:
-    """Keep the exact test URL so a copied command can be replayed as-is."""
-    return url
+    """Do not persist credentials carried in query strings or URL userinfo."""
+    value=urlsplit(url)
+    query=[(key, '******' if any(w in key.lower() for w in ('token','password','secret','phone','authorization','code')) else val) for key,val in parse_qsl(value.query,keep_blank_values=True)]
+    host=value.netloc.rsplit('@',1)[-1]
+    return urlunsplit((value.scheme,host,value.path,urlencode(query),''))
 
 
 def safe_curl(request) -> str:
-    """Build a reproducible cURL command from the test request payload."""
-    endpoint = diagnostic_url(request.url)
-    command = f"curl -X {request.method} '{endpoint}'"
-    content_type = request.headers.get("content-type", "")
-    if content_type:
-        command += f" -H 'Content-Type: {content_type}'"
-    payload = request.post_data
-    if payload:
-        try:
-            payload = json.dumps(json.loads(payload), ensure_ascii=False, separators=(",", ":"))
-        except Exception:
-            payload = request.post_data
+    """Keep replay structure without persisting auth or account secrets."""
+    def scrub(value):
+        if isinstance(value, dict):
+            return {key: ('******' if any(word in key.lower() for word in
+                    ('password','token','authorization','phone','username','otp','code')) else scrub(item))
+                    for key,item in value.items()}
+        if isinstance(value,list): return [scrub(item) for item in value]
+        return value
+    command = f"curl -X {request.method} '{diagnostic_url(request.url)}'"
+    content_type=request.headers.get('content-type','')
+    if content_type:command += f" -H 'Content-Type: {content_type}'"
+    if request.post_data:
+        try: payload=json.dumps(scrub(json.loads(request.post_data)),ensure_ascii=False,separators=(',',':'))
+        except Exception:payload='[请求体已省略]'
         command += f" --data '{payload}'"
     return command
 
@@ -347,6 +355,8 @@ def dismiss_interrupting_guides(page):
 def execute_step(page, contexts, step, variables, base_url):
     action = step["action"]
     value = resolve_value(step.get("value") if "value" in step else step.get("variable") and "${" + step["variable"] + "}", variables)
+    if action == "emote_smoke":
+        return run_scenario(page, contexts, step, variables, base_url)
     target = locator(page, step, variables) if action not in {"goto", "wait", "screenshot", "switch_account", "assert_url", "assert_watering_result"} else None
     guide_consumed_click = False
     if action in {"click", "click_random", "fill", "append", "press", "select", "check", "uncheck"} \
@@ -453,7 +463,9 @@ def describe_step(case, index, step, variables):
     action = step.get("action", "")
     target = resolve_value(step.get("locator", ""), variables)
     value = resolve_value(step.get("value", ""), variables)
-    if action == "goto":
+    if action == "emote_smoke":
+        detail = f"专项验证：{step.get('description') or step.get('scenario')}"
+    elif action == "goto":
         detail = "从已登录首页开始" if step.get("flow") == "authenticated_home" \
             else ("跳转登录页" if value in {"", "/"} else f"跳转页面：{value}")
     elif action == "assert_visible": detail = f"断言元素出现：{target}"
@@ -592,6 +604,8 @@ def run_task(task):
     for group, values in task.get("credentials", {}).items():
         if isinstance(values, dict):
             for key, value in values.items(): variables[f"{group}.{key}"] = value
+    variables["_credentials"] = task.get("credentials", {})
+    variables["_allow_sensitive"] = task.get("allow_sensitive") is True
     artifacts = []
     total = sum(len(case.get("steps", [])) for case in task["cases"] if case.get("name") not in SKIP_CASE_NAMES) or 1
     completed = 0
@@ -667,52 +681,8 @@ def run_task(task):
         return case_artifacts
 
     def build_report(final_status=None):
-        """按用例汇总简短测试报告，严格区分通过 / 失败 / 未执行。"""
-        passed_items = [r for r in case_results if r["status"] == "passed"]
-        failed_items = [r for r in case_results if r["status"] == "failed"]
-        expected = len([c for c in task["cases"] if c.get("name") not in SKIP_CASE_NAMES])
-        executed = len(passed_items) + len(failed_items)
-        unexecuted = max(expected - executed, 0)
-        if final_status == "running":
-            report_status = "running"
-        elif failed_items and passed_items:
-            report_status = "partial"
-        elif failed_items:
-            report_status = "failed"
-        elif unexecuted:
-            report_status = "interrupted"
-        else:
-            report_status = "passed"
-        if report_status == "passed":
-            conclusion = "本次测试全部通过。"
-        elif report_status == "partial":
-            conclusion = f"{len(passed_items)} 条通过，{len(failed_items)} 条失败，请处理问题后重新执行失败用例。"
-        elif report_status == "failed":
-            conclusion = "本次测试未通过，请检查环境与用例配置后重试。"
-        elif report_status == "interrupted":
-            conclusion = f"测试未完成：已执行 {executed} 条，剩余 {unexecuted} 条未执行。"
-        else:
-            conclusion = "测试进行中。"
-        features = []
-        for row in case_results:
-            name = row.get("feature_name") or ""
-            if name and name not in features:
-                features.append(name)
-        finished = datetime.now(ZoneInfo("Asia/Shanghai"))
-        return {
-            "status": report_status,
-            "conclusion": conclusion,
-            "total": expected,
-            "passed": len(passed_items),
-            "failed": len(failed_items),
-            "interrupted": unexecuted,
-            "started_at": task_started_at.isoformat(),
-            "finished_at": None if report_status == "running" else finished.isoformat(),
-            "duration_ms": int((finished - task_started_at).total_seconds() * 1000),
-            "tested_features": features,
-            "passed_items": [{"case_id": r["case_id"], "case_name": r["case_name"], "feature_name": r.get("feature_name", "")} for r in passed_items],
-            "problem_items": [{"case_id": r["case_id"], "case_name": r["case_name"], "feature_name": r.get("feature_name", ""), "status": r["status"], "reason": r.get("reason", "")} for r in failed_items],
-        }
+        expected = len([c for c in task['cases'] if c.get('name') not in SKIP_CASE_NAMES])
+        return make_report(case_results, expected, task_started_at, final_status)
 
     try:
         callback(run_id, status="running", current_step="启动 Chromium", progress=0)
@@ -742,10 +712,14 @@ def run_task(task):
                              progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
                     continue
                 case_started = time.monotonic()
-                for attempt in range(MAX_CASE_RETRIES + 1):
+                is_scenario = any(step.get("action") == "emote_smoke" for step in case.get("steps", []))
+                retries = 0 if is_scenario else MAX_CASE_RETRIES
+                for attempt in range(retries + 1):
                     attempt_timeline = len(timeline)
                     attempt_completed = completed
                     page_diagnostics.clear()
+                    variables.pop("_scenario_page", None)
+                    variables.pop("_scenario_result", None)
                     try:
                         variables["_used_accounts"] = {"account_a"}
                         reusable_state = reusable_auth_state(state_path)
@@ -766,6 +740,17 @@ def run_task(task):
                             new_page.on("response", remember_response)
                             new_page.on("requestfailed", remember_failed_request)
                         page = contexts["account_a"].pages[0]
+                        def scenario_progress(label, active_page):
+                            variables['_scenario_page'] = active_page
+                            live = case_dir / f"case-{case_id}-live.png"
+                            try:
+                                active_page.screenshot(path=str(live), full_page=False)
+                                callback(run_id, status='running', current_step=label[:280], progress=int(completed/total*100),
+                                    result_summary={'timeline':timeline,'viewport':viewport,'report':build_report('running')},
+                                    artifacts=[artifact(live,run_dir,'screenshot','image/png')])
+                            except Exception:
+                                pass
+                        variables['_scenario_progress'] = scenario_progress
                         has_key_screenshot = False
                         for index, step in enumerate(case.get("steps", []), 1):
                             current_step, current_step_index = step, index
@@ -792,6 +777,7 @@ def run_task(task):
                             try:
                                 page = execute_step(page, contexts, step, variables, task["base_url"])
                             except Exception:
+                                page = variables.get("_scenario_page", page)
                                 # 在 playwright 退出前采集诊断信息，否则浏览器关闭后拿不到页面状态
                                 if page is not None:
                                     try:
@@ -833,6 +819,7 @@ def run_task(task):
                             "case_id": case_id, "case_name": case.get("name", ""),
                             "feature_name": case.get("feature_name", ""),
                             "status": "passed", "duration_ms": int((time.monotonic() - case_started) * 1000), "reason": "",
+                            "scenario": variables.get("_scenario_result"),
                         })
                         callback(run_id, status="running", current_step=f"{case['name']} · 证据已保存", progress=int(completed / total * 100),
                                  result_summary={"timeline": timeline, "viewport": viewport, "report": build_report("running")}, artifacts=artifacts)
@@ -842,32 +829,44 @@ def run_task(task):
                         del timeline[attempt_timeline:]
                         completed = attempt_completed
                         try:
-                            finalize_case(case_id, case_dir)
+                            failed_videos = finalize_case(case_id, case_dir)
                         except Exception:
-                            pass
-                        if attempt < MAX_CASE_RETRIES:
+                            failed_videos = []
+                        if attempt < retries:
                             callback(run_id, status="running", current_step=f"{case['name']} · 第 {attempt + 1} 次重试",
                                      progress=int(completed / total * 100), result_summary={"timeline": timeline, "viewport": viewport})
                             continue
-                        # 重试耗尽：记录失败用例，供简短报告使用
-                        try:
-                            reason = friendly_failure(exc, case, current_step, current_step_index,
-                                                      task.get("credentials", {})).get("reason", "") or "执行异常"
-                        except Exception:
-                            reason = "执行异常"
-                        case_results.append({
-                            "case_id": case_id, "case_name": case.get("name", ""),
-                            "feature_name": case.get("feature_name", ""),
-                            "status": "failed", "duration_ms": int((time.monotonic() - case_started) * 1000),
-                            "reason": str(reason)[:80],
-                        })
-                        raise
+                        blocked = isinstance(exc, ScenarioBlocked)
+                        reason = redact_error(exc, task.get('credentials', {}))[:600]
+                        if not reason:
+                            reason = '业务断言未通过，请查看截图与技术详情'
+                        case_results.append({'case_id':case_id,'case_name':case.get('name',''),
+                            'feature_name':case.get('feature_name',''),'status':'blocked' if blocked else 'failed',
+                            'duration_ms':int((time.monotonic()-case_started)*1000),'reason':reason,
+                            'scenario':variables.get('_scenario_result')})
+                        artifacts.extend(failed_videos)
+                        if 'failure_screenshot' in page_diagnostics:
+                            artifacts.append(page_diagnostics['failure_screenshot'])
+                        timeline.append({'name':case.get('name',''),'case_id':case_id,'case_name':case.get('name',''),
+                            'step_index':current_step_index,'action':(current_step or {}).get('action',''),
+                            'status':'blocked' if blocked else 'failed','note':reason,'duration_ms':0})
+                        completed += len(case.get('steps', []))
+                        callback(run_id,status='running',current_step=f"{case['name']} · {'前置受限' if blocked else '失败，继续后续用例'}",
+                            progress=min(100,int(completed/total*100)),
+                            result_summary={'timeline':timeline,'viewport':viewport,'case_results':case_results,'report':build_report('running')},artifacts=artifacts)
+                        if isinstance(exc, SafetyStop) or time.monotonic() > deadline:
+                            raise
+                        # Record this failed/blocked case and continue the outer case loop.
+                        break
             browser.close()
-        callback(run_id, status="passed", current_step="执行完成", progress=100,
-                 result_summary={"passed": len([c for c in task["cases"] if c.get("name") not in SKIP_CASE_NAMES]),
-                                 "skipped": len([c for c in task["cases"] if c.get("name") in SKIP_CASE_NAMES]),
-                                 "failed": 0, "timeline": timeline, "viewport": viewport,
-                                 "report": build_report("passed")}, artifacts=artifacts)
+        passed_count = sum(r['status']=='passed' for r in case_results)
+        failed_count = sum(r['status']=='failed' for r in case_results)
+        blocked_count = sum(r['status']=='blocked' for r in case_results)
+        terminal = 'failed' if failed_count else 'interrupted' if blocked_count else 'passed'
+        callback(run_id, status=terminal, current_step='执行完成', progress=100,
+                 result_summary={'passed':passed_count,'failed':failed_count,'blocked':blocked_count,
+                    'case_results':case_results,'timeline':timeline,'viewport':viewport,'report':build_report(terminal)},artifacts=artifacts)
+
     except Exception as exc:
         failure = friendly_failure(exc, current_case, current_step, current_step_index, task.get("credentials", {}))
         failure["page_feedback"] = page_diagnostics.get("page_feedback", [])
@@ -891,7 +890,7 @@ def run_task(task):
                          "case_name": failure["case_name"], "step_index": failure["step_index"],
                          "action": failure["action"], "status": "failed", "duration_ms": 0})
         callback(run_id, status="failed", current_step="执行失败", progress=int(completed / total * 100),
-                 result_summary={"passed": 0, "failed": 1, "timeline": timeline, "failure": failure,
+                 result_summary={"passed": sum(r["status"]=="passed" for r in case_results), "failed": sum(r["status"]=="failed" for r in case_results), "case_results": case_results, "timeline": timeline, "failure": failure,
                                  "viewport": {"width": 390, "height": 844} if task["viewport"] == "mobile" else {"width": 1440, "height": 900},
                                  "report": build_report()},
                  error_message=f"{failure['reason']}：{failure['suggestion']}", artifacts=artifacts)
