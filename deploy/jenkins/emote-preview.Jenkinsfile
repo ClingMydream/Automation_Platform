@@ -2,7 +2,7 @@ pipeline {
   agent any
   options { disableConcurrentBuilds(); buildDiscarder(logRotator(numToKeepStr: '10')) }
   parameters {
-    gitParameter(name: 'BRANCH', type: 'PT_BRANCH', defaultValue: 'origin/dev-20260811-1.9.1',
+    gitParameter(name: 'BRANCH', type: 'PT_BRANCH', defaultValue: 'origin/dev-20260930-1.9.2',
       branchFilter: 'origin/(.*)', sortMode: 'DESCENDING_SMART', selectedValue: 'DEFAULT',
       quickFilterEnabled: true, listSize: '15',
       useRepository: 'https://codeup.aliyun.com/6523ca864bb5eb36db2f603e/emote-app2.git',

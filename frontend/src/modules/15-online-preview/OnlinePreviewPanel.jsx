@@ -21,7 +21,7 @@ export function OnlinePreviewPanel({ client }) {
   const compareVersion = useRef(0);
   const [connectionError, setConnectionError] = useState('');
   const [branches, setBranches] = useState([]);
-  const [branch, setBranch] = useState('dev-20260811-1.9.1');
+  const [branch, setBranch] = useState('dev-20260930-1.9.2');
   const [status, setStatus] = useState(null);
   const [comparison, setComparison] = useState(null);
   const [loading, setLoading] = useState(false);

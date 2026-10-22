@@ -12,7 +12,7 @@ import './ui-automation.css';
 import './ui-automation-timeline.css';
 
 const { Paragraph, Text, Title } = Typography;
-const DEFAULT_BRANCH = 'dev-20260811-1.9.1';
+const DEFAULT_BRANCH = 'dev-20260930-1.9.2';
 const ACTIONS = [
   ['goto', '打开页面'], ['click', '点击'], ['fill', '输入'], ['select', '选择'],
   ['press', '键盘操作'], ['wait', '等待'], ['detect_visible', '检测元素是否出现'], ['validate_onboarding_page', '确认引导页并继续'], ['assert_visible', '断言元素可见'], ['assert_hidden', '断言元素已隐藏'], ['assert_in_viewport', '检查元素完整显示'],

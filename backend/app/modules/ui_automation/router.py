@@ -216,7 +216,7 @@ class CaseInput(BaseModel):
 
 class RunInput(BaseModel):
     mode: str = "regression"
-    branch: str = "dev-20260811-1.9.1"
+    branch: str = "dev-20260930-1.9.2"
     viewport: str = "mobile"
     case_ids: list[int] = Field(default_factory=list)
     smoke_count: int = Field(default=10, ge=1, le=50)
