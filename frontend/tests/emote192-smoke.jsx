@@ -1,0 +1,10 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { App, ConfigProvider } from 'antd';
+import 'antd/dist/reset.css';
+import { UiAutomationPage } from '../src/modules/16-ui-automation/UiAutomationPage.jsx';
+const cases=[{id:1,feature_id:1,name:'1.9.2 · 昵称可用',tags:['emote192'],enabled:true,steps:[{action:'emote_smoke',scenario:'nickname_available',flow:'authenticated_home'},{action:'screenshot'}]}];
+window.smokeRequests=[];
+const client={get:async path=>path.endsWith('overview')?{features:[{id:1,name:'修改资料'}],cases,requirements:[],runs:[],smoke_catalog:[{key:'nickname_available',name:'昵称可用'}]}:path.endsWith('branches')?['dev-20260930-1.9.2']:path.endsWith('data-sets')?[{id:3,name:'隔离测试数据集',is_default:true}]:{},post:async(path,body)=>{window.smokeRequests.push({path,body});throw new Error('测试夹具已截获，未执行远程任务');}};
+window.open=()=>null;
+createRoot(document.getElementById('root')).render(<ConfigProvider><App><UiAutomationPage embedded client={client}/></App></ConfigProvider>);

@@ -2,9 +2,7 @@
 import importlib
 import sys
 import types
-from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 from unittest.mock import Mock
 
 import pytest
@@ -13,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from app.db import Base
 from app.modules.ui_automation import router as api
-from app.modules.ui_automation.smoke_catalog import SMOKE_CATALOG, SMOKE_KEYS
+from app.modules.ui_automation.smoke_catalog import SMOKE_KEYS
 from app.models.entities import UiAutomationCase
 
 @pytest.fixture
@@ -26,14 +24,14 @@ def db(tmp_path):
 def test_catalog_is_additive_and_does_not_restore_user_edits(db):
     api._seed(db)
     cases=db.query(UiAutomationCase).all()
-    专项=[x for x in cases if 'emote192' in x.tags]
-    assert len(专项)==16 and len(SMOKE_KEYS)==16
+    special=[x for x in cases if 'emote192' in x.tags]
+    assert len(special)==16 and len(SMOKE_KEYS)==16
     original=next(x for x in cases if 'emote192' not in x.tags)
     original.name='保留用户自定义名称';original.steps=[{'action':'screenshot'}]
-    专项[0].name='用户修改专项';deleted_id=专项[1].id;db.delete(专项[1]);db.commit()
+    special[0].name='用户修改special';deleted_id=special[1].id;db.delete(special[1]);db.commit()
     api._seed(db)
     assert db.get(UiAutomationCase,deleted_id) is None
-    assert db.get(UiAutomationCase,专项[0].id).name=='用户修改专项'
+    assert db.get(UiAutomationCase,special[0].id).name=='用户修改special'
     assert original.name=='保留用户自定义名称' and original.steps==[{'action':'screenshot'}]
 
 

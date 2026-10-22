@@ -1,9 +1,7 @@
 """Whitelisted real Emote flows. No eval/user scripts, no mocked business responses."""
 import json
-import random
 import time
 import uuid
-from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlsplit, urlunsplit, urlencode, parse_qs
 
@@ -113,8 +111,9 @@ class Flow:
         except Exception:
             raise AssertionError(label+'：接口未返回 JSON') from None
         safe = envelope(body, response.status)
-        self.record(label, {'response': safe})
+        self.record('收到接口响应', {'operation': label, 'response': safe})
         self.need(response.ok and body.get('success') is True, label+'未成功：'+json.dumps(safe,ensure_ascii=False))
+        self.record(label)
         return body
 
     def me(self):
