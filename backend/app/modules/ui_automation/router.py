@@ -566,7 +566,8 @@ def _seed(db: Session):
         return
     # Serialize catalog installation across backend workers on an existing feature row.
     db.query(UiAutomationFeature).order_by(UiAutomationFeature.id).with_for_update().first()
-    if db.get(UiAutomationCatalogInstall, CATALOG_VERSION):
+    # Use a current read after acquiring the lock (MySQL REPEATABLE READ).
+    if db.query(UiAutomationCatalogInstall).filter_by(version=CATALOG_VERSION).with_for_update().first():
         return
     existing = {tag for case in db.query(UiAutomationCase).all() for tag in (case.tags or [])}
     for key, feature_key, feature_name, name, priority in SMOKE_CATALOG:

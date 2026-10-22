@@ -282,6 +282,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
 
   const openCase = (item) => {
     setEditingCase(item || null);
+    caseForm.resetFields();
     caseForm.setFieldsValue(item || { feature_id: data.features[0]?.id, name: '', priority: 'P1', tags: ['regression'], enabled: false, preconditions: '', cleanup_note: '保留测试数据', steps: [{ action: 'goto', value: '/' }] });
     setCaseOpen(true);
   };
@@ -304,6 +305,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
 
   const editDataSet = (item = null) => {
     setEditingDataSet(item);
+    dataSetForm.resetFields();
     dataSetForm.setFieldsValue(item || { name: '', is_default: !dataSets.length, credentials: { account_a: {}, account_b: {}, registration: {} } });
     setDataSetOpen(true);
   };
