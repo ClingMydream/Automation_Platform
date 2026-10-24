@@ -9,11 +9,28 @@ export function validateSession(value, bank) {
   if (value.reviewing !== undefined && typeof value.reviewing !== 'boolean') return null;
   for (const [id, answer] of Object.entries(value.responses)) {
     const q = byId.get(id);
-    if (!value.ids.includes(id) || (q.type === 'choice' ? !q.options.some(option => option.key === answer) : answer !== 'viewed')) return null;
+    if (!value.ids.includes(id) || (q.type === 'choice' ? !q.options.some(option => option.key === answer) : !['viewed', 'answered'].includes(answer))) return null;
   }
   for (const [id, score] of Object.entries(value.selfScores || {})) {
     const q = byId.get(id);
     if (!value.ids.includes(id) || q.type === 'choice' || !Number.isInteger(score) || score < 0 || score > (q.type === 'short' ? 7 : 15)) return null;
+  }
+  if (value.attemptId !== undefined && (typeof value.attemptId !== 'string' || value.attemptId.length > 100)) return null;
+  for (const field of ['writtenAnswers', 'revealed', 'scoreSources', 'scoreRevisions', 'aiAssessments']) {
+    if (value[field] !== undefined && !object(value[field])) return null;
+    for (const [id, item] of Object.entries(value[field] || {})) {
+      const q = byId.get(id);
+      if (!value.ids.includes(id) || q.type === 'choice') return null;
+      if (field === 'writtenAnswers' && (typeof item !== 'string' || item.length > 10000)) return null;
+      if (field === 'revealed' && typeof item !== 'boolean') return null;
+      if (field === 'scoreSources' && !['ai', 'manual'].includes(item)) return null;
+      if (field === 'scoreRevisions' && (!Number.isSafeInteger(item) || item < 0)) return null;
+      if (field === 'aiAssessments' && (!object(item) || !Number.isInteger(item.score) || item.score < 0
+        || item.score > (q.type === 'short' ? 7 : 15) || typeof item.feedback !== 'string'
+        || item.feedback.length > 2000 || !Array.isArray(item.strengths) || !Array.isArray(item.missing_points)
+        || item.strengths.length > 12 || item.missing_points.length > 12
+        || ![...item.strengths, ...item.missing_points].every(x => typeof x === 'string' && x.length <= 500))) return null;
+    }
   }
   if (value.gradeSnapshot !== undefined) {
     const grade = value.gradeSnapshot;

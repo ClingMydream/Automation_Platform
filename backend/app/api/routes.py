@@ -21,6 +21,7 @@ from app.modules.ui_automation.router import router as ui_automation_router
 from app.modules.circle_stats.router import router as circle_stats_router
 from app.modules.effects.router import router as effects_router
 from app.modules.work_journal.router import router as work_journal_router
+from app.modules.self_study.router import router as self_study_router
 
 
 router = APIRouter()
@@ -46,5 +47,6 @@ for module_router in [
     circle_stats_router,
     effects_router,
     work_journal_router,
+    self_study_router,
 ]:
     router.include_router(module_router)

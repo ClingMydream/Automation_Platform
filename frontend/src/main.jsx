@@ -358,7 +358,7 @@ function ToolboxApp() {
             {tab === 'online_preview' && <OnlinePreviewPanel client={client} />}
             {tab === 'emote_ui_automation' && <UiAutomationPage client={client} embedded />}
             {tab === 'circle_stats' && <CircleStatsPanel client={client} userId={user?.id} />}
-            {tab === 'self_study' && <SelfStudyPanel key={user?.id} userId={user?.id} />}
+            {tab === 'self_study' && <SelfStudyPanel key={user?.id} userId={user?.id} client={client} />}
             {tab === 'api_workspace' && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
