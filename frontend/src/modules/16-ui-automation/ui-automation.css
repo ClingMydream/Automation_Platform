@@ -69,3 +69,5 @@
 }
 
 .ui-auto-primary-actions{flex-wrap:wrap;white-space:normal}.ui-auto-page--embedded{margin:0;border-radius:16px;max-width:100%;min-width:0}.ui-auto-page--embedded>.ant-alert{margin:12px}.ui-auto-page .ui-auto-grid>*{min-width:0}
+.ui-auto-meta span{min-width:0;flex-wrap:wrap;overflow-wrap:anywhere}.ui-auto-meta span>*{min-width:0;max-width:100%;overflow-wrap:anywhere}.ui-auto-artifact-loading{max-width:100%}
+@media(max-width:1180px){.ui-auto-page .ui-auto-grid{grid-template-columns:minmax(0,1fr)}}
