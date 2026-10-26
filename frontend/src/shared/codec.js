@@ -1,7 +1,7 @@
 // File purpose: Shared codec algorithms used by the codec tools page.
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
-import { escapeHtml } from './html';
+import { escapeHtml } from './html.js';
 
 // 通用转码模块。
 // 修改建议：新增一种转码时，只需要在 operations 中加一个 key，并在页面 options 中加展示文案。
@@ -18,7 +18,7 @@ function utf8ToBase64(text) {
 function base64ToUtf8(text) {
   const binary = atob(text.trim());
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
 // Encode text into a hex string.
@@ -28,10 +28,11 @@ function textToHex(text) {
 
 // Decode a hex string into text.
 function hexToText(text) {
-  const cleaned = text.replace(/[^0-9a-fA-F]/g, '');
+  const cleaned = text.trim().replace(/^0x/i, '').replace(/\s+/g, '');
+  if (/[^0-9a-fA-F]/.test(cleaned)) throw new Error('Hex 只能包含十六进制字符和空格');
   if (cleaned.length % 2 !== 0) throw new Error('Hex 长度必须是偶数');
   const bytes = new Uint8Array(cleaned.match(/.{2}/g)?.map((part) => parseInt(part, 16)) || []);
-  return new TextDecoder().decode(bytes);
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
 // Encode text into Unicode escape sequences.
@@ -97,5 +98,6 @@ export function runCodec(operation, input) {
       return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
     },
   };
-  return operations[operation]?.() ?? input;
+  if (!operations[operation]) throw new Error('不支持的转码方式');
+  return operations[operation]();
 }

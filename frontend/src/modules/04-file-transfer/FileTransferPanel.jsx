@@ -1,3 +1,4 @@
+import { copyText as copyToClipboard } from '../../shared/clipboard.js';
 // File purpose: File transfer admin page. Upload files, show QR links, and manage temporary records.
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
@@ -60,7 +61,7 @@ export function FileTransferPanel({ client }) {
   // Copy a share URL to the clipboard.
   async function copyText(text) {
     try {
-      await navigator.clipboard.writeText(text);
+      if (!await copyToClipboard(text)) throw new Error('Clipboard unavailable');
       message.success('链接已复制');
     } catch {
       message.warning('复制失败，请手动复制链接');

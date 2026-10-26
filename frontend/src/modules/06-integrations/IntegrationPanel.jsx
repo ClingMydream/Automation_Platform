@@ -1,6 +1,6 @@
 // File purpose: Integration page. Maintain webhook configurations for notifications and external systems.
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Switch, Table, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { buildWebhookFormValues, deleteWebhook, saveWebhook, testWebhook, WEBHOOK_EVENT_OPTIONS } from './integrationFeature.js';
@@ -11,6 +11,8 @@ export function IntegrationPanel({ client, integrations, reload }) {
   const [form] = Form.useForm();
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [testingId, setTestingId] = useState(null);
+  const testingRef = useRef(false);
   const { message, modal } = AntApp.useApp();
 
   function resetForm() {
@@ -21,6 +23,7 @@ export function IntegrationPanel({ client, integrations, reload }) {
 
   function startEdit(item) {
     setEditingId(item.id);
+    form.resetFields();
     form.setFieldsValue(buildWebhookFormValues(item));
   }
 
@@ -53,12 +56,14 @@ export function IntegrationPanel({ client, integrations, reload }) {
   }
 
   async function test(item) {
+    if (testingRef.current) return;
+    testingRef.current = true; setTestingId(item.id);
     try {
       const result = await testWebhook(client, item.id);
       message.success(result.message || '配置可用');
     } catch (err) {
       message.error(err.message);
-    }
+    } finally { testingRef.current = false; setTestingId(null); }
   }
 
   return (
@@ -91,7 +96,7 @@ export function IntegrationPanel({ client, integrations, reload }) {
               { title: '类型', dataIndex: 'integration_type', width: 120 },
               { title: '事件', dataIndex: 'events', render: (events = []) => <Space wrap>{events.map((event) => <Tag key={event}>{event}</Tag>)}</Space> },
               { title: '状态', dataIndex: 'is_active', width: 90, render: (value) => <Tag color={value ? 'green' : 'default'}>{value ? '启用' : '停用'}</Tag> },
-              { title: '操作', width: 240, render: (_, record) => <Space><Button icon={<ThunderboltOutlined />} onClick={() => test(record)}>测试</Button><Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button><Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button></Space> },
+              { title: '操作', width: 240, render: (_, record) => <Space><Button loading={testingId === record.id} disabled={testingId !== null} icon={<ThunderboltOutlined />} onClick={() => test(record)}>测试</Button><Button icon={<EditOutlined />} onClick={() => startEdit(record)}>修改</Button><Button danger icon={<DeleteOutlined />} onClick={() => remove(record)}>删除</Button></Space> },
             ]}
           />
         </Card>

@@ -43,7 +43,7 @@ export function BranchRevisionStatus({ client, branch, buildStatus, label = '代
     showIcon
     title={<Space wrap><Text strong>{label}</Text><Tag color={marker[1]}>{marker[0]}</Tag><Text code>{branch || '未选择分支'}</Text></Space>}
     description={error || (revision
-      ? <Space direction="vertical" size={2}>
+      ? <Space orientation="vertical" size={2}>
           <Text>最新更新人：{revision.author}{revision.email ? `（${revision.email}）` : ''}</Text>
           <Text>最新更新时间：{formatTime(revision.committed_at)}</Text>
           <Text>最新提交：<Text code>{revision.sha.slice(0, 8)}</Text> {revision.subject}</Text>

@@ -1,5 +1,6 @@
 """Authenticated single-job runner for DingTalk circle statistics."""
-import json, os, subprocess, sys, threading, uuid
+import json, os, re, subprocess, sys, threading, uuid
+from datetime import datetime, timezone
 from datetime import date
 from pathlib import Path
 from fastapi import FastAPI, Header, HTTPException
@@ -79,14 +80,18 @@ def prepare(body: PrepareInput, authorization: str | None = Header(None)):
     return public(run)
 
 def get_run(run_id):
+    if not re.fullmatch(r"[0-9a-f]{32}", run_id): raise HTTPException(404, "任务不存在")
     run = RUNS.get(run_id)
     if not run:
         folder = ROOT / "runs" / run_id
         plans = list(folder.glob("*/run.json")) if folder.exists() else []
         if len(plans) != 1: raise HTTPException(404, "任务不存在")
-        plan = json.loads(plans[0].read_text(encoding="utf-8"))
-        status = "completed" if plan.get("status") == "completed" else "prepared"
-        run = {"id": run_id, "status": status, "action": "prepare", "message": "已恢复历史采集计划", "dir": str(folder)}
+        try: plan = json.loads(plans[0].read_text(encoding="utf-8"))
+        except (ValueError, OSError) as exc: raise HTTPException(409, "历史计划无法读取，请核对任务后重新采集") from exc
+        state = plan.get("status") if isinstance(plan, dict) else None
+        status = state if state in {"prepared", "completed"} else "interrupted"
+        message = "已恢复历史采集计划" if status != "interrupted" else "历史任务执行中断，不能直接写入，请重新采集并核对"
+        run = {"id": run_id, "status": status, "action": "prepare", "message": message, "dir": str(folder), "recovered": True, "updated_at": datetime.fromtimestamp(plans[0].stat().st_mtime, timezone.utc).isoformat()}
         RUNS[run_id] = run
     return run
 

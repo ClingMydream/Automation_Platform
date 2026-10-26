@@ -594,7 +594,7 @@ export function WorkJournalPanel({ client }) {
             period_start: tab === 'daily' ? date : weekStart,
             include_draft_reports: value,
             report_id: selectedReport?.id ?? null,
-          }).then(setPreview).catch(() => {}).finally(() => setSourceLoading(false));
+          }).then(setPreview).catch((error) => { setPreview(null); message.error(error.message || '来源整理失败，请重试'); }).finally(() => setSourceLoading(false));
         }}
         onAdopt={adopt}
         onCancel={() => { setSourceOpen(false); setPreview(null); }}

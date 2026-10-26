@@ -1,3 +1,4 @@
+import { copyText } from '../../shared/clipboard.js';
 // File purpose: JSON tools page. Format, minify, copy, and compare JSON locally.
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
@@ -59,7 +60,7 @@ export function JsonToolsPanel() {
 
   // Copy text to the clipboard and show feedback.
   function copy(text) {
-    navigator.clipboard.writeText(text).then(() => message.success('已复制')).catch(() => message.warning('复制失败，请手动复制'));
+    copyText(text).then(ok => ok ? message.success('已复制') : message.warning('复制失败，请手动复制'));
   }
 
   // Render block: JSX below describes what the user sees on this page.

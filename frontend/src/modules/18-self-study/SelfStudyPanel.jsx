@@ -29,6 +29,24 @@ function restore(key) {
 export function SelfStudyPanel({ userId, client }) {
   const storageKey = `cling:self-study:${userId}:v1`;
   const [session, setSession] = useState(() => restore(storageKey));
+  const legacyKey = 'cling:self-study:undefined:v1';
+  const [hasLegacy, setHasLegacy] = useState(() => {
+    try { const owner = localStorage.getItem(`${legacyKey}:owner`); return userId != null && Boolean(localStorage.getItem(legacyKey)) && (!owner || owner === String(userId)); }
+    catch { return false; }
+  });
+  function importLegacy() {
+    Modal.confirm({ title: '导入本机旧进度？', content: '旧版本进度未区分账号。请确认这是你本人的作答，确认后复制到当前账号；原始副本仍会保留。', okText: '确认是我的进度', cancelText: '取消', onOk: () => {
+      try {
+        const owner = localStorage.getItem(`${legacyKey}:owner`);
+        if (owner && owner !== String(userId)) { setHasLegacy(false); message.warning('旧进度已归属其他账号'); return; }
+        const old = restore(legacyKey);
+        if (!old) { message.warning('旧进度不兼容，已保留恢复副本'); return; }
+        localStorage.setItem(storageKey, JSON.stringify(old));
+        localStorage.setItem(`${legacyKey}:owner`, String(userId));
+        setSession(old);setHasLegacy(false);
+      } catch { message.error('浏览器存储不可用，未导入，原始进度仍保留'); }
+    } });
+  }
   const [aiStatus, setAiStatus] = useState({ enabled: false, loading: true });
   const [grading, setGrading] = useState(null);
   const [gradeError, setGradeError] = useState(null);
@@ -110,6 +128,7 @@ export function SelfStudyPanel({ userId, client }) {
   return <div className="self-study">
     <header className="exam-hero"><div><span className="exam-eyebrow">STUDY A LITTLE, GROW EVERY DAY</span><h1>自考题库 <span>✦</span></h1><p>{bank.title} · 课程代码 {bank.course}</p></div><div className="exam-badge">每天一点<br /><strong>离目标更近</strong></div></header>
     {storageError && <p role="alert">当前浏览器无法保存进度，请在关闭页面前完成本轮练习。</p>}
+    {!session && hasLegacy && <Alert type="info" title="发现本机旧版答题进度" description="旧进度仍保留，确认属于本人后可导入当前账号。" action={<Button onClick={importLegacy}>导入旧进度</Button>} />}
     {recoveryNotice && <p role="alert">{recoveryNotice}</p>}
     {!session ? <section className="exam-card exam-setup">
       <div className="exam-stats"><div><strong>{bank.questions.length}</strong><span>题库总量</span></div><div><strong>{bank.questions.filter(q => q.type === "choice").length}</strong><span>选择题</span></div><div><strong>{bank.questions.filter(q => q.type !== "choice").length}</strong><span>问答与材料题</span></div><div><strong>{sources.length}</strong><span>组来源</span></div></div>

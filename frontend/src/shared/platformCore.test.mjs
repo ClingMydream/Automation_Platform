@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { apiClient, filenameFromDisposition } from './apiClient.js';
+import { compareJsonValues } from './jsonTools.js';
+import { runCodec } from './codec.js';
+const target=new EventTarget();globalThis.window=target;
+globalThis.CustomEvent=class extends Event {constructor(name){super(name);}};
+let events=0;window.addEventListener('automation-auth-expired',()=>events++);
+let calls=[];
+globalThis.fetch=async(url,options)=>{calls.push({url,options});return new Response('{"ok":true}',{status:200,headers:{'content-type':'application/json'}});};
+const client=apiClient('fake-local-token');assert.deepEqual(await client.get('/test'),{ok:true});
+assert.equal(calls[0].options.headers.Authorization,'Bearer fake-local-token');
+const form=new FormData();form.append('x','test');await client.post('/form',form);assert.equal(calls.at(-1).options.headers['Content-Type'],undefined);
+globalThis.fetch=async()=>new Response('not JSON',{status:502,headers:{'x-request-id':'test-123'}});
+await assert.rejects(client.get('/bad'),err=>err.status===502&&err.requestId==='test-123'&&err.message.includes('服务'));
+globalThis.fetch=async()=>new Response('<html/>',{status:200});await assert.rejects(client.get('/html'),/格式异常/);
+globalThis.fetch=async()=>new Response(JSON.stringify({detail:[{loc:['body','name'],msg:'必填'}]}),{status:422});await assert.rejects(client.post('/form',{}),/name：必填/);
+globalThis.fetch=async()=>new Response('{}',{status:401});await Promise.allSettled([client.get('/expired'),client.get('/expired-too')]);assert.equal(events,1);
+let writes=0;globalThis.fetch=async()=>{writes++;throw new TypeError('network');};await assert.rejects(client.post('/write',{}),/网络连接失败/);assert.equal(writes,1);
+globalThis.fetch=async(url,{signal})=>await new Promise((resolve,reject)=>{signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')));});
+await assert.rejects(client.get('/slow',{timeoutMs:10}),err=>err.name==='TimeoutError');
+const abort=new AbortController();const pending=client.get('/cancel',{signal:abort.signal});abort.abort();await assert.rejects(pending,err=>err.name==='AbortError');
+assert.equal(filenameFromDisposition("attachment; filename*=UTF-8''%E6%B5%8B%E8%AF%95.txt"),'测试.txt');
+assert.equal(filenameFromDisposition("attachment; filename*=UTF-8''bad%XX; filename=safe.txt"),'safe.txt');
+for(const text of ['中文参数 😀','', 'line\nnext']){
+ for(const [enc,dec] of [['base64_encode','base64_decode'],['base64url_encode','base64url_decode'],['hex_encode','hex_decode'],['url_encode','url_decode'],['unicode_escape','unicode_unescape'],['json_escape','json_unescape']])assert.equal(runCodec(dec,runCodec(enc,text)),text);
+}
+assert.throws(()=>runCodec('hex_decode','abzz'),/Hex/);assert.throws(()=>runCodec('hex_decode','f'),/偶数/);
+assert.throws(()=>runCodec('hex_decode','ff'));assert.throws(()=>runCodec('unknown','text'),/不支持/);
+assert.deepEqual(compareJsonValues({},JSON.parse('{"toString":"test"}')).map(x=>x.type),['右侧新增']);
+assert.deepEqual(compareJsonValues({a:null},{a:[]}).map(x=>x.type),['类型不同']);
+console.log('PASS common requests, timeouts, auth, validation, upload headers, no duplicate writes, filename, UTF-8 codec and own-property JSON diffs.');

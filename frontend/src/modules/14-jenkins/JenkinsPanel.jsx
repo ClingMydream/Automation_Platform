@@ -1,3 +1,4 @@
+import { copyText } from '../../shared/clipboard.js';
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Card, Col, List, QRCode, Row, Select, Space, Tag, Typography, message } from 'antd';
 import { CopyOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -60,18 +61,18 @@ export function JenkinsPanel({ client }) {
   }, []);
 
   async function copyPipeline() {
-    await navigator.clipboard.writeText(PIPELINE);
-    message.success('安全流水线模板已复制');
+    if (await copyText(PIPELINE)) message.success('安全流水线模板已复制');
+    else message.warning('复制失败，请手动复制模板');
   }
 
   return <div className="jenkins-panel">
     <Card className="jenkins-hero">
       <div><Text>Emote Android 自动打包</Text><Title level={2}>🧱 Jenkins 持续集成</Title><Paragraph>从下拉框选择远程分支，一键生成可安装的 Debug APK。成功后自动更新测试包模块，固定二维码不会改变。</Paragraph></div>
-      <Space direction="vertical" align="end"><Tag color={status === 'online' ? 'green' : status === 'checking' ? 'blue' : 'red'}>{status === 'online' ? '服务正常' : status === 'checking' ? '检查中' : '服务异常'}</Tag><Space wrap><Button icon={<ReloadOutlined />} onClick={check}>检查状态</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => window.open(EMOTE_JOB_URL, 'cling-emote-apk', 'noopener,noreferrer')}>打开 Emote 打包任务</Button></Space></Space>
+      <Space orientation="vertical" align="end"><Tag color={status === 'online' ? 'green' : status === 'checking' ? 'blue' : 'red'}>{status === 'online' ? '服务正常' : status === 'checking' ? '检查中' : '服务异常'}</Tag><Space wrap><Button icon={<ReloadOutlined />} onClick={check}>检查状态</Button><Button type="primary" icon={<ExportOutlined />} onClick={() => window.open(EMOTE_JOB_URL, 'cling-emote-apk', 'noopener,noreferrer')}>打开 Emote 打包任务</Button></Space></Space>
     </Card>
     <Alert type="warning" showIcon title="代码安全边界" description="Jenkins 只配置 Codeup 读取凭据。流水线不得出现 git commit、git merge、git rebase 或 git push；构建产物只保存在 Jenkins。" />
     <Card title="最近打包分支代码状态">
-      <Space direction="vertical" size={14} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={14} style={{ width: '100%' }}>
         <Select showSearch value={branch} style={{ width: 360, maxWidth: '100%' }} options={branches.map((value) => ({ label: value, value }))} optionFilterProp="label" onChange={setBranch} />
         <BranchRevisionStatus client={client} branch={branch} buildStatus={buildStatus} label="APK 打包代码状态" />
       </Space>

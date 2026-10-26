@@ -132,7 +132,7 @@ export function RestfulBookerPanel({ client }) {
     <Card title="预约记录" className="record-card" extra={<Button icon={<ReloadOutlined />} onClick={load}>刷新数据</Button>}>
       <Alert type="info" showIcon message="这里的数据与 /booker/booking 完全相同" description="创建预约后会立即同步；点击取消预约将通过 cling 后端安全完成认证，不需要手工粘贴 token。" style={{ marginBottom: 16 }} />
       <Table loading={loading} rowKey="id" dataSource={bookings} locale={{ emptyText: '还没有预约，请先到“预约前台”创建一条记录' }} pagination={false} columns={[
-        { title: 'Booking ID', dataIndex: 'id', width: 150, render: (value) => <Space size={2}><code>{value}</code><Button type="text" size="small" icon={<CopyOutlined />} title="复制查询地址" onClick={async () => { await navigator.clipboard.writeText(`${BOOKER_BASE_URL}/booking/${value}`); message.success('查询地址已复制'); }} /></Space> },
+        { title: 'Booking ID', dataIndex: 'id', width: 150, render: (value) => <Space size={2}><code>{value}</code><Button type="text" size="small" icon={<CopyOutlined />} title="复制查询地址" onClick={async () => { if (await copyText(`${BOOKER_BASE_URL}/booking/${value}`)) message.success('查询地址已复制'); else message.warning('复制失败，请手动复制查询地址'); }} /></Space> },
         { title: '房间', dataIndex: 'room_number', render: (value) => `${value} 房间` },
         { title: '住客姓名', dataIndex: 'guest' }, { title: '联系电话', dataIndex: 'phone' },
         { title: '入住日期', dataIndex: 'checkin' }, { title: '离店日期', dataIndex: 'checkout' },

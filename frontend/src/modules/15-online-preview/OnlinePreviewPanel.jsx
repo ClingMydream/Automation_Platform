@@ -109,7 +109,7 @@ export function OnlinePreviewPanel({ client }) {
           <Descriptions.Item label="构建提交"><Text code>{shortSha(status?.commit_sha)}</Text></Descriptions.Item>
         </Descriptions>
         {stages.length > 0 && <Card size="small" title="构建进度"><Steps size="small" responsive items={stages.map((stage) => ({ title: STAGE_LABELS[stage.name] || stage.name, status: stageState(stage), description: stage.status === 'IN_PROGRESS' ? '正在执行' : undefined }))} /></Card>}
-        <Alert type={isMatch ? 'success' : comparison ? 'warning' : 'info'} showIcon icon={isMatch ? <CheckCircleOutlined /> : undefined} title={comparison?.message || '正在读取线上预览版本'} description={<Space direction="vertical" size={2}><Text>远程最新：<Text code>{shortSha(comparison?.remote?.sha)}</Text>　线上实际：<Text code>{shortSha(deployed?.sha)}</Text></Text><Text>线上分支：{deployed?.branch || '尚未检测到版本清单'}　发布构建：{deployed?.build_number ? `#${deployed.build_number}` : '暂无'}</Text></Space>} />
+        <Alert type={isMatch ? 'success' : comparison ? 'warning' : 'info'} showIcon icon={isMatch ? <CheckCircleOutlined /> : undefined} title={comparison?.message || '正在读取线上预览版本'} description={<Space orientation="vertical" size={2}><Text>远程最新：<Text code>{shortSha(comparison?.remote?.sha)}</Text>　线上实际：<Text code>{shortSha(deployed?.sha)}</Text></Text><Text>线上分支：{deployed?.branch || '尚未检测到版本清单'}　发布构建：{deployed?.build_number ? `#${deployed.build_number}` : '暂无'}</Text></Space>} />
         <BranchRevisionStatus client={client} branch={branch} buildStatus={status} label="远程代码状态" />
       </Space>
     </Card>

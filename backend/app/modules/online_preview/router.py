@@ -67,6 +67,8 @@ def _validate_branch(value: str) -> str:
 def _remote_revision(branch: str) -> dict:
     """Fetch only the selected branch metadata without checking out project files."""
     settings = get_settings()
+    if not settings.codeup_username or not settings.codeup_password:
+        raise HTTPException(503, "Codeup 读取凭据未配置，暂时无法读取远程分支")
     with tempfile.TemporaryDirectory(prefix="cling-revision-") as directory:
         askpass = Path(directory) / "askpass.sh"
         askpass.write_text(
@@ -89,11 +91,14 @@ def _remote_revision(branch: str) -> dict:
         ]
         try:
             for command in commands[:-1]:
-                subprocess.run(command, env=env, check=True, capture_output=True, text=True, timeout=30)
-            output = subprocess.run(commands[-1], env=env, check=True, capture_output=True, text=True, timeout=10).stdout.strip()
+                subprocess.run(command, env=env, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+            output = (subprocess.run(commands[-1], env=env, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout or "").strip()
         except (subprocess.SubprocessError, OSError) as exc:
             raise HTTPException(502, "读取分支最新提交信息失败") from exc
-    sha, author, email, committed_at, subject = output.split("\x1f", 4)
+    parts = output.split("\x1f", 4) if output else []
+    if len(parts) != 5 or not re.fullmatch(r"[0-9a-fA-F]{40}", parts[0]):
+        raise HTTPException(502, "远程分支提交信息格式异常，请稍后重试")
+    sha, author, email, committed_at, subject = parts
     return {"branch": branch, "sha": sha, "author": author, "email": email, "committed_at": committed_at, "subject": subject}
 
 
@@ -168,6 +173,8 @@ def _deployed_revision() -> dict | None:
 @router.get("/branches", dependencies=[Depends(require_any_menu("online_preview", "jenkins", "emote_ui_automation"))])
 def list_preview_branches():
     settings = get_settings()
+    if not settings.codeup_username or not settings.codeup_password:
+        raise HTTPException(503, "Codeup 读取凭据未配置，暂时无法读取远程分支")
     try:
         response = httpx.get(
             REPOSITORY_URL + "/info/refs",

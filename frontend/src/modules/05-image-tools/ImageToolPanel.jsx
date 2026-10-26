@@ -5,7 +5,6 @@ import React, { useEffect, useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Col, Form, Input, Row, Select, Space, Upload } from 'antd';
 import { InboxOutlined, PictureOutlined } from '@ant-design/icons';
 import { apiClient } from '../../shared/apiClient';
-import { API_BASE } from '../../shared/constants';
 import { downloadBlob } from '../../shared/fileTransfer.jsx';
 
 const { TextArea } = Input;
@@ -35,32 +34,10 @@ export function ImageToolPanel({ token }) {
     apiClient(token).get('/image-tools/formats').then(setFormats).catch(() => {});
   }, [token]);
 
-  // Read the download filename from response headers.
-  function filenameFromResponse(res, fallback) {
-    const disposition = res.headers.get('content-disposition') || '';
-    const match = disposition.match(/filename="?([^"]+)"?/i);
-    return match?.[1] || fallback;
-  }
-
-  // Call an image endpoint and return the resulting blob metadata.
+  // Use the same auth-expiry, timeout and download validation as other modules.
   async function fetchImage(path, options, fallbackName) {
-    const res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(options.headers || {}),
-      },
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        notifyAuthExpired();
-        throw authExpiredError();
-      }
-      throw new Error(data.detail || '图片处理失败');
-    }
-    const blob = await res.blob();
-    return { blob, filename: filenameFromResponse(res, fallbackName), type: res.headers.get('content-type') || blob.type };
+    const result = await apiClient(token).download(path, options);
+    return { ...result, filename: result.filename === 'attachment' ? fallbackName : result.filename, type: result.blob.type };
   }
 
   // Preview the generated image and trigger download.

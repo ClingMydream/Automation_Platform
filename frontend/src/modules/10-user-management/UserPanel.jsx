@@ -46,6 +46,7 @@ export function UserPanel({ client }) {
   // Fill the form with an existing record so the user can edit it.
   function startEdit(user) {
     setEditingId(user.id);
+    form.resetFields();
     form.setFieldsValue(buildUserFormValues(user, menuOptions));
   }
 

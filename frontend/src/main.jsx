@@ -1,3 +1,4 @@
+import zhCN from 'antd/locale/zh_CN';
 import React, { useEffect, useMemo, useState, useRef, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -88,6 +89,10 @@ const MENU_SECTIONS = [
     children: [
       { key: 'emote_ui_automation', label: 'Emote UI 自动化', icon: <CuteIcon emoji="🎬" tone="violet" /> },
       { key: 'circle_stats', label: '全员圈统计', icon: <CuteIcon emoji="🫧" tone="cyan" /> },
+      { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" /> },
+      { key: 'jenkins', label: '持续集成', icon: <CuteIcon emoji="🧱" tone="blue" /> },
+      { key: 'online_preview', label: '在线预览', icon: <CuteIcon emoji="📱" tone="mint" /> },
+      { key: 'test_packages', label: '测试包安装', icon: <CuteIcon emoji="📦" tone="blue" /> },
     ],
   },
   {
@@ -98,9 +103,7 @@ const MENU_SECTIONS = [
       { key: 'self_study', label: '自考题库', icon: <CuteIcon emoji="🌱" tone="mint" /> },
       { key: 'command_library', label: '命令手册', icon: <CuteIcon emoji="⌨️" tone="blue" /> },
       { key: 'restful_booker', label: '酒店练习项目', icon: <CuteIcon emoji="🏨" tone="peach" /> },
-      { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" /> },
       { key: 'effects', label: '临时效果', icon: <CuteIcon emoji="🎀" tone="rose" /> },
-      { key: 'online_preview', label: '在线预览', icon: <CuteIcon emoji="📱" tone="mint" /> },
       { key: 'work_journal', label: '工作手记', icon: <CuteIcon emoji="📝" tone="violet" /> },
     ],
   },
@@ -108,10 +111,8 @@ const MENU_SECTIONS = [
     key: 'tools',
     label: '效率工具',
     children: [
-      { key: 'jenkins', label: '持续集成', icon: <CuteIcon emoji="🧱" tone="blue" /> },
       { key: 'data_generator', label: '数据生成', icon: <CuteIcon emoji="🧪" tone="blue" /> },
       { key: 'files', label: '文件快传', icon: <CuteIcon emoji="📤" tone="mint" /> },
-      { key: 'test_packages', label: '测试包安装', icon: <CuteIcon emoji="📦" tone="blue" /> },
       { key: 'images', label: '图片工具', icon: <CuteIcon emoji="🖼️" tone="peach" /> },
       { key: 'json_tools', label: 'JSON 工具', icon: <CuteIcon emoji="🧩" tone="violet" /> },
       { key: 'codec', label: '转码工具', icon: <CuteIcon emoji="🔄" tone="yellow" /> },
@@ -135,7 +136,7 @@ function menuForUser(user) {
   if (!user) return [];
   const allowed = new Set(user.is_admin ? ALL_ITEMS.map((item) => item.key) : user.menu_permissions || []);
   return MENU_SECTIONS
-    .map((section) => ({ ...section, type: 'group', children: section.children.filter((item) => allowed.has(item.key) && (!item.adminOnly || user.is_admin)) }))
+    .map((section) => ({ ...section, type: 'group', children: section.children.filter((item) => allowed.has(item.key) && (!item.adminOnly || user.is_admin)).map(({ adminOnly, ...item }) => item) }))
     .filter((section) => section.children.length > 0);
 }
 
@@ -191,6 +192,7 @@ function ToolboxApp() {
   }, []);
   const [collapsed, setCollapsed] = useState(false);
   const [integrations, setIntegrations] = useState([]);
+  const [integrationError, setIntegrationError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginNotice, setLoginNotice] = useState('');
   const { message } = AntApp.useApp();
@@ -202,6 +204,7 @@ function ToolboxApp() {
     setToken('');
     setUser(null);
     setIntegrations([]);
+    setIntegrationError('');
     setLoginNotice(notice);
   }
 
@@ -214,14 +217,23 @@ function ToolboxApp() {
       if(generation !== authGeneration.current) return;
       setUser(currentUser);
       const allowed = new Set(currentUser.is_admin ? ALL_ITEMS.map((item) => item.key) : currentUser.menu_permissions || []);
-      const webhookRows = allowed.has('integrations') ? await client.get('/v1/integrations/webhooks') : [];
+      let webhookRows = [];
+      try {
+        webhookRows = allowed.has('integrations') ? await client.get('/v1/integrations/webhooks') : [];
+        if (generation !== authGeneration.current) return;
+        setIntegrationError('');
+      } catch (error) {
+        if (generation !== authGeneration.current || error.authExpired) return;
+        setIntegrationError(error.message);
+      }
+      if (generation !== authGeneration.current) return;
       setIntegrations(webhookRows);
       const available = menuForUser(currentUser).flatMap((section) => section.children.map((item) => item.key));
       if (!new URLSearchParams(location.search).has('module') && !available.includes(tab)) setTab(available[0] || 'data_generator');
     } catch (error) {
       if (generation === authGeneration.current && !error.authExpired) setProfileError(error.message);
     } finally {
-      setLoading(false);
+      if (generation === authGeneration.current) setLoading(false);
     }
   }
 
@@ -286,7 +298,8 @@ function ToolboxApp() {
 
   return (
     <Layout className="toolbox-layout">
-      {mobile ? <Drawer title="Cling · 功能导航" placement="left" width={280} open={navOpen} onClose={() => setNavOpen(false)} className="platform-nav">
+      <a href="#main-content" className="skip-to-content">跳转到主要内容</a>
+      {mobile ? <Drawer title="Cling · 功能导航" placement="left" size={280} open={navOpen} onClose={() => setNavOpen(false)} className="platform-nav">
         <div className="toolbox-brand">
           <div className="brand-symbol cute-brand">✦</div>
           {!collapsed && <div><strong>Cling 自动化平台</strong><span>测试、学习与效率工具</span></div>}
@@ -299,7 +312,7 @@ function ToolboxApp() {
           setTab(key);
         }} />
         <div className="sider-footer">
-          <div className="sider-status"><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
+          <div className={`sider-status connection-${connection}`}><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
         </div>
       </Drawer> : <Sider className="toolbox-sider" width={224} collapsedWidth={68} collapsed={collapsed} trigger={null}>
         <div className="toolbox-brand">
@@ -314,7 +327,7 @@ function ToolboxApp() {
           setTab(key);
         }} />
         <div className="sider-footer">
-          <div className="sider-status"><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
+          <div className={`sider-status connection-${connection}`}><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
         </div>
       </Sider>}
 
@@ -330,7 +343,7 @@ function ToolboxApp() {
           <Space size={12}>
             <div className={`header-chip connection-${connection}`} title="仅表示平台后端连接；外部服务状态请查看对应模块">{connection === "online" ? "● 后端可达" : connection === "checking" ? "○ 检查连接中" : "● 连接异常"}</div>
             <Dropdown menu={userMenu} placement="bottomRight">
-              <Button className="user-button">
+              <Button className="user-button" aria-label="打开账号菜单">
                 <Avatar size={28} icon={<UserOutlined />} />
                 <span>{user?.display_name || user?.username || '用户'}</span>
               </Button>
@@ -338,7 +351,7 @@ function ToolboxApp() {
           </Space>
         </Header>
 
-        <Content className="toolbox-content" aria-busy={loading}>
+        <Content id="main-content" tabIndex={-1} className="toolbox-content" aria-busy={loading}>
           <div className="content-container">
             {updateAvailable && <Alert className="platform-notice" type="info" title="新版本已就绪，请保存当前输入后更新" action={<Button onClick={() => window.location.reload()}>刷新更新</Button>} />}
             {profileError && <Alert className="platform-notice" type="error" title={profileError} action={<Button onClick={reload}>重试</Button>} />}
@@ -357,10 +370,10 @@ function ToolboxApp() {
             {tab === 'jenkins' && <JenkinsPanel client={client} />}
             {tab === 'online_preview' && <OnlinePreviewPanel client={client} />}
             {tab === 'emote_ui_automation' && <UiAutomationPage client={client} embedded />}
-            {tab === 'circle_stats' && <CircleStatsPanel client={client} userId={user?.id} />}
-            {tab === 'self_study' && <SelfStudyPanel key={user?.id} userId={user?.id} client={client} />}
+            {tab === 'circle_stats' && <CircleStatsPanel key={user?.username} client={client} userKey={user?.username} />}
+            {tab === 'self_study' && <SelfStudyPanel key={user?.username} userId={user?.username} client={client} />}
             {tab === 'api_workspace' && <ApiWorkspacePanel client={client} />}
-            {tab === 'integrations' && <IntegrationPanel client={client} integrations={integrations} reload={reload} />}
+            {tab === 'integrations' && <>{integrationError && <Alert type="error" title={`集成配置加载失败：${integrationError}`} action={<Button onClick={reload}>重新加载配置</Button>} />}<IntegrationPanel client={client} integrations={integrations} reload={reload} /></>}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
             {tab === 'oa_management' && user?.is_admin && <OaManagementPanel client={client} />}
             {tab === 'work_journal' && <WorkJournalPanel client={client} />}
@@ -374,6 +387,7 @@ function ToolboxApp() {
 
 createRoot(document.getElementById('root')).render(
   <ConfigProvider
+    locale={zhCN}
     theme={{
       algorithm: theme.defaultAlgorithm,
       token: {
@@ -386,7 +400,7 @@ createRoot(document.getElementById('root')).render(
         colorText: '#182230',
         colorTextSecondary: '#667085',
         borderRadius: 12,
-        controlHeight: 40, controlHeightSM: 32,
+        fontSize: 15, controlHeight: 40, controlHeightSM: 32,
         fontFamily: 'Inter, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif',
       },
       components: {

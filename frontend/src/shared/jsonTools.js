@@ -41,8 +41,8 @@ export function compareJsonValues(left, right, path = '$') {
     const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
     [...keys].sort().forEach((key) => {
       const nextPath = `${path}.${key}`;
-      if (!(key in left)) diffs.push({ path: nextPath, type: '右侧新增', left: '不存在', right: previewValue(right[key]) });
-      else if (!(key in right)) diffs.push({ path: nextPath, type: '左侧独有', left: previewValue(left[key]), right: '不存在' });
+      if (!Object.hasOwn(left, key)) diffs.push({ path: nextPath, type: '右侧新增', left: '不存在', right: previewValue(right[key]) });
+      else if (!Object.hasOwn(right, key)) diffs.push({ path: nextPath, type: '左侧独有', left: previewValue(left[key]), right: '不存在' });
       else diffs.push(...compareJsonValues(left[key], right[key], nextPath));
     });
     return diffs;

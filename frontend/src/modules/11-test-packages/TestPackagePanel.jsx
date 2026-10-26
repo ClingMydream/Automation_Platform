@@ -1,3 +1,4 @@
+import { copyText } from '../../shared/clipboard.js';
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Card, Col, Descriptions, Form, Input, QRCode, Row, Space, Tag, Typography, Upload, message } from 'antd';
 import { CopyOutlined, DownloadOutlined, InboxOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -37,8 +38,8 @@ export function TestPackagePanel({ client }) {
   }
 
   async function copyLink() {
-    await navigator.clipboard.writeText(stableUrl);
-    message.success('固定下载地址已复制');
+    if (await copyText(stableUrl)) message.success('固定下载地址已复制');
+    else message.warning('复制失败，请手动复制下载链接');
   }
 
   return <div className="test-package-page">

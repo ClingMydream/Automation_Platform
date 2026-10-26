@@ -67,3 +67,5 @@
   .ui-auto-report__line{flex-direction:column;gap:0}
   .ui-auto-report__copy{margin-left:0}
 }
+
+.ui-auto-primary-actions{flex-wrap:wrap;white-space:normal}.ui-auto-page--embedded{margin:0;border-radius:16px;max-width:100%;min-width:0}.ui-auto-page--embedded>.ant-alert{margin:12px}.ui-auto-page .ui-auto-grid>*{min-width:0}

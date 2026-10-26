@@ -155,6 +155,7 @@ export function ArtifactViewer({ client, artifact, refreshKey = '' }) {
 export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [data, setData] = useState({ features: [], cases: [], requirements: [], runs: [] });
   const [branches, setBranches] = useState([]);
+  const [loadIssues, setLoadIssues] = useState([]);
   const [dataSets, setDataSets] = useState([]);
   const [branch, setBranch] = useState(DEFAULT_BRANCH);
   const [viewport, setViewport] = useState('mobile');
@@ -169,6 +170,8 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [runBusy, setRunBusy] = useState(false);
+  const [caseBusy, setCaseBusy] = useState(false);
+  const caseSaveRef = useRef(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [runRequest, setRunRequest] = useState(null);
   const [credentialOpen, setCredentialOpen] = useState(false);
@@ -188,11 +191,20 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   const load = async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      const [overview, branchRows, savedDataSets] = await Promise.all([
+      const results = await Promise.allSettled([
         client.get('/v1/ui-automation/overview'), client.get('/v1/online-preview/branches'), client.get('/v1/ui-automation/data-sets'),
       ]);
-      setData(overview); setBranches(branchRows); setDataSets(savedDataSets);
-      if (!selectedRunId && overview.runs[0]) setSelectedRunId(overview.runs[0].id);
+      const issues = [];
+      if (results[0].status === 'fulfilled') {
+        const overview = results[0].value; setData(overview);
+        if (!selectedRunId && overview.runs[0]) setSelectedRunId(overview.runs[0].id);
+      } else issues.push(`用例与记录：${results[0].reason.message}`);
+      if (results[1].status === 'fulfilled') setBranches(results[1].value);
+      else issues.push(`远程分支暂不可用：${results[1].reason.message}；现有用例和记录仍可查看。`);
+      if (results[2].status === 'fulfilled') setDataSets(results[2].value);
+      else issues.push(`测试数据集：${results[2].reason.message}`);
+      setLoadIssues(issues);
+
     } catch (error) { message.error(error.message); }
     finally { if (!quiet) setLoading(false); }
   };
@@ -211,7 +223,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
 
   const visibleCases = useMemo(() => data.cases.filter((item) => item.name.toLowerCase().includes(search.toLowerCase())), [data.cases, search]);
   const enabledCases = useMemo(() => data.cases.filter((item) => item.enabled), [data.cases]);
-  const evidenceCases = (selectedRun?.case_ids || []).map((id) => data.cases.find((item) => item.id === id)).filter(Boolean);
+  const evidenceCases = (selectedRun?.case_ids || []).map((id) => data.cases.find((item) => item.id === id) || { id, name: selectedRun.result_summary?.case_results?.find(row => row.case_id === id)?.case_name || `已删除用例 #${id}` });
   const caseArtifacts = (selectedRun?.artifacts || []).filter((item) => !evidenceCaseId || item.name.includes(`case-${evidenceCaseId}-`));
   const displayArtifacts = caseArtifacts.filter((item) => ['video', 'screenshot'].includes(item.kind)
     && (selectedRun?.status === 'running' || !item.name.includes('-live.')));
@@ -288,6 +300,8 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
   };
 
   const saveCase = async () => {
+    if (caseSaveRef.current) return;
+    caseSaveRef.current = true; setCaseBusy(true);
     try {
       const values = await caseForm.validateFields();
       values.tags = typeof values.tags === 'string' ? values.tags.split(',').map((x) => x.trim()).filter(Boolean) : values.tags;
@@ -296,7 +310,17 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
       else await client.post('/v1/ui-automation/cases', values);
       setCaseOpen(false); message.success('用例已保存'); await load(true);
     } catch (error) { if (error.message) message.error(error.message); }
+    finally { caseSaveRef.current = false; setCaseBusy(false); }
   };
+
+  const removeCase = (item) => Modal.confirm({
+    title: `删除用例「${item.name}」？`, content: '仅删除此用例，历史执行结果与证据保留。', okText: '删除', cancelText: '取消', okButtonProps: { danger: true },
+    onOk: async () => { try { await client.delete(`/v1/ui-automation/cases/${item.id}`); setCaseOpen(false); setSelectedCases(old => old.filter(id => id !== item.id)); await load(true); message.success('用例已删除，历史证据保留'); } catch (error) { message.error(error.message); throw error; } },
+  });
+  const removeDataSet = (item) => Modal.confirm({
+    title: `删除数据集「${item.name}」？`, content: '删除已保存的账号配置，不删除历史测试结果。下次运行需要重新选择数据集。', okText: '删除', cancelText: '取消', okButtonProps: { danger: true },
+    onOk: async () => { try { await client.delete(`/v1/ui-automation/data-sets/${item.id}`); if (editingDataSet?.id === item.id) { setEditingDataSet(null); dataSetForm.resetFields(); } await load(true); message.success('数据集已删除'); } catch (error) { message.error(error.message); throw error; } },
+  });
 
   const saveRequirement = async () => {
     try { await client.post('/v1/ui-automation/requirements', await requirementForm.validateFields()); setRequirementOpen(false); requirementForm.resetFields(); message.success('测试需求已保存为草稿'); await load(true); }
@@ -358,6 +382,7 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
       <div className="ui-auto-brand"><span>🎬</span><div><Title level={3}>Emote UI 自动化</Title><Text type="secondary">选择用例、开始执行、查看结果</Text></div></div>
       {!embedded && <Button type="text" icon={<ArrowLeftOutlined />} onClick={onClose}>返回</Button>}
     </header>
+    {loadIssues.length > 0 && <Alert type="warning" showIcon title="部分服务未就绪" description={loadIssues.join('；')} action={<Button onClick={() => load()}>重新加载</Button>} />}
     <section className="ui-auto-command">
       <div className="ui-auto-run-config">
         <label className="ui-auto-field"><span>测试分支</span><Select showSearch value={branch} onChange={setBranch} options={branches.map((value) => ({ value, label: value }))} className="ui-auto-branch" suffixIcon={<BranchesOutlined />} /></label>
@@ -399,14 +424,14 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
                   <Checkbox disabled={!item.enabled} checked={selectedCases.includes(item.id)} onChange={(event) => setSelectedCases((old) => event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id))} />
                   <button type="button" onClick={() => openCase(item)}><span>{item.name}</span><small><Tag color={item.enabled ? 'green' : 'default'}>{item.enabled ? '已启用' : '草稿'}</Tag>{item.steps.length} 步 · {item.priority}</small></button>
                   <Tooltip title="立即执行此用例"><Button type="text" size="small" icon={<PlayCircleOutlined />} disabled={!item.enabled} onClick={() => requestRun('selected', [item.id])} /></Tooltip>
-                  <Tooltip title="复制用例"><Button type="text" size="small" icon={<CopyOutlined />} onClick={async () => { await client.post(`/v1/ui-automation/cases/${item.id}/duplicate`, {}); await load(true); }} /></Tooltip>
+                  <Tooltip title="复制用例"><Button type="text" size="small" aria-label={`复制用例 ${item.name}`} icon={<CopyOutlined />} onClick={async () => { try { await client.post(`/v1/ui-automation/cases/${item.id}/duplicate`, {}); await load(true); } catch (error) { message.error(error.message); } }} /></Tooltip>
                 </div>)}
               </section>;
             })}
           </Spin>
         </div>
         <div className="ui-auto-case-footer">
-          <Button block type="dashed" icon={<FileAddOutlined />} onClick={() => openCase(null)}>新建结构化用例</Button>
+          <Button block type="dashed" disabled={loading || !data.features.length} icon={<FileAddOutlined />} onClick={() => openCase(null)}>新建结构化用例</Button>
         </div>
       </aside>
       <section className="ui-auto-right">
@@ -459,18 +484,18 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
 
     <Modal forceRender title="选择测试数据" open={credentialOpen} onCancel={() => setCredentialOpen(false)} onOk={startRun} okText="确认并开始执行" confirmLoading={runBusy} width={520} destroyOnHidden>
       <Alert type="info" showIcon title="登录 Token 当天复用" description="账号首次登录成功后，Runner 会在受限目录保存登录态 24 小时；后续用例直接复用，过期或失效时自动重新登录。Token 不进入数据库、日志或测试报告。" />
-      <Form form={credentialForm} layout="vertical" className="ui-auto-credentials"><Form.Item name="data_set_id" label="测试数据集" rules={[{ required: true, message: '请先选择或新建测试数据集' }]}><Select placeholder="选择账号数据" options={dataSets.map((item) => ({ value: item.id, label: `${item.name}${item.is_default ? '（默认）' : ''}` }))} /></Form.Item><Form.Item name="allow_sensitive" valuePropName="checked"><Checkbox disabled={targetMode !== 'preview'}>本次允许专用账号 B 申请注销并取消（仅测试环境）</Checkbox></Form.Item><Alert type="warning" showIcon title="注销默认不执行；仅使用可恢复的独立测试账号 B。恢复无法确认时整轮停止。原野删帖需在数据集中指定可丢弃的本人公开测试帖子。" /><Button style={{ marginTop: 12 }} icon={<DatabaseOutlined />} onClick={() => editDataSet()}>新建测试数据集</Button></Form>
+      <Form name="ui-auto-run" form={credentialForm} layout="vertical" className="ui-auto-credentials"><Form.Item name="data_set_id" label="测试数据集" rules={[{ required: true, message: '请先选择或新建测试数据集' }]}><Select placeholder="选择账号数据" options={dataSets.map((item) => ({ value: item.id, label: `${item.name}${item.is_default ? '（默认）' : ''}` }))} /></Form.Item><Form.Item name="allow_sensitive" valuePropName="checked"><Checkbox disabled={targetMode !== 'preview'}>本次允许专用账号 B 申请注销并取消（仅测试环境）</Checkbox></Form.Item><Alert type="warning" showIcon title="注销默认不执行；仅使用可恢复的独立测试账号 B。恢复无法确认时整轮停止。原野删帖需在数据集中指定可丢弃的本人公开测试帖子。" /><Button style={{ marginTop: 12 }} icon={<DatabaseOutlined />} onClick={() => editDataSet()}>新建测试数据集</Button></Form>
     </Modal>
 
     <Modal forceRender title={editingDataSet ? '编辑测试数据集' : '新建测试数据集'} open={dataSetOpen} onCancel={() => setDataSetOpen(false)} onOk={saveDataSet} okText="加密保存" width={760} destroyOnHidden>
       <Alert type="warning" showIcon title="敏感数据安全" description="密码与验证码使用服务器密钥加密入库；列表接口只返回 ******，不会返回密文或明文。" />
-      <Form form={dataSetForm} layout="vertical" style={{ marginTop: 16 }}><Row gutter={16}><Col span={18}><Form.Item name="name" label="数据集名称" rules={[{ required: true }]}><Input placeholder="例如：Emote 测试环境账号" /></Form.Item></Col><Col span={6}><Form.Item name="is_default" label="默认使用" valuePropName="checked"><Checkbox>设为默认</Checkbox></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Card size="small" title="账号 A"><Form.Item name={['credentials', 'account_a', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_a', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col><Col span={12}><Card size="small" title="账号 B（好友/聊天）"><Form.Item name={['credentials', 'account_b', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_b', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col></Row><Row gutter={16} style={{ marginTop: 12 }}><Col span={12}><Form.Item name={['credentials', 'registration', 'phone']} label="注册手机号"><Input /></Form.Item></Col><Col span={12}><Form.Item name={['credentials', 'registration', 'code']} label="注册验证码"><Input.Password /></Form.Item></Col></Row><Card size="small" title="1.9.2 专项前置数据（可选）"><Form.Item name={['credentials', 'smoke', 'chat_friend_name']} label="测试聊天好友"><Input placeholder="默认：霖感小秘书" /></Form.Item><Form.Item name={['credentials', 'smoke', 'public_fixture_id']} label="原野可删除测试帖子 ID"><Input placeholder="仅限账号 A 自己的、可丢弃的公开测试帖；不填则标为前置受限" /></Form.Item><Form.Item name={['credentials', 'smoke', 'allow_delete_public_fixture']} valuePropName="checked"><Checkbox>确认上述帖子是可删除的测试数据</Checkbox></Form.Item></Card></Form>
-      {!!dataSets.length && <div className="ui-auto-datasets"><Text type="secondary">已保存数据集</Text>{dataSets.map((item) => <Space key={item.id}><Button size="small" onClick={() => editDataSet(item)}>{item.name}{item.is_default ? '（默认）' : ''}</Button><Button danger size="small" icon={<DeleteOutlined />} onClick={async () => { await client.delete(`/v1/ui-automation/data-sets/${item.id}`); await load(true); }} /></Space>)}</div>}
+      <Form name="ui-auto-data-set" form={dataSetForm} layout="vertical" style={{ marginTop: 16 }}><Row gutter={16}><Col span={18}><Form.Item name="name" label="数据集名称" rules={[{ required: true }]}><Input placeholder="例如：Emote 测试环境账号" /></Form.Item></Col><Col xs={24} sm={6}><Form.Item name="is_default" label="默认使用" valuePropName="checked"><Checkbox>设为默认</Checkbox></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Card size="small" title="账号 A"><Form.Item name={['credentials', 'account_a', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_a', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col><Col span={12}><Card size="small" title="账号 B（好友/聊天）"><Form.Item name={['credentials', 'account_b', 'username']} label="手机号/账号"><Input /></Form.Item><Form.Item name={['credentials', 'account_b', 'password']} label="密码"><Input.Password autoComplete="new-password" /></Form.Item></Card></Col></Row><Row gutter={16} style={{ marginTop: 12 }}><Col span={12}><Form.Item name={['credentials', 'registration', 'phone']} label="注册手机号"><Input /></Form.Item></Col><Col span={12}><Form.Item name={['credentials', 'registration', 'code']} label="注册验证码"><Input.Password /></Form.Item></Col></Row><Card size="small" title="1.9.2 专项前置数据（可选）"><Form.Item name={['credentials', 'smoke', 'chat_friend_name']} label="测试聊天好友"><Input placeholder="默认：霖感小秘书" /></Form.Item><Form.Item name={['credentials', 'smoke', 'public_fixture_id']} label="原野可删除测试帖子 ID"><Input placeholder="仅限账号 A 自己的、可丢弃的公开测试帖；不填则标为前置受限" /></Form.Item><Form.Item name={['credentials', 'smoke', 'allow_delete_public_fixture']} valuePropName="checked"><Checkbox>确认上述帖子是可删除的测试数据</Checkbox></Form.Item></Card></Form>
+      {!!dataSets.length && <div className="ui-auto-datasets"><Text type="secondary">已保存数据集</Text>{dataSets.map((item) => <Space key={item.id}><Button size="small" onClick={() => editDataSet(item)}>{item.name}{item.is_default ? '（默认）' : ''}</Button><Button danger size="small" aria-label={`删除数据集 ${item.name}`} icon={<DeleteOutlined />} onClick={() => removeDataSet(item)} /></Space>)}</div>}
     </Modal>
 
-    <Modal forceRender title={editingCase ? '编辑测试用例' : '新建测试用例'} open={caseOpen} onCancel={() => setCaseOpen(false)} onOk={saveCase} okText="保存" cancelText="取消" width={980} styles={{ body: { maxHeight: 'calc(100vh - 240px)', overflowY: 'auto', overflowX: 'hidden' } }} destroyOnHidden>
-      <Form form={caseForm} layout="vertical">
-        <Row gutter={12}><Col span={10}><Form.Item name="name" label="用例名称" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={6}><Form.Item name="feature_id" label="所属功能" rules={[{ required: true }]}><Select options={data.features.map((x) => ({ value: x.id, label: x.name }))} /></Form.Item></Col><Col span={4}><Form.Item name="priority" label="优先级"><Select options={['P0', 'P1', 'P2'].map((x) => ({ value: x }))} /></Form.Item></Col><Col span={4}><Form.Item name="enabled" label="进入回归" valuePropName="checked"><Checkbox>确认并启用</Checkbox></Form.Item></Col></Row>
+    <Modal forceRender confirmLoading={caseBusy} title={editingCase ? '编辑测试用例' : '新建测试用例'} open={caseOpen} onCancel={() => setCaseOpen(false)} onOk={saveCase} okText="保存" cancelText="取消" width={980} styles={{ body: { maxHeight: 'calc(100vh - 240px)', overflowY: 'auto', overflowX: 'hidden' } }} destroyOnHidden>
+      <Form name="ui-auto-case" form={caseForm} layout="vertical">
+        <Row gutter={12}><Col xs={24} sm={10}><Form.Item name="name" label="用例名称" rules={[{ required: true }]}><Input /></Form.Item></Col><Col xs={24} sm={6}><Form.Item name="feature_id" label="所属功能" rules={[{ required: true }]}><Select options={data.features.map((x) => ({ value: x.id, label: x.name }))} /></Form.Item></Col><Col xs={12} sm={4}><Form.Item name="priority" label="优先级"><Select options={['P0', 'P1', 'P2'].map((x) => ({ value: x }))} /></Form.Item></Col><Col xs={12} sm={4}><Form.Item name="enabled" label="进入回归" valuePropName="checked"><Checkbox>确认并启用</Checkbox></Form.Item></Col></Row>
         <Form.Item name="tags" label="标签（英文逗号分隔）" getValueProps={(value) => ({ value: Array.isArray(value) ? value.join(',') : value })}><Input placeholder="smoke,regression" /></Form.Item>
         <Row gutter={12}><Col span={12}><Form.Item name="preconditions" label="前置条件"><Input.TextArea rows={2} /></Form.Item></Col><Col span={12}><Form.Item name="cleanup_note" label="清理说明"><Input.TextArea rows={2} /></Form.Item></Col></Row>
         <Form.List name="steps">{(fields, { add, remove, move }) => <div className="ui-auto-steps">
@@ -478,11 +503,12 @@ export function UiAutomationPage({ client, onClose, embedded = false }) {
           {fields.map((field, index) => <div className="ui-auto-step" key={field.key}><span>{index + 1}</span><Form.Item name={[field.name, 'action']} rules={[{ required: true }]}><Select options={ACTIONS.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item hidden={caseSteps[index]?.action !== 'emote_smoke'} name={[field.name, 'scenario']}><Select placeholder="专项场景" options={(data.smoke_catalog || []).map(item => ({ value: item.key, label: item.name }))} /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'locator_type']}><Select placeholder="定位方式" options={LOCATOR_TYPES.map(([value, label]) => ({ value, label }))} /></Form.Item><Form.Item hidden={!usesLocator(index) || caseSteps[index]?.locator_type !== 'role'} name={[field.name, 'role']}><Select allowClear placeholder="角色（role 时）" options={['button', 'heading', 'link', 'textbox', 'checkbox', 'radio', 'tab', 'dialog', 'listitem', 'img'].map((value) => ({ value, label: value }))} /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'locator']}><Input placeholder="元素名称 / 选择器" /></Form.Item><Form.Item hidden={!['goto', 'fill', 'append', 'select', 'press', 'wait', 'assert_text', 'assert_url', 'assert_count', 'switch_account'].includes(caseSteps[index]?.action)} name={[field.name, 'value']}><Input placeholder="输入值 / 页面地址" /></Form.Item><Form.Item hidden={!usesLocator(index)} name={[field.name, 'match']}><Select allowClear placeholder="重复匹配" options={[{ value: 'first', label: '第一个' }, { value: 'last', label: '最后一个' }, { value: 'nth', label: '指定序号' }]} /></Form.Item><Form.Item hidden={!usesLocator(index) || caseSteps[index]?.match !== 'nth'} name={[field.name, 'index']}><Input type="number" min={0} placeholder="序号(从0开始)" /></Form.Item><Form.Item hidden={!usesLocator(index) || !['role', 'text', 'label', 'placeholder', 'alt', 'title'].includes(caseSteps[index]?.locator_type)} name={[field.name, 'exact']} valuePropName="checked"><Checkbox>精确匹配</Checkbox></Form.Item><Space><Button size="small" disabled={index === 0} onClick={() => move(index, index - 1)}>↑</Button><Button size="small" disabled={index === fields.length - 1} onClick={() => move(index, index + 1)}>↓</Button><Button danger size="small" onClick={() => remove(field.name)}>删</Button></Space></div>)}
         </div>}</Form.List>
       </Form>
+      {editingCase && <Button danger disabled={caseBusy} icon={<DeleteOutlined />} onClick={() => removeCase(editingCase)}>删除此用例</Button>}
     </Modal>
 
     <Drawer title="新增自然语言测试需求" open={requirementOpen} onClose={() => setRequirementOpen(false)} size={520} extra={<Button type="primary" onClick={saveRequirement}>保存草稿</Button>}>
       <Alert type="warning" showIcon title="首版不会自动生成脚本" description="先记录你想测什么，再进入可视化步骤编辑器补充动作和断言，确认启用后才会加入回归。" />
-      <Form form={requirementForm} layout="vertical" style={{ marginTop: 20 }}><Form.Item name="feature_id" label="所属功能"><Select allowClear options={data.features.map((x) => ({ value: x.id, label: x.name }))} /></Form.Item><Form.Item name="content" label="请用自然语言描述测试需求" rules={[{ required: true, min: 2 }]}><Input.TextArea rows={10} placeholder="例如：使用账号 A 登录，进入发帖页发布一条带 [AUTO] 标记的文字动态，并检查首页能看到它。" /></Form.Item></Form>
+      <Form name="ui-auto-requirement" form={requirementForm} layout="vertical" style={{ marginTop: 20 }}><Form.Item name="feature_id" label="所属功能"><Select allowClear options={data.features.map((x) => ({ value: x.id, label: x.name }))} /></Form.Item><Form.Item name="content" label="请用自然语言描述测试需求" rules={[{ required: true, min: 2 }]}><Input.TextArea rows={10} placeholder="例如：使用账号 A 登录，进入发帖页发布一条带 [AUTO] 标记的文字动态，并检查首页能看到它。" /></Form.Item></Form>
       {data.requirements.length > 0 && <><Title level={5}>最近草稿</Title><Timeline items={data.requirements.slice(0, 8).map((x) => ({ content: x.content }))} /></>}
     </Drawer>
   </main>;

@@ -1,3 +1,4 @@
+import { copyText } from '../../shared/clipboard.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Avatar, Button, Card, DatePicker, Descriptions, Form, Input, List, Select, Space, Spin, Tag, Typography, Upload, message } from 'antd';
 import { ArrowLeftOutlined, CheckOutlined, ClockCircleOutlined, CopyOutlined, EditOutlined, FileTextOutlined, HomeOutlined, LogoutOutlined, PlusOutlined, SendOutlined, UploadOutlined, UserOutlined, CloseOutlined } from '@ant-design/icons';
@@ -71,7 +72,7 @@ export function FamilyOaWebPage({ embedded = false }) {
   async function uploadAvatar({ file, onSuccess, onError }) {
     try { const body = new FormData(); body.append('file', file); const data = await client.post('/oa/profile/avatar', body); setProfile((current) => ({ ...current, avatar_url: data.avatar_url })); onSuccess?.(data); message.success('头像已更新'); } catch (error) { onError?.(error); message.error(error.message); }
   }
-  function copyLink() { navigator.clipboard?.writeText(`${window.location.origin}/family-oa`).then(() => message.success('网页链接已复制')).catch(() => message.info('请复制浏览器地址栏中的链接')); }
+  async function copyLink() { if (await copyText(`${window.location.origin}/family-oa`)) message.success('网页链接已复制'); else message.info('请复制浏览器地址栏中的链接'); }
 
   if (!session?.access_token) return <main className="family-oa-page family-oa-login"><Card className="family-oa-login-card"><div className="family-oa-brand"><span>♡</span><div><Title level={2}>莓好审批</Title><Text>把每一份小小的心意，轻轻送达。</Text></div></div><Alert type="info" showIcon message="网页版使用账号密码登录；微信一键登录请使用小程序。" style={{ marginBottom: 18 }} /><Form form={loginForm} layout="vertical" onFinish={login}><Form.Item name="username" label="账号" rules={[{ required: true, message: '请输入账号' }]}><Input size="large" placeholder="输入小程序账号" /></Form.Item><Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }]}><Input.Password size="large" placeholder="输入密码" /></Form.Item><Button htmlType="submit" type="primary" size="large" block loading={loading}>登录莓好审批</Button></Form></Card></main>;
 

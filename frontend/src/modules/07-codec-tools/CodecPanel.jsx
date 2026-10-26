@@ -1,3 +1,4 @@
+import { copyText } from '../../shared/clipboard.js';
 // File purpose: Codec tools page. Convert text locally without sending content to the backend.
 // How to change: edit UI text/layout in this file; move reusable logic into shared helpers or the module feature file.
 
@@ -44,7 +45,7 @@ export function CodecPanel() {
 
   // Copy text to the clipboard and show feedback.
   function copy(text) {
-    navigator.clipboard.writeText(text).then(() => message.success('已复制')).catch(() => message.warning('复制失败，请手动复制'));
+    copyText(text).then(ok => ok ? message.success('已复制') : message.warning('复制失败，请手动复制'));
   }
 
   // Swap input and output values in the codec tool.
