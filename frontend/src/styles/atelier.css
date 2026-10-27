@@ -1,5 +1,5 @@
 /* Cling / Everyday atelier. Shared visual language; business layouts keep their own sizing. */
-.atelier-welcome.atelier-welcome--compact { display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:0; padding:24px 28px; margin-bottom:24px; border:1px solid var(--atelier-line); background:#fff; }
+.atelier-welcome.atelier-welcome--compact { display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:0; padding:24px 28px; margin-bottom:24px; border:1px solid var(--atelier-line); background:#f7f7f1; }
 .atelier-welcome.atelier-welcome--compact h1 { margin:0 0 8px; font-size:26px; line-height:1.4; color:var(--atelier-ink); }
 .atelier-welcome--compact p { margin:0; color:var(--atelier-muted); font-size:14px; }
 .atelier-welcome--compact .atelier-welcome-actions { margin:0; }
@@ -10,22 +10,22 @@
 @media(max-width:767px){.atelier-welcome.atelier-welcome--compact{align-items:flex-start;flex-direction:column;padding:20px}.atelier-welcome--compact h1{font-size:22px}.atelier-welcome--compact .atelier-welcome-actions{width:100%;flex-wrap:wrap}.atelier-home .atelier-space{padding:18px 14px}}
 .atelier-native-stack { display: flex; flex-direction: column; gap: 24px; }
 .atelier-native-login { font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif; }
-.atelier-login-description { margin: 0; font-size: 14px; line-height: 1.8; color: #3f749a; }
-.atelier-field { display: block; margin-bottom: 10px; color: #3d7094; font-size: 14px; }
-.atelier-native-login input:not([type="checkbox"]) { box-sizing: border-box; display: block; width: 100%; min-width: 0; height: 48px; padding: 10px 12px; border: 1px solid #5d94bb; border-radius: 9px; background: #ffffff; color: #20384b; font: inherit; font-size: 16px; }
+.atelier-login-description { margin: 0; font-size: 14px; line-height: 1.8; color: #606c61; }
+.atelier-field { display: block; margin-bottom: 10px; color: #606c61; font-size: 14px; }
+.atelier-native-login input:not([type="checkbox"]) { box-sizing: border-box; display: block; width: 100%; min-width: 0; height: 48px; padding: 10px 12px; border: 1px solid #7c897b; border-radius: 9px; background: #f7f7f1; color: #303a32; font: inherit; font-size: 16px; }
 .atelier-field > input { margin-top: 10px; margin-bottom: 22px; }
 .atelier-password-field { position: relative; margin-bottom: 16px; }
 .atelier-native-login .atelier-password-field input { padding-right: 48px; }
-.atelier-password-toggle { position: absolute; right: 4px; top: 4px; display: inline-flex; justify-content: center; align-items: center; height: 40px; width: 40px; border: 0; border-radius: 6px; color: #3d7094; background: transparent; cursor: pointer; }
-.atelier-remember { display: flex; gap: 9px; align-items: center; min-height: 44px; margin: 0 0 16px; font-size: 12px; color: #3d7094; cursor: pointer; }
-.atelier-remember input { accent-color: #0877c9; width: 17px; height: 17px; flex-shrink: 0; margin: 0; }
-.atelier-login-submit { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 12px 19px; border: 1px solid #0877c9; border-radius: 9px; font: inherit; font-size: 14px; font-weight: 600; color: #fff; background: #0877c9; cursor: pointer; box-shadow: 0 3px 7px #335e7d12; }
-.atelier-login-submit:hover:not(:disabled) { background: #0666ae; }
+.atelier-password-toggle { position: absolute; right: 4px; top: 4px; display: inline-flex; justify-content: center; align-items: center; height: 40px; width: 40px; border: 0; border-radius: 6px; color: #606c61; background: transparent; cursor: pointer; }
+.atelier-remember { display: flex; gap: 9px; align-items: center; min-height: 44px; margin: 0 0 16px; font-size: 12px; color: #606c61; cursor: pointer; }
+.atelier-remember input { accent-color: #526b56; width: 17px; height: 17px; flex-shrink: 0; margin: 0; }
+.atelier-login-submit { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 12px 19px; border: 1px solid #526b56; border-radius: 9px; font: inherit; font-size: 14px; font-weight: 600; color: #fff; background: #526b56; cursor: pointer; box-shadow: 0 3px 7px #71836d12; }
+.atelier-login-submit:hover:not(:disabled) { background: #405744; }
 .atelier-login-submit:disabled { cursor: wait; opacity: .7; }
 .atelier-login-error,.atelier-login-notice { margin: 0; padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.7; }
 .atelier-login-error { color: #9b2525; background: #fff0ee; border: 1px solid #d89993; }
 .atelier-login-notice { color: #745214; background: #fff7df; border: 1px solid #c9af67; }
-.atelier-entry-error { max-width: 560px; margin: 15vh auto; padding: 24px; color: #2a4e68; font-family: system-ui,sans-serif; }
+.atelier-entry-error { max-width: 560px; margin: 15vh auto; padding: 24px; color: #303a32; font-family: system-ui,sans-serif; }
 .atelier-entry-error button { min-height: 44px; margin-right: 12px; padding: 8px 16px; cursor: pointer; }
 .atelier-login .atelier-login-narrative .atelier-eyebrow,
 .login-screen.atelier-login .login-brand .atelier-eyebrow,
@@ -45,19 +45,19 @@
   align-items: center;
   gap: 16px;
   padding: 10px 14px;
-  border: 1px solid #c6e2f6;
+  border: 1px solid #d2d8cc;
   border-radius: 10px;
   background: #fffefa;
-  color: #3d7094;
+  color: #606c61;
   font-size: 13px;
 }
 .atelier-login-update button {
   min-height: 40px;
-  border: 1px solid #5d94bb;
+  border: 1px solid #7c897b;
   border-radius: 7px;
   padding: 7px 12px;
-  background: #f2f8fd;
-  color: #3d7094;
+  background: #ecefe6;
+  color: #606c61;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -71,7 +71,7 @@
   margin: -5px -3px -5px 0;
 }
 .atelier-login-story .atelier-eyebrow,
-.atelier-login-story .atelier-login-narrative p { color: #3d7094; }
+.atelier-login-story .atelier-login-narrative p { color: #606c61; }
 :root {
   --atelier-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -87,7 +87,7 @@ body {
   min-width: 0;
 }
 .toolbox-sider {
-  background: #ffffff !important;
+  background: #e7ebe2 !important;
   backdrop-filter: none;
 }
 .atelier-brand {
@@ -177,11 +177,11 @@ body {
 }
 .toolbox-sider .sider-footer {
   padding: 12px 22px 20px;
-  background: #ffffff;
+  background: #e7ebe2;
 }
 .toolbox-sider .sider-status {
   border-top: 1px solid #ffffff18;
-  color: #4d7694;
+  color: #606c61;
   justify-content: flex-start;
   font-size: 11px;
   padding-top: 18px;
@@ -203,7 +203,7 @@ body {
   height: 80px;
   padding: 0 36px !important;
   background: #f8f7f4ed !important;
-  border-bottom: 1px solid #dbecf9;
+  border-bottom: 1px solid #d2d8cc;
   backdrop-filter: blur(16px);
   box-shadow: none;
   gap: 16px;
@@ -213,14 +213,14 @@ body {
   min-width: 0;
 }
 .collapse-button {
-  color: #40779e;
+  color: #606c61;
   font-size: 16px;
 }
 .atelier-breadcrumb {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #41779e;
+  color: #606c61;
   font-size: 12px;
   white-space: nowrap;
   min-width: 0;
@@ -229,13 +229,13 @@ body {
   border: 0;
   background: none;
   padding: 4px 0;
-  color: #41779e;
+  color: #606c61;
   cursor: pointer;
   font-size: 12px;
 }
 .atelier-breadcrumb strong {
   font-weight: 550;
-  color: #2d536e;
+  color: #606c61;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -243,30 +243,30 @@ body {
   display: flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid #dbecf9;
+  border: 1px solid #d2d8cc;
   background: #fffefa;
   border-radius: 8px;
   padding: 8px 11px;
-  color: #40769d;
+  color: #606c61;
   cursor: pointer;
   font-size: 12px;
   transition: border-color 0.18s;
 }
 .atelier-search-trigger:hover {
-  border-color: #72a3c6;
-  color: #305875;
+  border-color: #9ba694;
+  color: #606c61;
 }
 .atelier-search-trigger kbd {
-  border-left: 1px solid #dcedf9;
+  border-left: 1px solid #d2d8cc;
   padding-left: 10px;
   margin-left: 22px;
   font-size: 10px;
-  color: #40769d;
+  color: #606c61;
 }
 .toolbox-header .header-chip {
   background: transparent;
   font-size: 11px;
-  color: #41779d;
+  color: #606c61;
   white-space: nowrap;
 }
 .toolbox-header .connection-offline {
@@ -282,8 +282,8 @@ body {
   font-size: 12px;
 }
 .user-button .ant-avatar {
-  background: #e1effa;
-  color: #40779e;
+  background: #ecefe6;
+  color: #606c61;
 }
 .user-button .ant-avatar svg {
   display: inline-block;
@@ -300,14 +300,14 @@ body {
   font-weight: 550;
   letter-spacing: 0.16em;
   line-height: 1.6;
-  color: #41779f;
+  color: #606c61;
 }
 .atelier-eyebrow > i {
   width: 3px;
   height: 3px;
   flex: 0 0 3px;
   border-radius: 50%;
-  background: #77a6c8;
+  background: #d2dacb;
 }
 .atelier-module-intro {
   display: flex;
@@ -323,7 +323,7 @@ body {
   letter-spacing: -0.045em;
   line-height: 1.3;
   margin: 11px 0 10px;
-  color: #1f394b;
+  color: #303a32;
 }
 .atelier-module-intro p {
   font-size: 13px;
@@ -337,9 +337,9 @@ body {
   width: 62px;
   height: 62px;
   flex-shrink: 0;
-  border: 1px solid #cbe4f7;
-  background: #ebf5fc;
-  color: #41779d;
+  border: 1px solid #d2d8cc;
+  background: #ecefe6;
+  color: #606c61;
   border-radius: 18px;
   transform: rotate(-7deg);
 }
@@ -347,10 +347,10 @@ body {
   transform: rotate(7deg);
 }
 .atelier-tone-violet {
-  --space-accent: #3e7297;
-  --space-soft: #ecf5fc;
-  --space-border: #d2e8f8;
-  --space-hover: #e2f0fa;
+  --space-accent: #405744;
+  --space-soft: #e4e8de;
+  --space-border: #cdd5c7;
+  --space-hover: #dae2d2;
 }
 .atelier-tone-sage {
   --space-accent: #4b6652;
@@ -365,10 +365,10 @@ body {
   --space-hover: #f2e1d3;
 }
 .atelier-tone-blue {
-  --space-accent: #4d6575;
-  --space-soft: #e8eef0;
-  --space-border: #d8e2e7;
-  --space-hover: #dfe9ed;
+  --space-accent: #4a5850;
+  --space-soft: #e8eae2;
+  --space-border: #d0d6ca;
+  --space-hover: #dfe3d7;
 }
 .atelier-module-intro .atelier-module-seal {
   color: var(--space-accent);
@@ -376,32 +376,32 @@ body {
   background: var(--space-soft);
 }
 .toolbox-layout .toolbox-content .ant-card {
-  background: #ffffff;
-  box-shadow: 0 3px 14px #23405403;
-  border-color: #dcedf9;
+  background: #f7f7f1;
+  box-shadow: 0 3px 14px #71836d03;
+  border-color: #d2d8cc;
   border-radius: 16px;
   backdrop-filter: none;
 }
 .toolbox-layout .toolbox-content .ant-card-head {
   min-height: 62px;
-  border-bottom: 1px solid #ebf5fc;
+  border-bottom: 1px solid #d2d8cc;
   padding-inline: 24px;
 }
 .toolbox-content .ant-card-head-title {
   font-size: 15px;
-  color: #2a4d66;
+  color: #303a32;
   font-weight: 600;
   letter-spacing: -0.015em;
 }
 .toolbox-layout .ant-btn-primary {
-  background: #0877c9;
-  box-shadow: 0 2px 3px #345f7e12;
-  border-color: #0877c9;
+  background: #526b56;
+  box-shadow: 0 2px 3px #71836d12;
+  border-color: #526b56;
 }
 .toolbox-layout .ant-btn-primary:not(:disabled):hover {
-  background: #3c6f94;
-  border-color: #3c6f94;
-  box-shadow: 0 4px 10px #345f7e1c;
+  background: #526b56;
+  border-color: #71836d;
+  box-shadow: 0 4px 10px #71836d1c;
 }
 .toolbox-layout .ant-btn {
   font-weight: 500;
@@ -411,14 +411,14 @@ body {
     box-shadow 0.18s;
 }
 .toolbox-layout .ant-btn-default {
-  border-color: #d7ebf9;
-  background: #ffffff;
-  color: #346080;
+  border-color: #d2d8cc;
+  background: #f7f7f1;
+  color: #606c61;
 }
 .toolbox-layout .ant-btn-default:hover {
-  border-color: #7aa8c8;
-  color: #3a6b8e;
-  background: #f8fcfe;
+  border-color: #9ba694;
+  color: #606c61;
+  background: #ecefe6;
 }
 .toolbox-layout .ant-btn-dangerous:not(.ant-btn-primary) {
   color: #b5465f;
@@ -428,36 +428,36 @@ body {
 .toolbox-layout .ant-form-item-label > label {
   font-size: 13px;
   font-weight: 550;
-  color: #335e7c;
+  color: #606c61;
 }
 .toolbox-layout .ant-input,
 .toolbox-layout .ant-input-affix-wrapper,
 .toolbox-layout .ant-input-number,
 .toolbox-layout .ant-select-selector {
-  border-color: #5d94bb !important;
-  background: #ffffff;
+  border-color: #7c897b !important;
+  background: #f7f7f1;
 }
 .toolbox-layout .ant-input:focus,
 .toolbox-layout .ant-input-affix-wrapper-focused,
 .toolbox-layout .ant-input-number-focused {
-  border-color: #6ea0c4 !important;
-  box-shadow: 0 0 0 3px #75a4c612 !important;
+  border-color: #9ba694 !important;
+  box-shadow: 0 0 0 3px #9ba69412 !important;
 }
 .toolbox-layout .ant-table-wrapper .ant-table {
   border: 0;
   border-radius: 9px;
 }
 .toolbox-layout .ant-table-wrapper .ant-table-thead > tr > th {
-  background: #f8fbfe;
-  color: #41779e;
+  background: #ecefe6;
+  color: #606c61;
   font-weight: 550;
   font-size: 12px;
   padding-block: 13px;
-  border-bottom-color: #e2f0fa;
+  border-bottom-color: #d2d8cc;
 }
 .toolbox-layout .ant-table-wrapper .ant-table-tbody > tr > td {
   font-size: 13px;
-  border-bottom-color: #eef6fc;
+  border-bottom-color: #d2d8cc;
   padding-block: 15px;
 }
 .toolbox-layout .ant-tag {
@@ -469,7 +469,7 @@ body {
   font-size: 13px;
 }
 .toolbox-layout :is(button, a, input, textarea, [tabindex]):focus-visible {
-  outline: 3px solid #a0bbce;
+  outline: 3px solid #9ba694;
   outline-offset: 3px;
 }
 .toolbox-layout .ant-empty-description {
@@ -488,9 +488,9 @@ body {
   margin-bottom: 18px;
 }
 .atelier-content--data_generator .generator-meta span {
-  background: #f7fbfe;
-  color: #41779e;
-  border: 1px solid #e0effa;
+  background: #ecefe6;
+  color: #606c61;
+  border: 1px solid #d2d8cc;
   font-size: 11px;
 }
 .atelier-content--data_generator
@@ -499,10 +499,10 @@ body {
   border-radius: 7px;
 }
 .atelier-content--data_generator .empty-result {
-  color: #40779e;
+  color: #606c61;
 }
 .atelier-content--data_generator .mode-notes span {
-  color: #40779d;
+  color: #606c61;
   font-size: 12px;
   line-height: 1.7;
 }
@@ -512,11 +512,11 @@ body {
   margin-bottom: 18px;
 }
 .atelier-content--api_workspace .quick-grid .ant-card {
-  background: #f3f9fd;
+  background: #ecefe6;
 }
 .atelier-content--api_workspace .quick-url {
   font-size: 12px;
-  color: #40769d;
+  color: #606c61;
 }
 .atelier-content--json_tools .tool-hero,
 .atelier-content--codec .tool-hero {
@@ -526,8 +526,8 @@ body {
   padding: 16px 20px;
   min-height: 0;
   border-radius: 12px;
-  background: #edf6fc;
-  border: 1px solid #d6eaf8;
+  background: #ecefe6;
+  border: 1px solid #d2d8cc;
   margin-bottom: 20px;
 }
 .atelier-content--self_study .exam-hero h1,
@@ -537,22 +537,22 @@ body {
 }
 .atelier-content--self_study .exam-hero p {
   margin: 0;
-  color: #41779e;
+  color: #606c61;
   font-size: 13px;
 }
 .atelier-content--self_study .exam-card {
-  background: #ffffff;
-  border-color: #d9ecf9;
+  background: #f7f7f1;
+  border-color: #d2d8cc;
   box-shadow: none;
   border-radius: 16px;
 }
 .atelier-content--self_study .exam-stats {
-  background: #f8fcfe;
-  border-color: #e6f2fb;
+  background: #ecefe6;
+  border-color: #d2d8cc;
 }
 .atelier-content--self_study .exam-prompt {
   font-size: 21px;
-  color: #244257;
+  color: #303a32;
   line-height: 1.8;
 }
 .atelier-content--circle_stats .feature-hero {
@@ -563,11 +563,11 @@ body {
 }
 .toolbox-content .ui-auto-page {
   background: transparent;
-  color: #26475e;
+  color: #303a32;
 }
 .toolbox-content .ui-auto-command {
-  background: #ffffff;
-  border-color: #d9ecf9;
+  background: #f7f7f1;
+  border-color: #d2d8cc;
   border-radius: 14px;
   margin-inline: 0;
   padding: 20px;
@@ -577,56 +577,56 @@ body {
   padding-inline: 0;
 }
 .toolbox-content .ui-auto-page .ui-auto-left {
-  background: #ffffff;
-  border: 1px solid #d9ecf9;
+  background: #f7f7f1;
+  border: 1px solid #d2d8cc;
   border-radius: 14px;
 }
 .toolbox-content .ui-auto-case.selected {
-  background: #f3f9fd;
-  border-color: #dbecf9;
+  background: #ecefe6;
+  border-color: #d2d8cc;
 }
 .toolbox-content .ui-auto-feature-head {
-  color: #41779d;
+  color: #606c61;
   font-size: 12px;
 }
 .toolbox-content .ui-auto-case > button > span {
-  color: #2d536f;
+  color: #606c61;
   font-size: 13px;
 }
 .toolbox-content .ui-auto-report {
-  background: #f6fafe;
-  border: 1px solid #d9ecf9;
+  background: #ecefe6;
+  border: 1px solid #d2d8cc;
   border-radius: 10px;
 }
 .toolbox-content .ui-auto-screen {
-  background: #f0f7fd;
-  border: 1px solid #e2f0fa;
+  background: #ecefe6;
+  border: 1px solid #d2d8cc;
   border-radius: 10px;
 }
 .toolbox-content .ui-auto-report__meta {
-  color: #40779e;
+  color: #606c61;
 }
 .toolbox-content .work-journal {
-  --wj-primary: #4681ab;
-  --wj-ink: #244257;
-  --wj-muted: #4b89b5;
-  --wj-line: #dcedf9;
-  --wj-soft: #f8fcfe;
-  --wj-surface: #ffffff;
+  --wj-primary: var(--atelier-accent);
+  --wj-ink: #303a32;
+  --wj-muted: #606c61;
+  --wj-line: #d2d8cc;
+  --wj-soft: #d2d8cc;
+  --wj-surface: #f7f7f1;
 }
 .toolbox-content .work-journal__card {
   box-shadow: none;
   border-radius: 14px;
 }
 .toolbox-content .work-journal__side {
-  background: #f1f8fd;
-  border-color: #dcedf9;
+  background: #ecefe6;
+  border-color: #d2d8cc;
 }
 .toolbox-content .image-tool-preview-frame {
-  background: #f2f8fd;
+  background: #ecefe6;
 }
 .toolbox-content .json-help-code {
-  background: #1f394b;
+  background: #526b56;
   color: #d5e9f8;
   border-radius: 10px;
 }
@@ -637,9 +637,9 @@ body {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
   min-height: 383px;
-  border: 1px solid #d3e8f8;
+  border: 1px solid #d2d8cc;
   border-radius: 22px;
-  background: linear-gradient(115deg, #f0f7fd 0%, #f5fafd 51%, #f3efe9 100%);
+  background: linear-gradient(115deg, #ecefe6 0%, #ecefe6 51%, #f3efe9 100%);
   position: relative;
   overflow: hidden;
 }
@@ -650,7 +650,7 @@ body {
 }
 .atelier-welcome-copy .atelier-eyebrow {
   font-size: 9px;
-  color: #40779d;
+  color: #606c61;
   letter-spacing: 0.16em;
 }
 .atelier-greeting {
@@ -658,11 +658,11 @@ body {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: #40779e;
+  color: #606c61;
   margin: 24px 0 12px;
 }
 .atelier-greeting > span {
-  color: #40769d;
+  color: #606c61;
   font-size: 17px;
 }
 .atelier-welcome h1 {
@@ -671,14 +671,14 @@ body {
   letter-spacing: -0.055em;
   font-weight: 500;
   margin: 0 0 17px;
-  color: #26475e;
+  color: #303a32;
 }
 .atelier-welcome h1 > span {
-  color: #41779d;
+  color: #606c61;
 }
 .atelier-welcome-note {
   line-height: 1.95;
-  color: #40769d;
+  color: #606c61;
   margin: 0;
 }
 .atelier-welcome-actions {
@@ -704,13 +704,13 @@ body {
     box-shadow 0.18s;
 }
 .atelier-button-primary {
-  background: #4580aa;
+  background: #526b56;
   color: #fff;
-  box-shadow: 0 3px 7px #3d709412;
+  box-shadow: 0 3px 7px #71836d12;
 }
 .atelier-button-primary:hover {
-  background: #3b6d90;
-  box-shadow: 0 5px 12px #3d709422;
+  background: #526b56;
+  box-shadow: 0 5px 12px #71836d22;
   transform: translateY(-1px);
 }
 .atelier-text-button {
@@ -724,7 +724,7 @@ body {
   cursor: pointer;
 }
 .atelier-text-button:hover {
-  color: #27475e;
+  color: #303a32;
 }
 .atelier-welcome-art {
   display: flex;
@@ -744,13 +744,13 @@ body {
 .atelier-date > span {
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: #40769c;
+  color: #606c61;
   display: block;
 }
 .atelier-date time {
   display: block;
   font-size: 11px;
-  color: #41769d;
+  color: #606c61;
   margin-top: 5px;
   font-variant-numeric: tabular-nums;
 }
@@ -766,14 +766,14 @@ body {
 .atelier-art-caption {
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: #4077a0;
+  color: #606c61;
   display: flex;
   gap: 9px;
   align-items: center;
 }
 .atelier-art-caption > span {
   font-size: 16px;
-  color: #4c7592;
+  color: #606c61;
 }
 .atelier-section-heading {
   display: flex;
@@ -786,14 +786,14 @@ body {
   font-size: 19px;
   font-weight: 550;
   letter-spacing: -0.035em;
-  color: #294b64;
+  color: #303a32;
   line-height: 1.5;
   margin: 7px 0 0;
 }
 .atelier-section-heading .atelier-eyebrow {
   font-size: 9px;
   letter-spacing: 0.15em;
-  color: #40779f;
+  color: #606c61;
 }
 .atelier-count {
   line-height: 2.3;
@@ -814,7 +814,7 @@ body {
     box-shadow 0.2s;
 }
 .atelier-space:hover {
-  box-shadow: 0 7px 24px #30587508;
+  box-shadow: 0 7px 24px #71836d08;
 }
 .atelier-space-top {
   display: flex;
@@ -843,14 +843,14 @@ body {
   flex-shrink: 0;
   margin-left: auto;
   color: var(--space-accent);
-  background: #ffffff50;
+  background: #f7f7f150;
   cursor: pointer;
   transition:
     background 0.2s,
     transform 0.2s;
 }
 .atelier-circle-button:hover {
-  background: #fff;
+  background: #f7f7f1;
   transform: rotate(8deg);
 }
 .atelier-space h3 {
@@ -917,7 +917,7 @@ body {
   margin-top: 0;
 }
 .atelier-recent > .atelier-section-heading > svg {
-  color: #40779e;
+  color: #606c61;
 }
 .atelier-recent-grid {
   display: grid;
@@ -929,13 +929,13 @@ body {
   align-items: center;
   gap: 13px;
   min-width: 0;
-  background: #ffffff;
-  border: 1px solid #d9ecf9;
+  background: #f7f7f1;
+  border: 1px solid #d2d8cc;
   border-radius: 12px;
   padding: 18px;
   text-align: left;
   cursor: pointer;
-  color: #40779e;
+  color: #606c61;
   transition:
     background 0.18s,
     border-color 0.18s;
@@ -948,7 +948,7 @@ body {
   display: block;
   font-size: 12px;
   font-weight: 550;
-  color: #376585;
+  color: #606c61;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -956,18 +956,18 @@ body {
 .atelier-recent-grid small {
   display: block;
   font-size: 10px;
-  color: #40779f;
+  color: #606c61;
   margin-top: 6px;
 }
 .atelier-recent-grid > button:hover {
-  border-color: #a2bccf;
-  background: #f8fcfe;
+  border-color: #9ba694;
+  background: #ecefe6;
 }
 .atelier-recent-icon {
   display: grid;
   place-items: center;
-  border: 1px solid #e2f0fa;
-  background: #f7fbfe;
+  border: 1px solid #d2d8cc;
+  background: #ecefe6;
   border-radius: 10px;
   width: 37px;
   height: 37px;
@@ -978,10 +978,10 @@ body {
   align-items: center;
   gap: 19px;
   background: #f1edea;
-  border: 1px dashed #cce5f7;
+  border: 1px dashed #d2d8cc;
   border-radius: 12px;
   padding: 25px;
-  color: #4c7694;
+  color: #606c61;
 }
 .atelier-recent-empty .atelier-mark {
   width: 32px;
@@ -996,7 +996,7 @@ body {
 .atelier-recent-empty p {
   font-size: 11px;
   line-height: 1.8;
-  color: #41769d;
+  color: #606c61;
   margin: 7px 0 0;
 }
 .atelier-home-footer {
@@ -1006,7 +1006,7 @@ body {
   gap: 16px;
   margin-top: 30px;
   padding-top: 19px;
-  border-top: 1px solid #dcedf9;
+  border-top: 1px solid #d2d8cc;
   letter-spacing: 0.08em;
   flex-wrap: wrap;
 }
@@ -1016,16 +1016,16 @@ body {
 }
 .atelier-home-footer kbd {
   font: inherit;
-  color: #40779d;
+  color: #606c61;
   letter-spacing: 0;
 }
 .atelier-command .ant-modal-container {
   padding: 0 !important;
   overflow: hidden;
-  border: 1px solid #d6eaf8;
+  border: 1px solid #d2d8cc;
   border-radius: 17px !important;
   background: #fffdfa;
-  box-shadow: 0 30px 100px #1b32422b;
+  box-shadow: 0 30px 100px #71836d2b;
 }
 .atelier-sr-only {
   position: absolute;
@@ -1048,8 +1048,8 @@ body {
   align-items: center;
   gap: 13px;
   padding: 23px 22px;
-  border-bottom: 1px solid #e8f3fb;
-  color: #40779d;
+  border-bottom: 1px solid #d2d8cc;
+  color: #606c61;
 }
 .atelier-command-input input {
   border: 0;
@@ -1057,15 +1057,15 @@ body {
   outline: 0 !important;
   min-width: 0;
   flex: 1;
-  color: #284a62;
+  color: #303a32;
   font-size: 15px;
 }
 .atelier-command-input button {
   border: 0;
-  background: #f0f7fd;
+  background: #ecefe6;
   border-radius: 5px;
   padding: 4px 7px;
-  color: #40769d;
+  color: #606c61;
   cursor: pointer;
 }
 .atelier-command-input kbd {
@@ -1075,7 +1075,7 @@ body {
 .atelier-command-label {
   display: flex;
   justify-content: space-between;
-  color: #41779e;
+  color: #606c61;
   font-size: 10px;
   padding: 17px 22px 10px;
 }
@@ -1085,7 +1085,7 @@ body {
   max-height: 360px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #badcf4 transparent;
+  scrollbar-color: #d2d8cc transparent;
 }
 .atelier-command-results > button {
   display: flex;
@@ -1097,12 +1097,12 @@ body {
   border-radius: 9px;
   background: transparent;
   cursor: pointer;
-  color: #4b7694;
+  color: #606c61;
   text-align: left;
 }
 .atelier-command-results > button[aria-selected="true"] {
-  background: #eef7fc;
-  color: #40769d;
+  background: #ecefe6;
+  color: #606c61;
 }
 .atelier-command-results > button > span:nth-child(2) {
   flex: 1;
@@ -1115,26 +1115,26 @@ body {
   display: block;
   font-size: 10px;
   margin-top: 3px;
-  color: #41779e;
+  color: #606c61;
 }
 .atelier-command-icon {
   display: grid;
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 1px solid #e0effa;
+  border: 1px solid #d2d8cc;
   border-radius: 9px;
-  color: #40779d;
-  background: #f8fcfe;
+  color: #606c61;
+  background: #ecefe6;
 }
 .atelier-command-foot {
   display: flex;
   justify-content: space-between;
   gap: 14px;
   padding: 13px 22px;
-  background: #f8fcfe;
-  border-top: 1px solid #e9f4fb;
-  color: #4b7694;
+  background: #ecefe6;
+  border-top: 1px solid #d2d8cc;
+  color: #606c61;
 }
 .atelier-command-foot > span {
   display: flex;
@@ -1143,7 +1143,7 @@ body {
 }
 .atelier-command-empty {
   text-align: center;
-  color: #40769c;
+  color: #606c61;
   padding: 25px 25px 35px;
 }
 .atelier-command-empty > svg {
@@ -1151,7 +1151,7 @@ body {
 }
 .atelier-command-empty strong {
   display: block;
-  color: #40769d;
+  color: #606c61;
   font-size: 14px;
 }
 .atelier-command-empty p {
@@ -1161,18 +1161,18 @@ body {
 .atelier-command-empty button {
   border: 0;
   border-radius: 7px;
-  background: #e8f3fb;
-  color: #41769d;
+  background: #ecefe6;
+  color: #606c61;
   padding: 9px 17px;
   cursor: pointer;
   font-size: 12px;
 }
 .platform-nav .ant-drawer-body {
-  background: #ffffff;
+  background: #e7ebe2;
   padding: 0 !important;
 }
 .platform-nav .ant-drawer-header {
-  background: #ffffff;
+  background: #e7ebe2;
   color: #dcedf9;
 }
 .platform-nav .ant-drawer-title,
@@ -1186,7 +1186,7 @@ body {
   padding: 12px 24px;
 }
 .platform-nav .sider-status {
-  color: #4b7694;
+  color: #606c61;
   border-top-color: #ffffff1c;
   justify-content: flex-start;
 }
@@ -1619,7 +1619,7 @@ body {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   min-height: 100svh;
   padding: 22px;
-  background: #f6fbff;
+  background: #eeeee6;
   gap: 0;
 }
 .atelier-login-story {
@@ -1627,7 +1627,7 @@ body {
   min-height: calc(100svh - 44px);
   overflow: hidden;
   border-radius: 22px;
-  background: linear-gradient(145deg, #e1effa, #ecf5fc 53%, #eee5dc);
+  background: linear-gradient(145deg, #ecefe6, #ecefe6 53%, #eee5dc);
   padding: 37px 43px;
   display: flex;
   flex-direction: column;
@@ -1636,7 +1636,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #3f749a;
+  color: #606c61;
 }
 .atelier-login-wordmark strong {
   font-size: 31px;
@@ -1660,7 +1660,7 @@ body {
 }
 .atelier-login-narrative .atelier-eyebrow {
   font-size: 9px;
-  color: #41779d;
+  color: #606c61;
   letter-spacing: 0.18em;
 }
 .atelier-login-narrative h1 {
@@ -1668,12 +1668,12 @@ body {
   font-weight: 450;
   letter-spacing: -0.045em;
   line-height: 1.3;
-  color: #325d7b;
+  color: #606c61;
   margin: 25px 0 20px;
 }
 .atelier-login-narrative p {
   line-height: 2;
-  color: #40779d;
+  color: #606c61;
   margin: 0;
 }
 .atelier-login-story > .atelier-orbit {
@@ -1692,7 +1692,7 @@ body {
   justify-content: space-between;
   gap: 15px;
   font-size: 9px;
-  color: #3d7094;
+  color: #606c61;
   letter-spacing: 0.12em;
   margin-top: auto;
   padding-top: 230px;
@@ -1709,7 +1709,7 @@ body {
 .atelier-login-entry-label {
   font-size: 9px;
   letter-spacing: 0.2em;
-  color: #41779f;
+  color: #606c61;
   margin-bottom: 32px;
 }
 .atelier-login .login-card {
@@ -1727,26 +1727,26 @@ body {
   font-size: 27px;
   letter-spacing: -0.045em;
   font-weight: 550;
-  color: #2a4e68;
+  color: #303a32;
   margin: 12px 0 10px;
 }
 .atelier-login .login-brand .ant-typography-secondary {
-  color: #40779d;
+  color: #606c61;
 }
 .atelier-login-entry-foot {
   display: flex;
   flex-direction: column;
   gap: 6px;
   text-align: center;
-  color: #4c7694;
+  color: #606c61;
   line-height: 1.9;
   margin: 32px 0 0;
 }
 .atelier-login-entry-foot > span {
-  color: #4d7694;
+  color: #606c61;
 }
 .atelier-login :is(input, button):focus-visible {
-  outline: 3px solid #a0bbce;
+  outline: 3px solid #9ba694;
   outline-offset: 3px;
 }
 @media (max-width: 1000px) {
@@ -1871,11 +1871,11 @@ body {
   line-height: 1.4;
 }
 .toolbox-menu .ant-menu-item-selected:hover {
-  background: #e8f3fb !important;
-  color: #223f54 !important;
+  background: #ecefe6 !important;
+  color: #303a32 !important;
 }
 .toolbox-menu .ant-menu-item-selected:hover svg {
-  color: #3a6a8d;
+  color: #606c61;
 }
 .atelier-greeting {
   overflow-wrap: anywhere;
@@ -1901,8 +1901,8 @@ body {
   margin-top: -6px;
 }
 .atelier-content .effect-studio__hero {
-  background: #f2f8fd;
-  border: 1px solid #d9ecf9;
+  background: #ecefe6;
+  border: 1px solid #d2d8cc;
   border-radius: 13px;
   padding: 20px 24px;
   min-height: 0;
@@ -1916,17 +1916,17 @@ body {
 }
 .atelier-content .effect-studio__hero p {
   font-size: 13px;
-  color: #40779d;
+  color: #606c61;
   line-height: 1.9;
   margin: 8px 0 0;
 }
 .atelier-content .effect-studio__hero > div > span {
   font-size: 11px;
   letter-spacing: 0.04em;
-  color: #41779f;
+  color: #606c61;
 }
 .atelier-content--jenkins .jenkins-hero {
-  background: #f2f8fd !important;
+  background: #ecefe6 !important;
   box-shadow: none;
 }
 .atelier-content--jenkins .jenkins-hero h2 {
@@ -1934,35 +1934,35 @@ body {
 }
 .atelier-content--jenkins .jenkins-hero p {
   font-size: 13px;
-  color: #40779d;
+  color: #606c61;
   margin-bottom: 0;
 }
 .atelier-eyebrow,
 .atelier-section-heading .atelier-eyebrow,
 .atelier-welcome-copy .atelier-eyebrow,
 .atelier-login-narrative .atelier-eyebrow {
-  color: #40779e;
+  color: #606c61;
 }
 .atelier-breadcrumb,
 .atelier-breadcrumb button,
 .atelier-search-trigger,
 .atelier-search-trigger kbd {
-  color: #40779d;
+  color: #606c61;
 }
 .atelier-space-top > span:nth-child(2) {
   font-size: 9px;
   opacity: 1;
 }
 .atelier-login-narrative h1 span {
-  color: #40769d;
+  color: #606c61;
 }
 .toolbox-layout .ant-empty-description {
-  color: #40779d;
+  color: #606c61;
 }
 .atelier-count,
 .atelier-home-footer,
 .atelier-recent-grid small {
-  color: #40779d;
+  color: #606c61;
 }
 @media (max-width: 767px) {
   .atelier-search-trigger {
@@ -1993,7 +1993,7 @@ body {
 }
 .atelier-welcome-note,
 .atelier-greeting {
-  color: #41779e;
+  color: #606c61;
 }
 .atelier-welcome-note {
   font-size: 13px;
@@ -2010,16 +2010,16 @@ body {
   opacity: 1;
 }
 .atelier-count {
-  color: #40779e;
+  color: #606c61;
   font-size: 11px;
 }
 .atelier-home-footer {
-  color: #41769d;
+  color: #606c61;
   font-size: 10px;
 }
 .atelier-recent-grid small,
 .atelier-recent-empty p {
-  color: #41779e;
+  color: #606c61;
   font-size: 12px;
 }
 .atelier-recent-grid strong,
@@ -2027,27 +2027,27 @@ body {
   font-size: 13px;
 }
 .atelier-recent-empty strong {
-  color: #3f749a;
+  color: #606c61;
 }
 .atelier-module-intro p {
-  color: #41779e;
+  color: #606c61;
 }
 .atelier-date > span,
 .atelier-date time,
 .atelier-art-caption {
-  color: #40779d;
+  color: #606c61;
 }
 .atelier-text-button {
-  color: #3c6f94;
+  color: #606c61;
 }
 .atelier-command-label,
 .atelier-command-results small,
 .atelier-command-foot,
 .atelier-command-empty p {
-  color: #41779e;
+  color: #606c61;
 }
 .atelier-command-results strong {
-  color: #325d7b;
+  color: #606c61;
 }
 .atelier-command-label,
 .atelier-command-results small {
@@ -2060,7 +2060,7 @@ body {
   font-size: 10px;
 }
 .atelier-command-input input::placeholder {
-  color: #41779e;
+  color: #606c61;
 }
 .atelier-login .login-brand .ant-typography-secondary,
 .atelier-login-narrative p,
@@ -2068,7 +2068,7 @@ body {
 .atelier-login-entry-foot,
 .atelier-login-entry-foot > span,
 .atelier-login-entry-label {
-  color: #40779d;
+  color: #606c61;
 }
 .atelier-login .login-brand .ant-typography-secondary {
   font-size: 13px;
@@ -2090,9 +2090,9 @@ body {
 }
 .toolbox-layout .ant-btn:disabled,
 .atelier-login .ant-btn:disabled {
-  background: #f1f8fd !important;
-  border-color: #d9ecf9 !important;
-  color: #41779e !important;
+  background: #ecefe6 !important;
+  border-color: #d2d8cc !important;
+  color: #606c61 !important;
   box-shadow: none !important;
 }
 @media (max-width: 767px) {
@@ -2139,18 +2139,18 @@ body {
   }
 }
 
-/* Daylight blue: bright navigation surfaces, clear text and fresh accent colors. */
-.toolbox-sider { border-right: 1px solid #dceaf3 !important; }
-.atelier-brand { color: #176ca5 !important; }
-.atelier-brand small { color: #587187 !important; }
-.toolbox-menu { color: #3e596e !important; scrollbar-color: #c0d7e7 transparent; }
-.toolbox-menu .ant-menu-item-group-title { color: #5e7485 !important; }
-.toolbox-menu .ant-menu-item { color: #334f65 !important; }
-.toolbox-menu .ant-menu-item svg { color: #4e7591; }
-.toolbox-menu .ant-menu-item:hover { color: #075f9c !important; background: #eff8ff !important; }
-.toolbox-menu .ant-menu-item-selected { color: #075f9c !important; background: #e1f2ff !important; box-shadow: inset 3px 0 #1688d4; }
-.toolbox-menu .ant-menu-item-selected svg { color: #0874c4; }
-.toolbox-sider .sider-status,.platform-nav .sider-status { color: #536d80 !important; border-top-color: #dceaf3 !important; }
-.platform-nav .ant-drawer-title,.platform-nav .ant-drawer-close { color: #264a65 !important; }
-.platform-nav .ant-drawer-header { border-bottom-color: #dceaf3 !important; }
-.toolbox-layout .ui-auto-feature-head .ant-badge-count { background: #0877c9 !important; }
+/* Quiet sage: low-chroma surfaces, neutral text and restrained accents. */
+.toolbox-sider { border-right: 1px solid #d2d8cc !important; }
+.atelier-brand { color: #606c61 !important; }
+.atelier-brand small { color: #606c61 !important; }
+.toolbox-menu { color: #606c61 !important; scrollbar-color: #d2d8cc transparent; }
+.toolbox-menu .ant-menu-item-group-title { color: #606c61 !important; }
+.toolbox-menu .ant-menu-item { color: #303a32 !important; }
+.toolbox-menu .ant-menu-item svg { color: #606c61; }
+.toolbox-menu .ant-menu-item:hover { color: #405744 !important; background: #ecefe6 !important; }
+.toolbox-menu .ant-menu-item-selected { color: #405744 !important; background: #ecefe6 !important; box-shadow: inset 3px 0 #71836d; }
+.toolbox-menu .ant-menu-item-selected svg { color: #526b56; }
+.toolbox-sider .sider-status,.platform-nav .sider-status { color: #606c61 !important; border-top-color: #d2d8cc !important; }
+.platform-nav .ant-drawer-title,.platform-nav .ant-drawer-close { color: #303a32 !important; }
+.platform-nav .ant-drawer-header { border-bottom-color: #d2d8cc !important; }
+.toolbox-layout .ui-auto-feature-head .ant-badge-count { background: #526b56 !important; }

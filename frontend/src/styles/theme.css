@@ -1,8 +1,8 @@
-/* Shared daylight palette and compatibility aliases. */
+/* Quiet sage palette: warm surfaces, neutral text, restrained green accents. */
 :root {
- --atelier-ink:#20384b; --atelier-muted:#3f749a; --atelier-paper:#f6fbff;
- --atelier-line:#dceaf3; --atelier-accent:#0877c9;
- --cling-primary:var(--atelier-accent); --cling-primary-soft:#e1f2ff;
- --cling-peach-soft:#fff3ec; --cling-surface:#fff;
- --cling-border:var(--atelier-line); --cling-shadow:0 8px 24px #20384b0a;
+ --atelier-ink:#303a32; --atelier-muted:#606c61; --atelier-paper:#eeeee6;
+ --atelier-line:#d2d8cc; --atelier-accent:#526b56; --atelier-surface:#f7f7f1;
+ --cling-primary:var(--atelier-accent); --cling-primary-soft:#e0e7d9;
+ --cling-peach-soft:#eee8da; --cling-surface:var(--atelier-surface);
+ --cling-border:var(--atelier-line); --cling-shadow:0 6px 18px #303a3208;
 }

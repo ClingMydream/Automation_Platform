@@ -69,9 +69,9 @@ export function OrbitArtwork({ className = "" }) {
     >
       <defs>
         <radialGradient id={`${id}-orb`} cx=".33" cy=".24" r=".85">
-          <stop stopColor="#fffdf8" />
-          <stop offset=".46" stopColor="#e0effa" />
-          <stop offset="1" stopColor="#9cb8cc" />
+          <stop stopColor="#f7f6ee" />
+          <stop offset=".46" stopColor="#e3e9dc" />
+          <stop offset="1" stopColor="#a3b39b" />
         </radialGradient>
         <linearGradient
           id={`${id}-ring`}
@@ -81,11 +81,11 @@ export function OrbitArtwork({ className = "" }) {
           y2="300"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="#9db8cc" />
+          <stop stopColor="#aab7a0" />
           <stop offset="1" stopColor="#efe9dc" />
         </linearGradient>
       </defs>
-      <path d="M85 266H367M85 301H367" stroke="#c9e4f6" strokeDasharray="2 7" />
+      <path d="M85 266H367M85 301H367" stroke="#d2d8cc" strokeDasharray="2 7" />
       <ellipse
         cx="220"
         cy="174"

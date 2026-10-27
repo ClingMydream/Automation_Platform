@@ -1,7 +1,7 @@
 /* Shared platform refinements. Module-specific canvases and editors own their sizing. */
 .toolbox-content .ant-card { border-color: var(--cling-border); box-shadow: 0 6px 24px rgba(74,58,122,.035); }
 .toolbox-content .ant-form-item-label>label { font-size: 15px; }
-.toolbox-content .ant-table-thead>tr>th { font-size: 13px; color: #51475f; }
+.toolbox-content .ant-table-thead>tr>th { font-size: 13px; color: #606c61; }
 .toolbox-content .ant-table-cell { overflow-wrap: anywhere; }
 .toolbox-content .ant-table-wrapper, .toolbox-content .ant-tabs, .toolbox-content .ant-card, .toolbox-content .ant-space { min-width: 0; }
 .toolbox-content .ant-table-wrapper { overscroll-behavior-x: contain; }
@@ -9,8 +9,8 @@
 .toolbox-content .ant-alert { margin-bottom: 14px; }
 .toolbox-content .ant-alert-message, .toolbox-content .ant-alert-description { overflow-wrap: anywhere; }
 .toolbox-content .ant-btn-dangerous { box-shadow: none; }
-.toolbox-content .ant-btn:focus-visible, .toolbox-menu .ant-menu-item:focus-visible { outline: 3px solid #b8a9eb; outline-offset: 3px; }
-.skip-to-content { position: fixed; inset: 10px auto auto 10px; z-index: 5000; padding: 12px 20px; border-radius: 12px; background: #fff; color: #493681; transform: translateY(-180%); box-shadow: var(--cling-shadow); }
+.toolbox-content .ant-btn:focus-visible, .toolbox-menu .ant-menu-item:focus-visible { outline: 3px solid #9ba694; outline-offset: 3px; }
+.skip-to-content { position: fixed; inset: 10px auto auto 10px; z-index: 5000; padding: 12px 20px; border-radius: 12px; background: #f7f7f1; color: #606c61; transform: translateY(-180%); box-shadow: var(--cling-shadow); }
 .skip-to-content:focus { transform: none; }
 @media(prefers-reduced-motion:reduce) { .toolbox-layout *, .ant-modal *, .ant-drawer * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 @media(max-width:767px) {
