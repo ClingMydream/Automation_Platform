@@ -1,0 +1,38 @@
+[
+  {
+    "label": "正文",
+    "foreground": "#303a32",
+    "background": "#eeeee6",
+    "contrast": 10.13
+  },
+  {
+    "label": "辅助文字",
+    "foreground": "#606c61",
+    "background": "#eeeee6",
+    "contrast": 4.72
+  },
+  {
+    "label": "按钮",
+    "foreground": "#ffffff",
+    "background": "#526b56",
+    "contrast": 5.84
+  },
+  {
+    "label": "输入边界",
+    "foreground": "#7c897b",
+    "background": "#f7f7f1",
+    "contrast": 3.41
+  },
+  {
+    "label": "测试分类",
+    "foreground": "#405744",
+    "background": "#e4e8de",
+    "contrast": 6.34
+  },
+  {
+    "label": "系统分类",
+    "foreground": "#4a5850",
+    "background": "#e8eae2",
+    "contrast": 6.17
+  }
+]
