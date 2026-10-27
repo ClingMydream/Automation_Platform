@@ -76,8 +76,8 @@ export function OrbitArtwork({ className = "" }) {
       <defs>
         <radialGradient id={`${id}-orb`} cx=".33" cy=".24" r=".85">
           <stop stopColor="#fffdf8" />
-          <stop offset=".46" stopColor="#e6deef" />
-          <stop offset="1" stopColor="#a999cf" />
+          <stop offset=".46" stopColor="#e0effa" />
+          <stop offset="1" stopColor="#9cb8cc" />
         </radialGradient>
         <linearGradient
           id={`${id}-ring`}
@@ -87,11 +87,11 @@ export function OrbitArtwork({ className = "" }) {
           y2="300"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="#af9fca" />
+          <stop stopColor="#9db8cc" />
           <stop offset="1" stopColor="#efe9dc" />
         </linearGradient>
       </defs>
-      <path d="M85 266H367M85 301H367" stroke="#dcd4df" strokeDasharray="2 7" />
+      <path d="M85 266H367M85 301H367" stroke="#c9e4f6" strokeDasharray="2 7" />
       <ellipse
         cx="220"
         cy="174"
@@ -107,17 +107,17 @@ export function OrbitArtwork({ className = "" }) {
         rx="133"
         ry="99"
         transform="rotate(42 220 174)"
-        stroke="#d6cbdf"
+        stroke="#c2e0f5"
       />
       <circle cx="220" cy="174" r="79" fill={`url(#${id}-orb)`} />
       <path
         d="M91 247C118 273 202 248 282 194C362 140 393 81 364 64"
-        stroke="#b9a8cd"
+        stroke="#a5bed0"
         strokeWidth="1.5"
       />
       <circle cx="105" cy="238" r="13" fill="#f0c8a8" />
-      <circle cx="339" cy="101" r="6" fill="#7d6b9d" />
-      <path d="M324 228V250M313 239H335" stroke="#8c789f" strokeWidth="1.5" />
+      <circle cx="339" cy="101" r="6" fill="#508db8" />
+      <path d="M324 228V250M313 239H335" stroke="#5b94bc" strokeWidth="1.5" />
       <circle cx="114" cy="100" r="3" fill="#b5c8ba" />
       <path
         d="M206 156C212 166 225 170 238 164"
@@ -129,7 +129,7 @@ export function OrbitArtwork({ className = "" }) {
       <text
         x="91"
         y="324"
-        fill="#7a7182"
+        fill="#4682ad"
         fontFamily="monospace"
         fontSize="9"
         letterSpacing="3"
