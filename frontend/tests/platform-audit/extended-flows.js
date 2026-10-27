@@ -2,19 +2,11 @@ async page => {
  page.setDefaultTimeout(8000);page.setDefaultNavigationTimeout(30000);
  await page.goto('http://127.0.0.1:3104/?module=data_generator',{waitUntil:'domcontentloaded'});
  const suffix=Date.now().toString(),results=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
- const nav=async name=>{await page.getByRole('menuitem',{name,exact:true}).click();await page.waitForTimeout(350);};
+ const nav=async name=>{const group={ 'JSON 工具':['文本工具','JSON 格式化与对比'],'转码工具':['文本工具','编码与解码'],'测试包安装':['Emote 测试环境','安装包'] }[name];await page.getByRole('menuitem',{name:group?group[0]:name,exact:true}).click();if(group)await page.getByRole('tab',{name:group[1],exact:true}).click();await page.waitForTimeout(350);};
  const test=async(name,fn)=>{try{await fn();results.push({name,status:'passed'});}catch(e){results.push({name,status:'failed',reason:e.message.slice(0,1000)});await page.goto('http://127.0.0.1:3104/?module=data_generator',{waitUntil:'domcontentloaded'});}finally{await page.evaluate(v=>sessionStorage.setItem('platform-audit-extended',JSON.stringify(v)),{results,errors});}};
- await test('学习空间：笔记新增、修改、保存、目录折叠和删除',async()=>{
-  await nav('学习空间');await page.getByRole('button',{name:/查看关卡笔记$/}).click();
-  await page.getByRole('button',{name:/新建笔记$/}).click();await page.getByPlaceholder('笔记标题').fill('隔离学习笔记'+suffix);await page.getByPlaceholder('记录你的学习笔记').fill('使用自己的话解释输入、处理与输出，并保留代码示例。');
-  await page.locator('.mastery-note-actions').getByRole('button',{name:/保\s*存$/}).click();await page.getByText('笔记已保存',{exact:true}).waitFor();
-  await page.getByRole('button',{name:/收起目录$/}).click();await page.getByRole('button',{name:/展开目录$/}).click();
-  await page.locator('.mastery-note-actions').getByRole('button',{name:/删\s*除$/}).click();await page.getByRole('dialog').last().getByRole('button',{name:/删\s*除$/}).click();
-  await page.locator('.ant-drawer').getByRole('button',{name:/^Close$|^关闭$/}).click();
- });
  await test('工作手记：日志保存、日报汇总及周报 P/R/O 生成',async()=>{
   const openReport=async(name)=>{const [response]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/v1/work-journal/reports')&&r.request().method()==='POST'),page.getByRole('button',{name}).click()]);if(response.status()===409){const dialog=page.getByRole('dialog').last();await dialog.getByRole('button',{name:/打\s*开$/}).click();await dialog.waitFor({state:'hidden'});}const edit=page.getByRole('button',{name:/重新编辑$/});if(await edit.isVisible()){await edit.click();await page.getByRole('button',{name:/保存草稿$/}).waitFor();}};
-  await nav('工作手记');await page.getByRole('button',{name:/记一笔$/}).click();await page.getByPlaceholder('今天做了什么，一句话说清').fill('隔离工作日志'+suffix);await page.getByPlaceholder('记录具体做了什么、怎么做的').fill('完成平台隔离自测，记录功能检查结果。');await page.getByRole('button',{name:/保存草稿$|保存修改$/}).click();await page.getByText(/已保存/).first().waitFor();
+  await nav('工作手记');await page.getByRole('button',{name:/记一笔$/}).click();await page.getByRole('textbox',{name:'工作事项',exact:true}).fill('隔离工作日志'+suffix+'\n完成平台隔离自测，记录功能检查结果。');await page.getByRole('button',{name:/保存草稿$|保存修改$/}).click();await page.getByText(/已保存/).first().waitFor();
   await openReport(/写日报$/);await page.getByRole('button',{name:/从当日日志整理$/}).click();await page.getByRole('dialog').getByRole('button',{name:/采纳为草稿$|追加到当前内容$/}).click();
   await page.getByRole('button',{name:/保存草稿$|保存修改$/}).click();if(await page.getByRole('button',{name:/^.*完成$/}).count())await page.getByRole('button',{name:/^.*完成$/}).last().click();
   await openReport(/写周报$/);await page.getByRole('button',{name:/根据日报生成周报$/}).click();

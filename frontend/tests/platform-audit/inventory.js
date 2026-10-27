@@ -1,11 +1,11 @@
 async page => {
- const labels=['工作台','Emote UI 自动化','全员圈统计','学习空间','自考题库','命令手册','酒店练习项目','接口工作台','临时效果','在线预览','工作手记','持续集成','数据生成','文件快传','测试包安装','图片工具','JSON 工具','转码工具','莓好审批网页版','集成配置','用户管理','小程序 OA 管理'];
+ const labels=['工作台','Emote UI 自动化','全员圈统计','自考题库','命令手册','接口工作台','临时效果','在线预览','工作手记','持续集成','数据生成','文件快传','测试包安装','图片工具','JSON 工具','转码工具','集成配置','用户管理','小程序 OA 管理'];
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setViewportSize({width:1440,height:1000});
  const results=[];
  for(const label of labels){
   const start=errors.length;
-  await page.getByRole('menuitem',{name:label,exact:true}).click();
+  const keys={'在线预览':'online_preview','持续集成':'jenkins','测试包安装':'test_packages','JSON 工具':'json_tools','转码工具':'codec'};if(keys[label])await page.goto('http://127.0.0.1:3104/?module='+keys[label]);else await page.getByRole('menuitem',{name:label,exact:true}).click();
   await page.waitForTimeout(650);
   const row={label,key:new URL(page.url()).searchParams.get('module'),buttons:await page.locator('#main-content button').allTextContents(),errors:errors.slice(start),layouts:[]};
   for(const width of [1440,1280,768,390,320]){

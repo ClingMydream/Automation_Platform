@@ -24,29 +24,24 @@ const PublicTransferPage = lazy(() => import('./modules/04-file-transfer/PublicT
 const ImageToolPanel = lazy(() => import('./modules/05-image-tools/ImageToolPanel.jsx').then(m => ({ default: m.ImageToolPanel })));
 const DataGeneratorPanel = lazy(() => import('./modules/05-data-generator/DataGeneratorPanel.jsx').then(m => ({ default: m.DataGeneratorPanel })));
 const IntegrationPanel = lazy(() => import('./modules/06-integrations/IntegrationPanel.jsx').then(m => ({ default: m.IntegrationPanel })));
-const JsonToolsPanel = lazy(() => import('./modules/06-json-tools/JsonToolsPanel.jsx').then(m => ({ default: m.JsonToolsPanel })));
-const CodecPanel = lazy(() => import('./modules/07-codec-tools/CodecPanel.jsx').then(m => ({ default: m.CodecPanel })));
-const MasteryLearningPanel = lazy(() => import('./modules/08-learning/MasteryLearningPanel.jsx').then(m => ({ default: m.MasteryLearningPanel })));
 const ApiWorkspacePanel = lazy(() => import('./modules/09-api-workspace/ApiWorkspacePanel.jsx').then(m => ({ default: m.ApiWorkspacePanel })));
-const RestfulBookerPanel = lazy(() => import('./modules/09-api-workspace/RestfulBookerPanel.jsx').then(m => ({ default: m.RestfulBookerPanel })));
 const UserPanel = lazy(() => import('./modules/10-user-management/UserPanel.jsx').then(m => ({ default: m.UserPanel })));
-const TestPackagePanel = lazy(() => import('./modules/11-test-packages/TestPackagePanel.jsx').then(m => ({ default: m.TestPackagePanel })));
 const PublicPackageDownload = lazy(() => import('./modules/11-test-packages/PublicPackageDownload.jsx').then(m => ({ default: m.PublicPackageDownload })));
 const CommandLibraryPanel = lazy(() => import('./modules/12-command-library/CommandLibraryPanel.jsx').then(m => ({ default: m.CommandLibraryPanel })));
 const EffectStudio = lazy(() => import('./modules/13-effects/EffectStudio.jsx').then(m => ({ default: m.EffectStudio })));
 const PublicEffectPage = lazy(() => import('./modules/13-effects/EffectStudio.jsx').then(m => ({ default: m.PublicEffectPage })));
 const HAPPY_ZHAO_PATH = '/effect/xiaozhao-happy';
-const JenkinsPanel = lazy(() => import('./modules/14-jenkins/JenkinsPanel.jsx').then(m => ({ default: m.JenkinsPanel })));
-const OnlinePreviewPanel = lazy(() => import('./modules/15-online-preview/OnlinePreviewPanel.jsx').then(m => ({ default: m.OnlinePreviewPanel })));
 const MobilePreviewPage = lazy(() => import('./modules/15-online-preview/MobilePreviewPage.jsx').then(m => ({ default: m.MobilePreviewPage })));
 const UiAutomationPage = lazy(() => import('./modules/16-ui-automation/UiAutomationPage.jsx').then(m => ({ default: m.UiAutomationPage })));
 const UiAutomationRunViewer = lazy(() => import('./modules/16-ui-automation/UiAutomationRunViewer.jsx').then(m => ({ default: m.UiAutomationRunViewer })));
 const CircleStatsPanel = lazy(() => import('./modules/17-circle-stats/CircleStatsPanel.jsx').then(m => ({ default: m.CircleStatsPanel })));
 const SelfStudyPanel = lazy(() => import('./modules/18-self-study/SelfStudyPanel.jsx').then(m => ({ default: m.SelfStudyPanel })));
 const OaManagementPanel = lazy(() => import('./modules/19-oa-management/OaManagementPanel.jsx').then(m => ({ default: m.OaManagementPanel })));
-const FamilyOaWebPage = lazy(() => import('./modules/19-oa-management/FamilyOaWebPage.jsx').then(m => ({ default: m.FamilyOaWebPage })));
 const WorkJournalPanel = lazy(() => import('./modules/20-work-journal/WorkJournalPanel.jsx').then(m => ({ default: m.WorkJournalPanel })));
 import { apiClient } from './shared/apiClient.js';
+import { authorizedKeys, collapseNavigation, groupKey } from './shared/navigation.js';
+import { EnvironmentPanel } from './shared/EnvironmentPanel.jsx';
+import { TextToolsPanel } from './shared/TextToolsPanel.jsx';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
 import { reloadWhenDeploymentChanges } from './shared/deploymentVersion.js';
 import { BrandMark, WorkspaceIcon } from './shared/WorkspaceIdentity.jsx';
@@ -58,10 +53,8 @@ import { ModuleBoundary, ModuleLoading } from './shared/ModuleBoundary.jsx';
 
 const { Header, Sider, Content } = Layout;
 const { Text, Title } = Typography;
-const HOTEL_PROJECT_PATH = '/hotel-project';
 const UI_AUTOMATION_PATH = '/emote-ui-automation';
 const MOBILE_PREVIEW_PATH = '/emote-mobile-preview';
-const FAMILY_OA_PATH = '/family-oa';
 
 
 const MENU_SECTIONS = [
@@ -82,10 +75,8 @@ const MENU_SECTIONS = [
     key: 'growth',
     label: '个人成长',
     children: [
-      { key: 'learning', label: '学习空间', icon: <WorkspaceIcon name="learning" /> },
       { key: 'self_study', label: '自考题库', icon: <WorkspaceIcon name="self_study" /> },
       { key: 'command_library', label: '命令手册', icon: <WorkspaceIcon name="command_library" /> },
-      { key: 'restful_booker', label: '酒店练习项目', icon: <WorkspaceIcon name="restful_booker" /> },
       { key: 'effects', label: '临时效果', icon: <WorkspaceIcon name="effects" /> },
       { key: 'work_journal', label: '工作手记', icon: <WorkspaceIcon name="work_journal" /> },
     ],
@@ -99,7 +90,6 @@ const MENU_SECTIONS = [
       { key: 'images', label: '图片工具', icon: <WorkspaceIcon name="images" /> },
       { key: 'json_tools', label: 'JSON 工具', icon: <WorkspaceIcon name="json_tools" /> },
       { key: 'codec', label: '转码工具', icon: <WorkspaceIcon name="codec" /> },
-      { key: 'family_oa_web', label: '莓好审批网页版', icon: <WorkspaceIcon name="family_oa_web" /> },
     ],
   },
   {
@@ -117,10 +107,8 @@ const ALL_ITEMS = MENU_SECTIONS.flatMap((section) => section.children);
 
 function menuForUser(user) {
   if (!user) return [];
-  const allowed = new Set(['home', ...(user.is_admin ? ALL_ITEMS.map((item) => item.key) : user.menu_permissions || [])]);
-  return MENU_SECTIONS
-    .map((section) => ({ ...section, type: 'group', children: section.children.filter((item) => allowed.has(item.key) && (!item.adminOnly || user.is_admin)).map(({ adminOnly, ...item }) => item) }))
-    .filter((section) => section.children.length > 0);
+  const allowed = authorizedKeys(user, ALL_ITEMS);
+  return collapseNavigation(MENU_SECTIONS.map(section => ({ ...section, type: 'group', children: section.children.filter(item => allowed.has(item.key)).map(({adminOnly,...item})=>item) })).filter(section=>section.children.length));
 }
 
 function BuiltinEffectGate() {
@@ -137,11 +125,9 @@ function BuiltinEffectGate() {
 
 export default function PlatformApp() {
   const params = new URLSearchParams(window.location.search);
-  const isHotelProject = window.location.pathname === HOTEL_PROJECT_PATH;
   const uiAutomationRunMatch = window.location.pathname.match(/^\/emote-ui-automation\/run\/([^/]+)$/);
   const isPublicEffect = window.location.pathname === HAPPY_ZHAO_PATH;
   const isMobilePreview = window.location.pathname === MOBILE_PREVIEW_PATH;
-  const isFamilyOa = window.location.pathname === FAMILY_OA_PATH;
   const transferToken = params.get('transferToken');
   const testPackage = params.get('testPackage');
   const [token, setToken] = useState(() => sessionStorage.getItem('token') || localStorage.getItem('token'));
@@ -153,7 +139,7 @@ export default function PlatformApp() {
   const [connection, setConnection] = useState('checking');
   const [profileError, setProfileError] = useState('');
   useEffect(() => {
-    if (!isPublicEffect && !transferToken && !testPackage && !isFamilyOa && !isMobilePreview && !uiAutomationRunMatch) {
+    if (!isPublicEffect && !transferToken && !testPackage && !isMobilePreview && !uiAutomationRunMatch) {
       document.title = token ? `${ALL_ITEMS.find(item => item.key === tab)?.label || '工作空间'} · Cling` : '登录 · Cling';
     }
   }, [tab, Boolean(token)]);
@@ -162,7 +148,7 @@ export default function PlatformApp() {
   function openSearch(query='') { setSearchQuery(query);setSearchOpen(true); }
   const workspaceSections = menuForUser(user);
   const workspaceItems = workspaceSections.flatMap(section => section.children.map(item => ({ ...item, sectionLabel: section.label })));
-  const recentModules = useWorkspaceHistory(user?.username,tab,workspaceItems);
+  const recentModules = useWorkspaceHistory(user?.username,groupKey(tab, workspaceItems),workspaceItems);
   useEffect(() => {
     if (!token || !user) return;
     const handle = event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault();setSearchQuery('');setSearchOpen(value => !value); } };
@@ -264,25 +250,16 @@ export default function PlatformApp() {
   if (isPublicEffect) return <BuiltinEffectGate />;
   if (transferToken) return <PublicTransferPage token={transferToken} />;
   if (testPackage === 'latest') return <PublicPackageDownload />;
-  if (isFamilyOa) return <FamilyOaWebPage />;
   if (!token) return <Login notice={loginNotice} onLogin={(value) => { setLoginNotice(''); setToken(value); }} />;
-  if (isHotelProject && (user?.is_admin || user?.menu_permissions?.includes('restful_booker'))) {
-    return <main className="hotel-project-window">
-      <header className="hotel-project-window__header">
-        <div><Text>cling · 独立练习窗口</Text><Title level={3}>🏨 酒店练习项目</Title></div>
-        <Button onClick={() => window.close()}>关闭此窗口</Button>
-      </header>
-      <RestfulBookerPanel client={client} />
-    </main>;
-  }
   if (isMobilePreview && (user?.is_admin || user?.menu_permissions?.includes('online_preview'))) return <MobilePreviewPage />;
   if (uiAutomationRunMatch && (user?.is_admin || user?.menu_permissions?.includes('emote_ui_automation'))) {
     return <UiAutomationRunViewer client={client} runId={uiAutomationRunMatch[1]} />;
   }
 
   const menuItems = menuForUser(user);
-  const allowed = menuItems.flatMap(section => section.children.map(item => item.key)).includes(tab);
-  const activeItem = ALL_ITEMS.find((item) => item.key === tab) || ALL_ITEMS[0];
+  const allowedKeys = authorizedKeys(user, ALL_ITEMS);
+  const allowed = allowedKeys.has(tab);
+  const activeItem = workspaceItems.find(item=>item.key===groupKey(tab,workspaceItems)) || ALL_ITEMS.find(item=>item.key===tab) || ALL_ITEMS[0];
   const section = MENU_SECTIONS.find((item) => item.children.some((child) => child.key === tab));
   const userMenu = {
     items: [
@@ -302,11 +279,7 @@ export default function PlatformApp() {
       <a href="#main-content" className="skip-to-content">跳转到主要内容</a>
       {mobile ? <Drawer title="Cling · 功能导航" placement="left" size={280} open={navOpen} onClose={() => setNavOpen(false)} className="platform-nav">
         <button className="atelier-brand" onClick={() => setTab('home')} aria-label="返回工作台"><BrandMark/>{!collapsed && <span><strong>cling<span>✦</span></strong><small>给好工作，留一点空间。</small></span>}</button>
-        <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => {
-          if (false && key === 'restful_booker') {
-            window.open(HOTEL_PROJECT_PATH, 'cling-hotel-practice', 'noopener,noreferrer');
-            return;
-          }
+        <Menu mode="inline" className="toolbox-menu" selectedKeys={[groupKey(tab,workspaceItems)]} items={menuItems} onClick={({ key }) => {
           setTab(key);
         }} />
         <div className="sider-footer">
@@ -314,11 +287,7 @@ export default function PlatformApp() {
         </div>
       </Drawer> : <Sider className="toolbox-sider" width={236} collapsedWidth={76} collapsed={collapsed} trigger={null}>
         <button className="atelier-brand" onClick={() => setTab('home')} aria-label="返回工作台"><BrandMark/>{!collapsed && <span><strong>cling<span>✦</span></strong><small>给好工作，留一点空间。</small></span>}</button>
-        <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => {
-          if (false && key === 'restful_booker') {
-            window.open(HOTEL_PROJECT_PATH, 'cling-hotel-practice', 'noopener,noreferrer');
-            return;
-          }
+        <Menu mode="inline" className="toolbox-menu" selectedKeys={[groupKey(tab,workspaceItems)]} items={menuItems} onClick={({ key }) => {
           setTab(key);
         }} />
         <div className="sider-footer">
@@ -350,20 +319,14 @@ export default function PlatformApp() {
             {updateAvailable && <Alert className="platform-notice" type="info" title="新版本已就绪，请保存当前输入后更新" action={<Button onClick={() => window.location.reload()}>刷新更新</Button>} />}
             {profileError && <Alert className="platform-notice" type="error" title={profileError} action={<Button onClick={reload}>重试</Button>} />}
             {!user ? <ModuleLoading /> : !allowed ? <Alert type="warning" title="此功能不存在或当前账号没有访问权限" action={<Button onClick={() => setTab(menuItems[0]?.children[0]?.key || 'home')}>返回可用功能</Button>} /> : <ModuleBoundary key={`${user.username}:${tab}`}><Suspense fallback={<ModuleLoading />}>
+            {['online_preview','jenkins','test_packages'].includes(tab) && <EnvironmentPanel client={client} activeKey={tab} allowedKeys={allowedKeys} onChange={setTab}/>}
+            {['json_tools','codec'].includes(tab) && <TextToolsPanel activeKey={tab} allowedKeys={allowedKeys} onChange={setTab}/>}
             {tab === 'home' && <WorkspaceHome user={user} sections={workspaceSections} recent={recentModules} onNavigate={setTab} onSearch={openSearch}/>}
-            {tab === 'restful_booker' && <RestfulBookerPanel client={client} />}
             {tab === 'data_generator' && <DataGeneratorPanel client={client} />}
             {tab === 'files' && <FileTransferPanel client={client} />}
-            {tab === 'test_packages' && <TestPackagePanel client={client} />}
             {tab === 'images' && <ImageToolPanel token={token} />}
-            {tab === 'json_tools' && <JsonToolsPanel />}
-            {tab === 'codec' && <CodecPanel />}
-            {tab === 'family_oa_web' && <FamilyOaWebPage embedded />}
-            {tab === 'learning' && <MasteryLearningPanel client={client} isAdmin={user?.is_admin} />}
             {tab === 'command_library' && <CommandLibraryPanel client={client} />}
             {tab === 'effects' && <EffectStudio client={client} isAdmin={user?.is_admin} />}
-            {tab === 'jenkins' && <JenkinsPanel client={client} />}
-            {tab === 'online_preview' && <OnlinePreviewPanel client={client} />}
             {tab === 'emote_ui_automation' && <UiAutomationPage client={client} embedded />}
             {tab === 'circle_stats' && <CircleStatsPanel key={user?.username} client={client} userKey={user?.username} />}
             {tab === 'self_study' && <SelfStudyPanel key={user?.username} userId={user?.username} client={client} />}

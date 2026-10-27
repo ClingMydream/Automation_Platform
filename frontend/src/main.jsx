@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Login } from './modules/00-auth/Login.jsx';
 import { reloadWhenDeploymentChanges } from './shared/deploymentVersion.js';
 import 'antd/dist/reset.css';
+import './styles/theme.css';
 import './styles/app.css';
 import './styles/platform.css';
 import './styles/atelier.css';

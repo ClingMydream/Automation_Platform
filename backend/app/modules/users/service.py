@@ -16,7 +16,7 @@ def normalize_menu_permissions(values: list[str]) -> list[str]:
 
 def user_response(user: AppUser) -> dict:
     """Convert a user model into the frontend response shape."""
-    permissions = ADMIN_MENU_KEYS if user.is_admin else list(user.menu_permissions or [])
+    permissions = ADMIN_MENU_KEYS if user.is_admin else normalize_menu_permissions(user.menu_permissions or [])
     return {
         "id": user.id,
         "username": user.username,

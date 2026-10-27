@@ -2,7 +2,7 @@ async page => {
  page.setDefaultTimeout(7000); page.setDefaultNavigationTimeout(30000);
  await page.goto('http://127.0.0.1:3104/?module=data_generator',{waitUntil:'domcontentloaded'});
  const suffix=Date.now().toString(); const results=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
- const nav=async name=>{await page.getByRole('menuitem',{name,exact:true}).click();await page.waitForTimeout(300);};
+ const nav=async name=>{const group={ 'JSON 工具':['文本工具','JSON 格式化与对比'],'转码工具':['文本工具','编码与解码'],'测试包安装':['Emote 测试环境','安装包'] }[name];await page.getByRole('menuitem',{name:group?group[0]:name,exact:true}).click();if(group)await page.getByRole('tab',{name:group[1],exact:true}).click();await page.waitForTimeout(350);};
  const test=async(name,fn)=>{try{await fn();results.push({name,status:'passed'});await page.evaluate(value=>sessionStorage.setItem('platform-audit-flows',JSON.stringify(value)),{results,errors});}catch(e){results.push({name,status:'failed',reason:e.message.slice(0,700)});await page.evaluate(value=>sessionStorage.setItem('platform-audit-flows',JSON.stringify(value)),{results,errors});await page.goto('http://127.0.0.1:3104/?module=data_generator',{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:/展开或收起导航$/}).waitFor();}};
  await test('数据生成：生成、保存、备注、读取、修改、删除',async()=>{
   await nav('数据生成');await page.getByRole('button').filter({hasText:'立即生成'}).click();

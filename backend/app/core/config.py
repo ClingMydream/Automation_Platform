@@ -22,9 +22,6 @@ class Settings(BaseSettings):
     database_url: str = "mysql+pymysql://automation:automation@mysql:3306/automation_platform?charset=utf8mb4"
     public_base_url: str = "http://localhost"
     test_sms_phone_numbers: str | None = None
-    restful_booker_url: str = "http://restful-booker:3001"
-    restful_booker_username: str = "admin"
-    restful_booker_password: str = "password123"
     # Security and file-transfer settings used by testing and temporary sharing features.
     allow_private_targets: bool = False
     file_transfer_dir: str = "/tmp/automation-platform-transfers"
@@ -43,12 +40,6 @@ class Settings(BaseSettings):
     ui_runner_token: str | None = None
     ui_automation_data_dir: str = "/var/lib/cling-ui-automation"
     app_timezone: str = "Asia/Shanghai"
-    learning_data_dir: str = "/var/lib/cling-learning"
-    learning_attachment_max_mb: int = 20
-    learning_import_max_mb: int = 200
-    learning_import_expanded_max_mb: int = 1024
-    learning_import_max_entries: int = 5000
-    learning_storage_max_mb: int = 5120
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

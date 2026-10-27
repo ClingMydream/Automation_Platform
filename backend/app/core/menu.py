@@ -9,10 +9,8 @@
 MENU_OPTIONS = [
     {"key": "emote_ui_automation", "label": "Emote UI 自动化"},
     {"key": "circle_stats", "label": "全员圈统计"},
-    {"key": "learning", "label": "学习空间"},
     {"key": "self_study", "label": "自考题库"},
     {"key": "command_library", "label": "命令手册"},
-    {"key": "restful_booker", "label": "酒店练习项目"},
     {"key": "api_workspace", "label": "接口工作台"},
     {"key": "effects", "label": "临时效果"},
     {"key": "online_preview", "label": "在线预览"},
@@ -23,7 +21,6 @@ MENU_OPTIONS = [
     {"key": "data_generator", "label": "数据生成"},
     {"key": "json_tools", "label": "JSON 工具"},
     {"key": "codec", "label": "转码工具"},
-    {"key": "family_oa_web", "label": "莓好审批网页版"},
     {"key": "integrations", "label": "集成配置"},
     {"key": "work_journal", "label": "工作手记"},
 ]

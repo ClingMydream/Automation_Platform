@@ -72,13 +72,13 @@ async (page) => {
   });
   await test("分组搜索、上下选择、关闭恢复", async () => {
     await page
-      .getByRole("button", { name: "浏览测试中心", exact: true })
+      .locator(".atelier-space").filter({has:page.getByRole("heading",{name:"测试中心",exact:true})}).getByRole("button", { name: "查看全部 4 项", exact: true })
       .click();
     const input = page.getByRole("combobox", { name: "搜索功能", exact: true });
     await input.waitFor();
     if ((await input.inputValue()) !== "测试中心")
       throw new Error("section filter missing");
-    if ((await page.getByRole("option").count()) !== 6)
+    if ((await page.getByRole("option").count()) !== 4)
       throw new Error("section item count");
     await input.press("ArrowDown");
     const active = await input.getAttribute("aria-activedescendant");
@@ -132,13 +132,8 @@ async (page) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(base + "/?module=home");
-    await page.locator(".atelier-orbit").waitFor();
-    if (
-      (await page
-        .locator(".atelier-orbit")
-        .evaluate((n) => getComputedStyle(n).animationName)) !== "none"
-    )
-      throw new Error("reduced motion ignored");
+    await page.locator('.atelier-welcome').waitFor();
+    if(await page.locator('.atelier-home .atelier-orbit').count())throw new Error('decorative hero returned');
     await page
       .getByRole("button", { name: "展开或收起导航", exact: true })
       .click();

@@ -1,6 +1,5 @@
 /* Shared platform refinements. Module-specific canvases and editors own their sizing. */
 .toolbox-content .ant-card { border-color: var(--cling-border); box-shadow: 0 6px 24px rgba(74,58,122,.035); }
-.toolbox-content .ant-card-head-title { font-size: 16px; color: #342b49; }
 .toolbox-content .ant-form-item-label>label { font-size: 15px; }
 .toolbox-content .ant-table-thead>tr>th { font-size: 13px; color: #51475f; }
 .toolbox-content .ant-table-cell { overflow-wrap: anywhere; }

@@ -1,9 +1,10 @@
+import dayjs from 'dayjs';
 // File purpose: 工作手记模块入口。包含工作日志 / 日报 / 周报三个页签与左右两栏布局。
 // How to change: 交互与布局改这里；表单细节在 JournalEditor / ReportEditor / ReportSourcePreview。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Button, Empty, Input, Modal, Segmented, Select, Space, Tag, message,
+  Alert, Button, DatePicker, Empty, Input, Modal, Segmented, Select, Space, Tag, message,
 } from 'antd';
 import {
   CalendarOutlined, DeleteOutlined, FormOutlined, LeftOutlined,
@@ -350,6 +351,16 @@ export function WorkJournalPanel({ client }) {
       <div className="work-journal__grid">
         <aside className="work-journal__side">
           <div className="work-journal__side-tools">
+            <DatePicker aria-label="工作日期" value={dayjs(date)} allowClear={false} onChange={value=>value && changeDate(value.format('YYYY-MM-DD'))} style={{width:'100%'}}/>
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="搜索标题和正文"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onPressEnter={loadList}
+            />
+            <details className="work-journal__filters"><summary>日历与筛选{project || status || tag || category ? ' · 已筛选' : ''}</summary>
             <Space>
               <Button size="small" icon={<LeftOutlined />} onClick={() => setMonth(shiftMonth(month, -1))} />
               <strong>{month.replace('-', ' 年 ')} 月</strong>
@@ -387,14 +398,6 @@ export function WorkJournalPanel({ client }) {
                 );
               })}
             </div>
-            <Input
-              allowClear
-              prefix={<SearchOutlined />}
-              placeholder="搜索标题和正文"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onPressEnter={loadList}
-            />
             {tab === 'logs' ? (
               <>
                 <Space.Compact style={{ width: '100%' }}>
@@ -435,6 +438,7 @@ export function WorkJournalPanel({ client }) {
                 </Space.Compact>
               </>
             ) : null}
+            </details>
           </div>
 
           <div className="work-journal__side-scroll">

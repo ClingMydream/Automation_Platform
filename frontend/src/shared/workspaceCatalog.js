@@ -27,7 +27,7 @@ export const SECTION_META = {
 
 export const MODULE_META = {
   home: {
-    description: "测试、学习与日常工作，在这里轻轻连接。",
+    description: "测试、自考与日常工作，在这里轻轻连接。",
     keywords: "首页 工作台 home dashboard",
   },
   emote_ui_automation: {
@@ -48,15 +48,11 @@ export const MODULE_META = {
   },
   online_preview: {
     description: "核对分支、同步版本，在真实页面里确认每一次变化。",
-    keywords: "预览 preview 分支 同步",
+    keywords: "预览 preview 分支 同步 jenkins 构建 打包 apk 安装",
   },
   test_packages: {
     description: "上传、分享与下载，让测试包顺畅到达需要的设备。",
     keywords: "apk 包 安装 下载",
-  },
-  learning: {
-    description: "把知识变成练习，把练习变成自己的理解。",
-    keywords: "学习 python 笔记 章节",
   },
   self_study: {
     description: "一次专注，一道题目；让每一步进步都有迹可循。",
@@ -65,10 +61,6 @@ export const MODULE_META = {
   command_library: {
     description: "收好那些解决过问题的命令，下次遇见时从容一点。",
     keywords: "命令 shell 收藏 手册",
-  },
-  restful_booker: {
-    description: "在独立练习项目中，走通从请求到验证的完整链路。",
-    keywords: "酒店 booker 预约 练习",
   },
   effects: {
     description: "给灵感一个可以运行、预览与分享的地方。",
@@ -92,15 +84,11 @@ export const MODULE_META = {
   },
   json_tools: {
     description: "格式化、比对与检查，把复杂结构看得清清楚楚。",
-    keywords: "json 格式化 差异 比对",
+    keywords: "json 格式化 差异 比对 base64 hex url unicode 转码",
   },
   codec: {
     description: "编码与解码随手切换，让文本回到容易理解的样子。",
     keywords: "base64 hex url unicode 转码",
-  },
-  family_oa_web: {
-    description: "认真对待生活里的小计划，也温柔记录每一笔日常。",
-    keywords: "审批 记账 莓好 家庭",
   },
   integrations: {
     description: "连接外部工具，把协作放进熟悉的工作流。",

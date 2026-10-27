@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert, Button, DatePicker, Dropdown, Input, InputNumber, Select, Space, Tag, Tooltip, message,
+  Alert, Button, Collapse, DatePicker, Dropdown, Input, InputNumber, Select, Space, Tag, Tooltip, message,
 } from 'antd';
 import {
   CopyOutlined, DeleteOutlined, DownloadOutlined, MoreOutlined, SaveOutlined,
@@ -154,7 +154,7 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
   async function saveNow() {
     clearTimeout(timer.current);
     if (!form.title.trim() || !form.body_markdown.trim()) {
-      message.warning('标题和内容为必填项');
+      message.warning('请填写工作事项；标题可在更多信息中调整');
       setSaveState('error');
       return false;
     }
@@ -210,7 +210,7 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
         </div>
         <div className="work-journal__bar-right">
           <Button icon={<SaveOutlined />} onClick={saveNow} loading={saveState === 'saving'}>
-            保存草稿
+            {isNew ? '保存草稿' : '保存修改'}
           </Button>
           <Button icon={<CopyOutlined />} onClick={copyBody}>复制</Button>
           <Button icon={<DownloadOutlined />} onClick={downloadBody}>下载</Button>
@@ -260,27 +260,12 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
       </div>
 
       <div className="work-journal__field">
-        <span className="work-journal__label">标题 *</span>
-        <Input
-          value={form.title}
-          maxLength={120}
-          placeholder="今天做了什么，一句话说清"
-          onChange={(event) => patch({ title: event.target.value })}
-        />
+        <span className="work-journal__label">事项 *</span>
+        <Input.TextArea aria-label="工作事项" className="work-journal__textarea" value={form.body_markdown} autoSize={{minRows:4,maxRows:12}} maxLength={20000} placeholder="记录做了什么、当前进展；首行自动作为标题" onChange={event=>{const text=event.target.value;patch({body_markdown:text,...(!recordId.current ? {title:text.trim().split('\n')[0].slice(0,120)} : {})});}}/>
       </div>
-
-      <div className="work-journal__field">
-        <span className="work-journal__label">内容 *（支持 Markdown）</span>
-        <Input.TextArea
-          className="work-journal__textarea"
-          value={form.body_markdown}
-          autoSize={{ minRows: 6, maxRows: 18 }}
-          maxLength={20000}
-          placeholder="记录具体做了什么、怎么做的"
-          onChange={(event) => patch({ body_markdown: event.target.value })}
-        />
-      </div>
-
+      <div className="work-journal__field"><span className="work-journal__label">状态</span><Select aria-label="事项状态" value={form.progress_status} style={{minWidth:160}} onChange={value=>patch({progress_status:value})} options={Object.entries(PROGRESS_LABELS).map(([value,label])=>({value,label}))}/></div>
+      <Collapse className="work-journal__advanced" items={[{key:'details',label:'更多信息（选填，历史内容保留）',children:<>
+      <div className="work-journal__field"><span className="work-journal__label">标题</span><Input value={form.title} maxLength={120} onChange={event=>patch({title:event.target.value})}/></div>
       <div className="work-journal__field" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12 }}>
         <div>
           <span className="work-journal__label">项目</span>
@@ -290,11 +275,6 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
           <span className="work-journal__label">工作类型</span>
           <Select value={form.category} style={{ width: '100%' }} onChange={(value) => patch({ category: value })}
             options={CATEGORIES.map((item) => ({ value: item, label: item }))} />
-        </div>
-        <div>
-          <span className="work-journal__label">进展状态</span>
-          <Select value={form.progress_status} style={{ width: '100%' }} onChange={(value) => patch({ progress_status: value })}
-            options={Object.entries(PROGRESS_LABELS).map(([value, label]) => ({ value, label }))} />
         </div>
         <div>
           <span className="work-journal__label">工时（分钟，留空表示未记录）</span>
@@ -344,6 +324,7 @@ export function JournalEditor({ client, entry, workDate, onSaved, onDeleted, onD
         </Tooltip>
       ) : null}
 
+      </>}]} />
       <div className="work-journal__field" style={{ marginTop: 12 }}>
         <span className="work-journal__label">备注（选填）</span>
         <Input.TextArea

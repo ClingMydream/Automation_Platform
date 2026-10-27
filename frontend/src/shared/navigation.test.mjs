@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {authorizedKeys,collapseNavigation,groupKey} from './navigation.js';
+const items=['home','online_preview','jenkins','test_packages','json_tools','codec','users'].map(key=>({key,adminOnly:key==='users'}));
+const restricted=authorizedKeys({menu_permissions:['jenkins','codec','users']},items);
+assert.deepEqual([...restricted],['home','jenkins','codec']);
+const sections=collapseNavigation([{children:items.filter(item=>restricted.has(item.key))}]);
+assert.deepEqual(sections[0].children.map(item=>item.key),['home','jenkins','codec']);
+assert.deepEqual(sections[0].children.slice(1).map(item=>item.label),['Emote 测试环境','文本工具']);
+assert.equal(groupKey('test_packages',sections[0].children),'jenkins');
+const all=collapseNavigation([{children:items}])[0].children;
+assert.equal(all.length,4);assert.equal(groupKey('codec',all),'json_tools');
+assert.equal(authorizedKeys(null,items).size,0);
+console.log('PASS grouped navigation retains independent permissions and legacy URLs.');

@@ -93,15 +93,6 @@ def on_startup() -> None:
             run.current_step = "服务重启，执行已中断，可在页面重新运行"
             run.finished_at = datetime.utcnow()
         session.commit()
-    columns = {column["name"] for column in inspect(engine).get_columns("learning_checkins")}
-    if "learning_day" not in columns:
-        with engine.begin() as connection:
-            connection.execute(text("ALTER TABLE learning_checkins ADD COLUMN learning_day INTEGER"))
-    if engine.dialect.name == "mysql":
-        indexes = {index["name"] for index in inspect(engine).get_indexes("learning_checkins")}
-        if "uq_learning_checkin_date" in indexes:
-            with engine.begin() as connection:
-                connection.execute(text("ALTER TABLE learning_checkins DROP INDEX uq_learning_checkin_date"))
     # 工作手记二期给日志增加选填备注列；create_all 不会为已存在的表补列，因此在这里做兼容迁移。
     journal_columns = {column["name"] for column in inspect(engine).get_columns("work_journal_entries")}
     if "remarks_markdown" not in journal_columns:
