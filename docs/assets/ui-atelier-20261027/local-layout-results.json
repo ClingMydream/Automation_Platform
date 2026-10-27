@@ -1,0 +1,1314 @@
+[
+  {
+    "label": "工作台",
+    "key": "home",
+    "buttons": [
+      "继续Emote UI 自动化",
+      "探索全部功能",
+      "",
+      "Emote UI 自动化",
+      "全员圈统计",
+      "接口工作台",
+      "查看全部 6 项",
+      "",
+      "学习空间",
+      "自考题库",
+      "命令手册",
+      "查看全部 6 项",
+      "",
+      "数据生成",
+      "文件快传",
+      "图片工具",
+      "查看全部 6 项",
+      "",
+      "集成配置",
+      "用户管理",
+      "小程序 OA 管理",
+      "查看全部 3 项",
+      "Emote UI 自动化10/27 12:15 访问",
+      "数据生成10/27 12:14 访问",
+      "工作手记10/27 12:14 访问"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "Emote UI 自动化",
+    "key": "emote_ui_automation",
+    "buttons": [
+      "重新加载",
+      "同步预览",
+      "运行已选",
+      "随机冒烟",
+      "1.9.2 专项",
+      "全部回归",
+      "",
+      "全选",
+      "",
+      "",
+      "",
+      "登录基础流程已启用3 步 · P1",
+      "",
+      "",
+      "注册基础流程已启用9 步 · P1",
+      "",
+      "",
+      "发帖基础流程已启用20 步 · P1",
+      "",
+      "",
+      "删帖基础流程已启用4 步 · P1",
+      "",
+      "",
+      "1.9.2 · 首页删除本轮本人私密动态已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 个人收藏页删除本人动态并移除卡片已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 原野删除指定可丢弃公开测试动态已启用2 步 · P1",
+      "",
+      "",
+      "点赞基础流程已启用14 步 · P1",
+      "",
+      "",
+      "评论基础流程已启用16 步 · P1",
+      "",
+      "",
+      "收藏基础流程已启用14 步 · P1",
+      "",
+      "",
+      "1.9.2 · 收藏与取消收藏同步个人列表已启用2 步 · P1",
+      "",
+      "",
+      "添加好友基础流程已启用4 步 · P1",
+      "",
+      "",
+      "聊天基础流程已启用8 步 · P1",
+      "",
+      "",
+      "1.9.2 · 好友备注保存与顶部昵称更新已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 举报本轮测试消息并关闭弹窗已启用2 步 · P1",
+      "",
+      "",
+      "每日任务基础流程已启用10 步 · P1",
+      "",
+      "",
+      "修改资料基础流程已启用10 步 · P1",
+      "",
+      "",
+      "1.9.2 · 昵称可用与 data=null 契约已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 已占用昵称拦截与 code=409 契约已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 违规昵称原因提示与禁止保存已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 昵称等待校验时禁止保存已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 拉黑测试用户并过滤当前原野动态已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 黑名单移除测试用户已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 单条系统消息已读并清除红点已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 系统消息全部已读并清除角标已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 反馈提交成功并在两秒后收起已启用2 步 · P1",
+      "",
+      "",
+      "1.9.2 · 专用账号申请注销与冷静期取消登录已启用2 步 · P1",
+      "",
+      "",
+      "新建结构化用例"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "全员圈统计",
+    "key": "circle_stats",
+    "buttons": [
+      "",
+      "采集并预览"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "学习空间",
+    "key": "learning",
+    "buttons": [
+      "查看关卡笔记",
+      "备份并彻底重置",
+      "代码为什么能运行学习中",
+      "终端、路径和报错位置未解锁",
+      "虚拟环境、pip 与依赖未解锁",
+      "一次接口请求的完整旅行未解锁",
+      "URL、域名与 DNS未解锁",
+      "TCP、TLS 与 HTTPS未解锁",
+      "HTTP 请求与响应的组成未解锁",
+      "方法、CRUD 与幂等性未解锁",
+      "鉴权、Cookie、Token 与请求体未解锁",
+      "状态码、超时与分层排错未解锁",
+      "变量、类型与接口数据未解锁",
+      "列表、字典与 JSON未解锁",
+      "条件、循环与批量检查未解锁",
+      "函数、参数与返回值未解锁",
+      "模块、类与客户端未解锁",
+      "异常、文件与日志未解锁",
+      "从 Network 到 cURL未解锁",
+      "第一个 requests 查询未解锁",
+      "请求头、JSON 与鉴权未解锁",
+      "从脚本到第一条 pytest未解锁",
+      "场景设计与参数化未解锁",
+      "Fixture、前置与清理未解锁",
+      "从空目录理解框架分层未解锁",
+      "统一配置与请求层未解锁",
+      "业务客户端与重写用例未解锁",
+      "从酒店页面追踪真实接口未解锁",
+      "鉴权与完整 CRUD 链路未解锁",
+      "酒店接口回归与项目验收未解锁",
+      "识别 Emote 只读接口未解锁",
+      "Token、分页与环境配置未解锁",
+      "Emote 只读回归与工作证据未解锁",
+      "开始",
+      "暂停",
+      "结束",
+      "上一阶段",
+      "保存当前内容",
+      "进入下一阶段"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "自考题库",
+    "key": "self_study",
+    "buttons": [
+      "A共享",
+      "B开放",
+      "C协调",
+      "D绿色",
+      "上一题",
+      "暂时跳过 →",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "结束本轮",
+      "重新组卷"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "命令手册",
+    "key": "command_library",
+    "buttons": [
+      "记录命令",
+      "",
+      "",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑",
+      "",
+      "复制命令",
+      "编辑"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "酒店练习项目",
+    "key": "restful_booker",
+    "buttons": [
+      ""
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "接口工作台",
+    "key": "api_workspace",
+    "buttons": [
+      "记录接口",
+      "复制",
+      "打开",
+      "复制",
+      "打开",
+      "保存到记录",
+      "复制",
+      "打开",
+      "保存到记录",
+      "",
+      "",
+      "导入 JSON/CSV/Postman",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "临时效果",
+    "key": "effects",
+    "buttons": [
+      "上传网页 ZIP",
+      "清空",
+      "复制链接",
+      "平台内预览",
+      "删除"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "在线预览",
+    "key": "online_preview",
+    "buttons": [
+      "刷新状态",
+      "同步最新代码",
+      "比对线上版本",
+      "手机应用预览",
+      "网页调试模式"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "工作手记",
+    "key": "work_journal",
+    "buttons": [
+      "记一笔",
+      "写日报",
+      "写周报",
+      "",
+      "",
+      "",
+      "28",
+      "29",
+      "30",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "",
+      "隔离工作日志1793074220239进行中测试执行完成平台隔离自测，记录功能检查结果。",
+      " 回收站",
+      "记下今天第一件事",
+      "写今天日报"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "持续集成",
+    "key": "jenkins",
+    "buttons": [
+      "检查状态",
+      "打开 Emote 打包任务",
+      "打开下载页",
+      "复制示例"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "数据生成",
+    "key": "data_generator",
+    "buttons": [
+      "✨立即生成",
+      "保存当前批次",
+      "查 询",
+      "刷 新"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "文件快传",
+    "key": "files",
+    "buttons": [
+      "下载",
+      "复制扫码链接",
+      "刷新",
+      "二维码",
+      "下载",
+      "删除",
+      "",
+      ""
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "测试包安装",
+    "key": "test_packages",
+    "buttons": [
+      "刷新",
+      "复制固定链接",
+      "下载当前包"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "图片工具",
+    "key": "images",
+    "buttons": [
+      "生成并下载",
+      "处理并下载"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "JSON 工具",
+    "key": "json_tools",
+    "buttons": [
+      "格式化",
+      "压 缩",
+      "复制",
+      "格式化",
+      "压 缩",
+      "复制",
+      "开始对比"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "转码工具",
+    "key": "codec",
+    "buttons": [
+      "执行转码",
+      "输入/输出互换",
+      "复制",
+      "复制"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "莓好审批网页版",
+    "key": "family_oa_web",
+    "buttons": [
+      "登录莓好审批"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "集成配置",
+    "key": "integrations",
+    "buttons": [
+      "启用停用",
+      "保存配置"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "用户管理",
+    "key": "users",
+    "buttons": [
+      "创建用户",
+      "刷新",
+      "修改",
+      "删除",
+      "修改",
+      "删除",
+      "修改",
+      "删除",
+      "修改",
+      "删除",
+      "修改",
+      "删除",
+      "",
+      ""
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  },
+  {
+    "label": "小程序 OA 管理",
+    "key": "oa_management",
+    "buttons": [
+      "启用停用",
+      "新增人员",
+      "刷新"
+    ],
+    "errors": [],
+    "layouts": [
+      {
+        "width": 1440,
+        "viewport": 1440,
+        "document": 1440,
+        "offenders": []
+      },
+      {
+        "width": 1280,
+        "viewport": 1280,
+        "document": 1280,
+        "offenders": []
+      },
+      {
+        "width": 768,
+        "viewport": 768,
+        "document": 768,
+        "offenders": []
+      },
+      {
+        "width": 390,
+        "viewport": 390,
+        "document": 390,
+        "offenders": []
+      },
+      {
+        "width": 320,
+        "viewport": 320,
+        "document": 320,
+        "offenders": []
+      }
+    ]
+  }
+]

@@ -52,10 +52,13 @@ const FamilyOaWebPage = lazy(() => import('./modules/19-oa-management/FamilyOaWe
 const WorkJournalPanel = lazy(() => import('./modules/20-work-journal/WorkJournalPanel.jsx').then(m => ({ default: m.WorkJournalPanel })));
 import { apiClient } from './shared/apiClient.js';
 import { AUTH_EXPIRED_EVENT } from './shared/constants.js';
-import { CuteIcon } from './shared/CuteIcon.jsx';
+import { BrandMark, WorkspaceIcon } from './shared/WorkspaceIdentity.jsx';
+import { WorkspaceHome, WorkspaceSearch, ModuleIntro, useWorkspaceHistory } from './shared/WorkspaceChrome.jsx';
+import { Search, ChevronRight } from 'lucide-react';
 import 'antd/dist/reset.css';
 import './styles/app.css';
 import './styles/platform.css';
+import './styles/atelier.css';
 import { ModuleBoundary, ModuleLoading } from './shared/ModuleBoundary.jsx';
 
 
@@ -83,49 +86,50 @@ async function reloadWhenDeploymentChanges(onAvailable) {
 }
 
 const MENU_SECTIONS = [
+  { key: 'workspace', label: '我的空间', children: [{ key: 'home', label: '工作台', icon: <WorkspaceIcon name="home" /> }] },
   {
     key: 'testing',
     label: '测试中心',
     children: [
-      { key: 'emote_ui_automation', label: 'Emote UI 自动化', icon: <CuteIcon emoji="🎬" tone="violet" /> },
-      { key: 'circle_stats', label: '全员圈统计', icon: <CuteIcon emoji="🫧" tone="cyan" /> },
-      { key: 'api_workspace', label: '接口工作台', icon: <CuteIcon emoji="🧪" tone="cyan" /> },
-      { key: 'jenkins', label: '持续集成', icon: <CuteIcon emoji="🧱" tone="blue" /> },
-      { key: 'online_preview', label: '在线预览', icon: <CuteIcon emoji="📱" tone="mint" /> },
-      { key: 'test_packages', label: '测试包安装', icon: <CuteIcon emoji="📦" tone="blue" /> },
+      { key: 'emote_ui_automation', label: 'Emote UI 自动化', icon: <WorkspaceIcon name="emote_ui_automation" /> },
+      { key: 'circle_stats', label: '全员圈统计', icon: <WorkspaceIcon name="circle_stats" /> },
+      { key: 'api_workspace', label: '接口工作台', icon: <WorkspaceIcon name="api_workspace" /> },
+      { key: 'jenkins', label: '持续集成', icon: <WorkspaceIcon name="jenkins" /> },
+      { key: 'online_preview', label: '在线预览', icon: <WorkspaceIcon name="online_preview" /> },
+      { key: 'test_packages', label: '测试包安装', icon: <WorkspaceIcon name="test_packages" /> },
     ],
   },
   {
     key: 'growth',
     label: '个人成长',
     children: [
-      { key: 'learning', label: '学习空间', icon: <CuteIcon emoji="📚" tone="violet" /> },
-      { key: 'self_study', label: '自考题库', icon: <CuteIcon emoji="🌱" tone="mint" /> },
-      { key: 'command_library', label: '命令手册', icon: <CuteIcon emoji="⌨️" tone="blue" /> },
-      { key: 'restful_booker', label: '酒店练习项目', icon: <CuteIcon emoji="🏨" tone="peach" /> },
-      { key: 'effects', label: '临时效果', icon: <CuteIcon emoji="🎀" tone="rose" /> },
-      { key: 'work_journal', label: '工作手记', icon: <CuteIcon emoji="📝" tone="violet" /> },
+      { key: 'learning', label: '学习空间', icon: <WorkspaceIcon name="learning" /> },
+      { key: 'self_study', label: '自考题库', icon: <WorkspaceIcon name="self_study" /> },
+      { key: 'command_library', label: '命令手册', icon: <WorkspaceIcon name="command_library" /> },
+      { key: 'restful_booker', label: '酒店练习项目', icon: <WorkspaceIcon name="restful_booker" /> },
+      { key: 'effects', label: '临时效果', icon: <WorkspaceIcon name="effects" /> },
+      { key: 'work_journal', label: '工作手记', icon: <WorkspaceIcon name="work_journal" /> },
     ],
   },
   {
     key: 'tools',
     label: '效率工具',
     children: [
-      { key: 'data_generator', label: '数据生成', icon: <CuteIcon emoji="🧪" tone="blue" /> },
-      { key: 'files', label: '文件快传', icon: <CuteIcon emoji="📤" tone="mint" /> },
-      { key: 'images', label: '图片工具', icon: <CuteIcon emoji="🖼️" tone="peach" /> },
-      { key: 'json_tools', label: 'JSON 工具', icon: <CuteIcon emoji="🧩" tone="violet" /> },
-      { key: 'codec', label: '转码工具', icon: <CuteIcon emoji="🔄" tone="yellow" /> },
-      { key: 'family_oa_web', label: '莓好审批网页版', icon: <CuteIcon emoji="💗" tone="rose" /> },
+      { key: 'data_generator', label: '数据生成', icon: <WorkspaceIcon name="data_generator" /> },
+      { key: 'files', label: '文件快传', icon: <WorkspaceIcon name="files" /> },
+      { key: 'images', label: '图片工具', icon: <WorkspaceIcon name="images" /> },
+      { key: 'json_tools', label: 'JSON 工具', icon: <WorkspaceIcon name="json_tools" /> },
+      { key: 'codec', label: '转码工具', icon: <WorkspaceIcon name="codec" /> },
+      { key: 'family_oa_web', label: '莓好审批网页版', icon: <WorkspaceIcon name="family_oa_web" /> },
     ],
   },
   {
     key: 'settings',
     label: '系统配置',
     children: [
-      { key: 'integrations', label: '集成配置', icon: <CuteIcon emoji="🔌" tone="rose" /> },
-      { key: 'users', label: '用户管理', icon: <CuteIcon emoji="👥" tone="cyan" />, adminOnly: true },
-      { key: 'oa_management', label: '小程序 OA 管理', icon: <CuteIcon emoji="🌸" tone="rose" />, adminOnly: true },
+      { key: 'integrations', label: '集成配置', icon: <WorkspaceIcon name="integrations" /> },
+      { key: 'users', label: '用户管理', icon: <WorkspaceIcon name="users" />, adminOnly: true },
+      { key: 'oa_management', label: '小程序 OA 管理', icon: <WorkspaceIcon name="oa_management" />, adminOnly: true },
     ],
   },
 ];
@@ -134,7 +138,7 @@ const ALL_ITEMS = MENU_SECTIONS.flatMap((section) => section.children);
 
 function menuForUser(user) {
   if (!user) return [];
-  const allowed = new Set(user.is_admin ? ALL_ITEMS.map((item) => item.key) : user.menu_permissions || []);
+  const allowed = new Set(['home', ...(user.is_admin ? ALL_ITEMS.map((item) => item.key) : user.menu_permissions || [])]);
   return MENU_SECTIONS
     .map((section) => ({ ...section, type: 'group', children: section.children.filter((item) => allowed.has(item.key) && (!item.adminOnly || user.is_admin)).map(({ adminOnly, ...item }) => item) }))
     .filter((section) => section.children.length > 0);
@@ -163,20 +167,37 @@ function ToolboxApp() {
   const testPackage = params.get('testPackage');
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(null);
-  const [tab, updateTab] = useState(() => new URLSearchParams(location.search).get('module') || 'data_generator');
+  const [tab, updateTab] = useState(() => new URLSearchParams(location.search).get('module') || 'home');
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
   const [navOpen, setNavOpen] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [connection, setConnection] = useState('checking');
   const [profileError, setProfileError] = useState('');
+  useEffect(() => {
+    if (!isPublicEffect && !transferToken && !testPackage && !isFamilyOa && !isMobilePreview && !uiAutomationRunMatch) {
+      document.title = token ? `${ALL_ITEMS.find(item => item.key === tab)?.label || '工作空间'} · Cling` : '登录 · Cling';
+    }
+  }, [tab, Boolean(token)]);
+  const [searchOpen,setSearchOpen] = useState(false);
+  const [searchQuery,setSearchQuery] = useState('');
+  function openSearch(query='') { setSearchQuery(query);setSearchOpen(true); }
+  const workspaceSections = menuForUser(user);
+  const workspaceItems = workspaceSections.flatMap(section => section.children.map(item => ({ ...item, sectionLabel: section.label })));
+  const recentModules = useWorkspaceHistory(user?.username,tab,workspaceItems);
+  useEffect(() => {
+    if (!token || !user) return;
+    const handle = event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault();setSearchQuery('');setSearchOpen(value => !value); } };
+    window.addEventListener('keydown',handle);return () => window.removeEventListener('keydown',handle);
+  },[token, user?.username]);
   const authGeneration = useRef(0);
   function setTab(key) {
     const url = new URL(location.href); url.searchParams.set('module', key);
     if (url.href !== location.href) history.pushState(null, '', url);
     updateTab(key); setNavOpen(false);
+    window.scrollTo(0, 0);
   }
   useEffect(() => {
-    const pop = () => updateTab(new URLSearchParams(location.search).get('module') || 'data_generator');
+    const pop = () => updateTab(new URLSearchParams(location.search).get('module') || 'home');
     const resize = () => { setMobile(window.innerWidth < 768); if(window.innerWidth >= 768) setNavOpen(false); };
     window.addEventListener('popstate', pop); window.addEventListener('resize', resize);
     return () => { window.removeEventListener('popstate',pop); window.removeEventListener('resize',resize); };
@@ -300,10 +321,7 @@ function ToolboxApp() {
     <Layout className="toolbox-layout">
       <a href="#main-content" className="skip-to-content">跳转到主要内容</a>
       {mobile ? <Drawer title="Cling · 功能导航" placement="left" size={280} open={navOpen} onClose={() => setNavOpen(false)} className="platform-nav">
-        <div className="toolbox-brand">
-          <div className="brand-symbol cute-brand">✦</div>
-          {!collapsed && <div><strong>Cling 自动化平台</strong><span>测试、学习与效率工具</span></div>}
-        </div>
+        <button className="atelier-brand" onClick={() => setTab('home')} aria-label="返回工作台"><BrandMark/>{!collapsed && <span><strong>cling<span>✦</span></strong><small>给好工作，留一点空间。</small></span>}</button>
         <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => {
           if (false && key === 'restful_booker') {
             window.open(HOTEL_PROJECT_PATH, 'cling-hotel-practice', 'noopener,noreferrer');
@@ -314,11 +332,8 @@ function ToolboxApp() {
         <div className="sider-footer">
           <div className={`sider-status connection-${connection}`}><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
         </div>
-      </Drawer> : <Sider className="toolbox-sider" width={224} collapsedWidth={68} collapsed={collapsed} trigger={null}>
-        <div className="toolbox-brand">
-          <div className="brand-symbol cute-brand">✦</div>
-          {!collapsed && <div><strong>Cling 自动化平台</strong><span>测试、学习与效率工具</span></div>}
-        </div>
+      </Drawer> : <Sider className="toolbox-sider" width={236} collapsedWidth={76} collapsed={collapsed} trigger={null}>
+        <button className="atelier-brand" onClick={() => setTab('home')} aria-label="返回工作台"><BrandMark/>{!collapsed && <span><strong>cling<span>✦</span></strong><small>给好工作，留一点空间。</small></span>}</button>
         <Menu mode="inline" className="toolbox-menu" selectedKeys={[tab]} items={menuItems} onClick={({ key }) => {
           if (false && key === 'restful_booker') {
             window.open(HOTEL_PROJECT_PATH, 'cling-hotel-practice', 'noopener,noreferrer');
@@ -335,12 +350,10 @@ function ToolboxApp() {
         <Header className="toolbox-header">
           <div className="header-left">
             <Button type="text" className="collapse-button" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} aria-label="展开或收起导航" onClick={() => mobile ? setNavOpen(true) : setCollapsed((value) => !value)} />
-            <div className="page-title">
-              <Text>{section?.label || '效率工具'}</Text>
-              <Title level={3}>{activeItem.label}</Title>
-            </div>
+            <div className="atelier-breadcrumb"><button onClick={() => setTab('home')}>工作空间</button><ChevronRight size={13}/><span>{tab==='home' ? '工作台' : section?.label}</span>{tab!=='home'&&<><ChevronRight size={13}/><strong>{activeItem.label}</strong></>}</div>
           </div>
           <Space size={12}>
+            <button className="atelier-search-trigger" onClick={() => openSearch()} aria-label="搜索平台功能"><Search size={16}/><span>寻找一个工具…</span><kbd>⌘ / Ctrl K</kbd></button>
             <div className={`header-chip connection-${connection}`} title="仅表示平台后端连接；外部服务状态请查看对应模块">{connection === "online" ? "● 后端可达" : connection === "checking" ? "○ 检查连接中" : "● 连接异常"}</div>
             <Dropdown menu={userMenu} placement="bottomRight">
               <Button className="user-button" aria-label="打开账号菜单">
@@ -352,10 +365,12 @@ function ToolboxApp() {
         </Header>
 
         <Content id="main-content" tabIndex={-1} className="toolbox-content" aria-busy={loading}>
-          <div className="content-container">
+          <div className={`content-container atelier-content atelier-content--${tab}`}>
+            {user && allowed && tab!=='home' && <ModuleIntro item={activeItem} section={section}/>}
             {updateAvailable && <Alert className="platform-notice" type="info" title="新版本已就绪，请保存当前输入后更新" action={<Button onClick={() => window.location.reload()}>刷新更新</Button>} />}
             {profileError && <Alert className="platform-notice" type="error" title={profileError} action={<Button onClick={reload}>重试</Button>} />}
-            {!user ? <ModuleLoading /> : !allowed ? <Alert type="warning" title="此功能不存在或当前账号没有访问权限" action={<Button onClick={() => setTab(menuItems[0]?.children[0]?.key || 'data_generator')}>返回可用功能</Button>} /> : <ModuleBoundary key={`${user.id}:${tab}`}><Suspense fallback={<ModuleLoading />}>
+            {!user ? <ModuleLoading /> : !allowed ? <Alert type="warning" title="此功能不存在或当前账号没有访问权限" action={<Button onClick={() => setTab(menuItems[0]?.children[0]?.key || 'home')}>返回可用功能</Button>} /> : <ModuleBoundary key={`${user.username}:${tab}`}><Suspense fallback={<ModuleLoading />}>
+            {tab === 'home' && <WorkspaceHome user={user} sections={workspaceSections} recent={recentModules} onNavigate={setTab} onSearch={openSearch}/>}
             {tab === 'restful_booker' && <RestfulBookerPanel client={client} />}
             {tab === 'data_generator' && <DataGeneratorPanel client={client} />}
             {tab === 'files' && <FileTransferPanel client={client} />}
@@ -381,6 +396,7 @@ function ToolboxApp() {
           </div>
         </Content>
       </Layout>
+      <WorkspaceSearch open={searchOpen} initialQuery={searchQuery} items={workspaceItems} onClose={() => setSearchOpen(false)} onNavigate={setTab}/>
     </Layout>
   );
 }
@@ -391,21 +407,24 @@ createRoot(document.getElementById('root')).render(
     theme={{
       algorithm: theme.defaultAlgorithm,
       token: {
-        colorPrimary: '#6d5bd0',
-        colorInfo: '#6d5bd0',
+        colorPrimary: '#756092',
+        colorInfo: '#756092',
         colorSuccess: '#15803d',
         colorWarning: '#b45309',
         colorError: '#dc2626',
-        colorBgLayout: '#f7f5fb',
-        colorText: '#182230',
-        colorTextSecondary: '#667085',
+        colorBgLayout: '#f8f7f4',
+        colorText: '#302c35',
+        colorTextSecondary: '#736d79',
+        colorTextPlaceholder: '#7f678d',
         borderRadius: 12,
+        colorBorder: '#9f89ad',
+        colorBgContainer: '#fffefd',
         fontSize: 15, controlHeight: 40, controlHeightSM: 32,
-        fontFamily: 'Inter, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif',
+        fontFamily: 'Inter, "Segoe UI Variable", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif',
       },
       components: {
         Card: { headerBg: 'transparent', paddingLG: 24 },
-        Table: { headerBg: '#faf9fd', rowHoverBg: '#f7f4ff' },
+        Table: { headerBg: '#f6f4f8', rowHoverBg: '#f4f0f7' },
         Menu: { itemBorderRadius: 12, itemHeight: 42 },
         Button: { fontWeight: 650, borderRadius: 10, controlHeight: 40, controlHeightSM: 32 },
       },

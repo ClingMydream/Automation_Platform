@@ -13,11 +13,12 @@ async page => {
   await page.locator('.ant-drawer').getByRole('button',{name:/^Close$|^关闭$/}).click();
  });
  await test('工作手记：日志保存、日报汇总及周报 P/R/O 生成',async()=>{
-  await nav('工作手记');await page.getByRole('button',{name:/记一笔$/}).click();await page.getByPlaceholder('今天做了什么，一句话说清').fill('隔离工作日志'+suffix);await page.getByPlaceholder('记录具体做了什么、怎么做的').fill('完成平台隔离自测，记录功能检查结果。');await page.getByRole('button',{name:/保存草稿$/}).click();await page.getByText(/已保存/).first().waitFor();
-  await page.getByRole('button',{name:/写日报$/}).click();await page.waitForTimeout(500);if(await page.getByRole('dialog').getByRole('button',{name:'打开',exact:true}).count())await page.getByRole('dialog').getByRole('button',{name:'打开',exact:true}).click();await page.getByRole('button',{name:/从当日日志整理$/}).click();await page.getByRole('dialog').getByRole('button',{name:/采纳为草稿$/}).click();
-  await page.getByRole('button',{name:/保存草稿$/}).click();await page.getByRole('button',{name:/^.*完成$/}).last().click();
-  await page.getByRole('button',{name:/写周报$/}).click();await page.waitForTimeout(500);if(await page.getByRole('dialog').getByRole('button',{name:'打开',exact:true}).count())await page.getByRole('dialog').getByRole('button',{name:'打开',exact:true}).click();await page.getByRole('button',{name:/根据日报生成周报$/}).click();
-  const modal=page.getByRole('dialog');await modal.getByText('# P-核心进展与结果:',{exact:true}).waitFor();await modal.getByRole('button',{name:/采纳为草稿$/}).click();await page.getByRole('button',{name:/保存草稿$/}).click();
+  const openReport=async(name)=>{const [response]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/v1/work-journal/reports')&&r.request().method()==='POST'),page.getByRole('button',{name}).click()]);if(response.status()===409){const dialog=page.getByRole('dialog').last();await dialog.getByRole('button',{name:/打\s*开$/}).click();await dialog.waitFor({state:'hidden'});}const edit=page.getByRole('button',{name:/重新编辑$/});if(await edit.isVisible()){await edit.click();await page.getByRole('button',{name:/保存草稿$/}).waitFor();}};
+  await nav('工作手记');await page.getByRole('button',{name:/记一笔$/}).click();await page.getByPlaceholder('今天做了什么，一句话说清').fill('隔离工作日志'+suffix);await page.getByPlaceholder('记录具体做了什么、怎么做的').fill('完成平台隔离自测，记录功能检查结果。');await page.getByRole('button',{name:/保存草稿$|保存修改$/}).click();await page.getByText(/已保存/).first().waitFor();
+  await openReport(/写日报$/);await page.getByRole('button',{name:/从当日日志整理$/}).click();await page.getByRole('dialog').getByRole('button',{name:/采纳为草稿$|追加到当前内容$/}).click();
+  await page.getByRole('button',{name:/保存草稿$|保存修改$/}).click();if(await page.getByRole('button',{name:/^.*完成$/}).count())await page.getByRole('button',{name:/^.*完成$/}).last().click();
+  await openReport(/写周报$/);await page.getByRole('button',{name:/根据日报生成周报$/}).click();
+  const modal=page.getByRole('dialog');await modal.getByText('# P-核心进展与结果:',{exact:true}).waitFor();await modal.getByRole('button',{name:/采纳为草稿$|追加到当前内容$/}).click();await page.getByRole('button',{name:/保存草稿$|保存修改$/}).click();
  });
  await test('自动化用例：断开 Codeup 仍可查看、新增编辑、复制与删除',async()=>{
   await nav('Emote UI 自动化');await page.getByRole('button',{name:/新建结构化用例$/}).click();let modal=page.getByRole('dialog');await modal.getByLabel(/用例名称/).fill('隔离自动化用例'+suffix);await modal.getByRole('button',{name:/保\s*存$/}).click();

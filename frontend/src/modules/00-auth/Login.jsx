@@ -4,7 +4,8 @@
 import React, { useState } from 'react';
 import { Alert, App as AntApp, Button, Card, Form, Input, Space, Typography } from 'antd';
 import { apiClient } from '../../shared/apiClient';
-import { CuteIcon } from '../../shared/CuteIcon.jsx';
+import { BrandMark, OrbitArtwork } from '../../shared/WorkspaceIdentity.jsx';
+import { ArrowRight } from 'lucide-react';
 
 const { Text, Title } = Typography;
 
@@ -31,14 +32,22 @@ export function Login({ onLogin, notice }) {
 
   // Render block: JSX below describes what the user sees on this page.
   return (
-    <main className="login-screen">
+    <main className="login-screen atelier-login">
+      <section className="atelier-login-story" aria-labelledby="login-story-title">
+        <div className="atelier-login-wordmark"><BrandMark/><strong>cling<span>✦</span></strong></div>
+        <div className="atelier-login-narrative"><span className="atelier-eyebrow">A LITTLE ORDER. A LITTLE WONDER.</span><h1 id="login-story-title">做好工作，<br/>也留一点空间<br/>给<span>自己。</span></h1><p>让测试更有把握，让成长慢慢发生。<br/>你的日常工作，可以轻盈一点。</p></div>
+        <OrbitArtwork/>
+        <div className="atelier-login-story-foot"><span>测试 · 成长 · 效率</span><span>YOUR EVERYDAY WORKSPACE</span></div>
+      </section>
+      <section className="atelier-login-entry" aria-labelledby="login-form-title">
+      <div className="atelier-login-entry-label">CLING / PERSONAL WORKSPACE</div>
       <Card className="login-card">
         <Space orientation="vertical" size={24} className="full-width">
           <div className="login-brand">
-            <CuteIcon emoji="✨" tone="blue" size={48} />
             <div>
-              <Title level={3}>Cling 自动化平台</Title>
-              <Text type="secondary">测试、学习与效率工具</Text>
+              <span className="atelier-eyebrow">WELCOME BACK</span>
+              <Title level={2} id="login-form-title">欢迎回到你的工作空间</Title>
+              <Text type="secondary">使用平台账号登录，继续今天的好工作。</Text>
             </div>
           </div>
           {notice && <Alert type="warning" showIcon title={notice} />}
@@ -49,10 +58,12 @@ export function Login({ onLogin, notice }) {
             <Form.Item label="登录密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
               <Input.Password size="large" autoFocus autoComplete="current-password" />
             </Form.Item>
-            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<span className="inline-emoji">👋</span>}>进入自动化平台</Button>
+            <Button type="primary" size="large" htmlType="submit" loading={loading} block icon={<ArrowRight size={17}/>}>进入自动化平台</Button>
           </Form>
         </Space>
       </Card>
+      <p className="atelier-login-entry-foot">一点秩序，一点灵感。<span>让每一次打开，都离目标更近一点。</span></p>
+      </section>
     </main>
   );
 }
