@@ -1,4 +1,23 @@
 /* Cling / Everyday atelier. Shared visual language; business layouts keep their own sizing. */
+.atelier-native-stack { display: flex; flex-direction: column; gap: 24px; }
+.atelier-native-login { font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif; }
+.atelier-login-description { margin: 0; font-size: 14px; line-height: 1.8; color: #736079; }
+.atelier-field { display: block; margin-bottom: 10px; color: #6e537e; font-size: 14px; }
+.atelier-native-login input:not([type="checkbox"]) { box-sizing: border-box; display: block; width: 100%; min-width: 0; height: 48px; padding: 10px 12px; border: 1px solid #9f89ad; border-radius: 9px; background: #fffefd; color: #302c35; font: inherit; font-size: 16px; }
+.atelier-field > input { margin-top: 10px; margin-bottom: 22px; }
+.atelier-password-field { position: relative; margin-bottom: 16px; }
+.atelier-native-login .atelier-password-field input { padding-right: 48px; }
+.atelier-password-toggle { position: absolute; right: 4px; top: 4px; display: inline-flex; justify-content: center; align-items: center; height: 40px; width: 40px; border: 0; border-radius: 6px; color: #6e537e; background: transparent; cursor: pointer; }
+.atelier-remember { display: flex; gap: 9px; align-items: center; min-height: 44px; margin: 0 0 16px; font-size: 12px; color: #6e537e; cursor: pointer; }
+.atelier-remember input { accent-color: #756092; width: 17px; height: 17px; flex-shrink: 0; margin: 0; }
+.atelier-login-submit { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 12px 19px; border: 1px solid #79638e; border-radius: 9px; font: inherit; font-size: 14px; font-weight: 600; color: #fff; background: #79638e; cursor: pointer; box-shadow: 0 3px 7px #5b466a12; }
+.atelier-login-submit:hover:not(:disabled) { background: #6a527f; }
+.atelier-login-submit:disabled { cursor: wait; opacity: .7; }
+.atelier-login-error,.atelier-login-notice { margin: 0; padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.7; }
+.atelier-login-error { color: #9b2525; background: #fff0ee; border: 1px solid #d89993; }
+.atelier-login-notice { color: #745214; background: #fff7df; border: 1px solid #c9af67; }
+.atelier-entry-error { max-width: 560px; margin: 15vh auto; padding: 24px; color: #4b345e; font-family: system-ui,sans-serif; }
+.atelier-entry-error button { min-height: 44px; margin-right: 12px; padding: 8px 16px; cursor: pointer; }
 .atelier-login .atelier-login-narrative .atelier-eyebrow,
 .login-screen.atelier-login .login-brand .atelier-eyebrow,
 .atelier-login .atelier-login-entry-label,

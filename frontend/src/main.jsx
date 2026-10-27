@@ -1,16 +1,19 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App as AntApp, ConfigProvider, theme } from 'antd';
-import zhCN from 'antd/locale/zh_CN';
 import { Login } from './modules/00-auth/Login.jsx';
-import { ModuleBoundary, ModuleLoading } from './shared/ModuleBoundary.jsx';
 import { reloadWhenDeploymentChanges } from './shared/deploymentVersion.js';
 import 'antd/dist/reset.css';
 import './styles/app.css';
 import './styles/platform.css';
 import './styles/atelier.css';
 
-const PlatformApp = lazy(() => import('./PlatformApp.jsx'));
+const PlatformApp = lazy(() => import('./WorkspaceRoot.jsx'));
+const ModuleLoading = () => <div className="module-loading" role="status"><p>正在加载工作空间…</p></div>;
+class ModuleBoundary extends React.Component {
+  state = { failed: false };
+  static getDerivedStateFromError(){return {failed:true};}
+  render(){return this.state.failed ? <div className="atelier-entry-error" role="alert"><h1>工作空间暂时无法加载</h1><p>请检查网络后重试。</p><button onClick={()=>this.setState({failed:false})}>重试</button><button onClick={()=>location.reload()}>刷新加载</button></div> : this.props.children;}
+}
 function hasSavedSession() {
   try { return Boolean(sessionStorage.getItem('token') || localStorage.getItem('token')); }
   catch { return false; }
@@ -35,35 +38,4 @@ function PlatformEntry() {
   return <ModuleBoundary><Suspense fallback={<ModuleLoading />}><PlatformApp /></Suspense></ModuleBoundary>;
 }
 
-createRoot(document.getElementById('root')).render(
-  <ConfigProvider
-    locale={zhCN}
-    theme={{
-      algorithm: theme.defaultAlgorithm,
-      token: {
-        colorPrimary: '#756092',
-        colorInfo: '#756092',
-        colorSuccess: '#15803d',
-        colorWarning: '#b45309',
-        colorError: '#dc2626',
-        colorBgLayout: '#f8f7f4',
-        colorText: '#302c35',
-        colorTextSecondary: '#736d79',
-        colorTextPlaceholder: '#7f678d',
-        borderRadius: 12,
-        colorBorder: '#9f89ad',
-        colorBgContainer: '#fffefd',
-        fontSize: 15, controlHeight: 40, controlHeightSM: 32,
-        fontFamily: 'Inter, "Segoe UI Variable", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif',
-      },
-      components: {
-        Card: { headerBg: 'transparent', paddingLG: 24 },
-        Table: { headerBg: '#f6f4f8', rowHoverBg: '#f4f0f7' },
-        Menu: { itemBorderRadius: 12, itemHeight: 42 },
-        Button: { fontWeight: 650, borderRadius: 10, controlHeight: 40, controlHeightSM: 32 },
-      },
-    }}
-  >
-    <AntApp><ModuleBoundary><Suspense fallback={<ModuleLoading />}><PlatformEntry /></Suspense></ModuleBoundary></AntApp>
-  </ConfigProvider>,
-);
+createRoot(document.getElementById('root')).render(<ModuleBoundary><PlatformEntry /></ModuleBoundary>);
