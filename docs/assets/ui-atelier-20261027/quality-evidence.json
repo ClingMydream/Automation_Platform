@@ -1,0 +1,392 @@
+{
+  "release": "86cdd59",
+  "lighthouse": [
+    {
+      "run": "desktop-baseline",
+      "url": "https://xiaomeiqaq.top/",
+      "fetchTime": "2026-10-27T04:33:41.733Z",
+      "lighthouseVersion": "12.8.2",
+      "scores": {
+        "performance": 89,
+        "accessibility": 96,
+        "best-practices": 100
+      },
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 1180,
+          "display": "1.2 s"
+        },
+        "largest-contentful-paint": {
+          "value": 1404,
+          "display": "1.4 s"
+        },
+        "total-blocking-time": {
+          "value": 104,
+          "display": "100 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0,
+          "display": "0"
+        },
+        "speed-index": {
+          "value": 1874.4720514138771,
+          "display": "1.9 s"
+        }
+      }
+    },
+    {
+      "run": "desktop-compressed",
+      "url": "https://xiaomeiqaq.top/",
+      "fetchTime": "2026-10-27T04:44:46.937Z",
+      "lighthouseVersion": "12.8.2",
+      "scores": {
+        "performance": 99,
+        "accessibility": 100,
+        "best-practices": 100
+      },
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 565.3009999999999,
+          "display": "0.6 s"
+        },
+        "largest-contentful-paint": {
+          "value": 701.3009999999999,
+          "display": "0.7 s"
+        },
+        "total-blocking-time": {
+          "value": 81,
+          "display": "80 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0,
+          "display": "0"
+        },
+        "speed-index": {
+          "value": 850.6354434130187,
+          "display": "0.9 s"
+        }
+      }
+    },
+    {
+      "run": "mobile-compressed",
+      "url": "https://xiaomeiqaq.top/",
+      "fetchTime": "2026-10-27T04:45:05.105Z",
+      "lighthouseVersion": "12.8.2",
+      "scores": {
+        "performance": 87,
+        "accessibility": 100,
+        "best-practices": 96
+      },
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 2281.8865,
+          "display": "2.3 s"
+        },
+        "largest-contentful-paint": {
+          "value": 2560.8865,
+          "display": "2.6 s"
+        },
+        "total-blocking-time": {
+          "value": 243.5,
+          "display": "240 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0,
+          "display": "0"
+        },
+        "speed-index": {
+          "value": 4412.082411350181,
+          "display": "4.4 s"
+        }
+      }
+    },
+    {
+      "run": "mobile-partial-split",
+      "url": "https://xiaomeiqaq.top/",
+      "fetchTime": "2026-10-27T05:13:52.131Z",
+      "lighthouseVersion": "12.8.2",
+      "scores": {
+        "performance": 84,
+        "accessibility": 100,
+        "best-practices": 100
+      },
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 2289.185,
+          "display": "2.3 s"
+        },
+        "largest-contentful-paint": {
+          "value": 2526.685,
+          "display": "2.5 s"
+        },
+        "total-blocking-time": {
+          "value": 343.5,
+          "display": "340 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0,
+          "display": "0"
+        },
+        "speed-index": {
+          "value": 4475.481194681354,
+          "display": "4.5 s"
+        }
+      }
+    },
+    {
+      "run": "desktop-final",
+      "url": "https://xiaomeiqaq.top/",
+      "fetchTime": "2026-10-27T05:22:27.670Z",
+      "lighthouseVersion": "12.8.2",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100
+      },
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 310,
+          "display": "0.3 s"
+        },
+        "largest-contentful-paint": {
+          "value": 343.5,
+          "display": "0.3 s"
+        },
+        "total-blocking-time": {
+          "value": 17,
+          "display": "20 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0,
+          "display": "0"
+        },
+        "speed-index": {
+          "value": 440.5997235867394,
+          "display": "0.4 s"
+        }
+      }
+    },
+    {
+      "run": "mobile-final",
+      "url": "https://xiaomeiqaq.top/",
+      "fetchTime": "2026-10-27T05:21:39.175Z",
+      "lighthouseVersion": "12.8.2",
+      "scores": {
+        "performance": 97,
+        "accessibility": 100,
+        "best-practices": 100
+      },
+      "metrics": {
+        "first-contentful-paint": {
+          "value": 1259.1295,
+          "display": "1.3 s"
+        },
+        "largest-contentful-paint": {
+          "value": 1379.1295,
+          "display": "1.4 s"
+        },
+        "total-blocking-time": {
+          "value": 190,
+          "display": "190 ms"
+        },
+        "cumulative-layout-shift": {
+          "value": 0,
+          "display": "0"
+        },
+        "speed-index": {
+          "value": 1380.077249820722,
+          "display": "1.4 s"
+        }
+      }
+    }
+  ],
+  "static_entry_assets": [
+    {
+      "run": "before",
+      "assets": 9,
+      "bytes": 873970,
+      "responses": [
+        {
+          "url": "https://xiaomeiqaq.top/assets/index-TcP1qff9.js",
+          "status": 200,
+          "bytes": 287461,
+          "encoding": null
+        },
+        {
+          "url": "https://xiaomeiqaq.top/assets/jsx-runtime-BJwFGpv1.js",
+          "status": 200,
+          "bytes": 439656,
+          "encoding": null
+        },
+        {
+          "url": "https://xiaomeiqaq.top/assets/es-BJPs_Wye.js",
+          "status": 200,
+          "bytes": 18945,
+          "encoding": null
+        },
+        {
+          "url": "https://xiaomeiqaq.top/assets/useClosable-DEhwqt6_.js",
+          "status": 200,
+          "bytes": 1113,
+          "encoding": null
+        },
+        {
+          "url": "https://xiaomeiqaq.top/assets/es-DCp-4RGT.js",
+          "status": 200,
+          "bytes": 23957,
+          "encoding": null
+        },
+        {
+          "url": "https://xiaomeiqaq.top/assets/card-Bi4dox-5.js",
+          "status": 200,
+          "bytes": 43450,
+          "encoding": null
+        },
+        {
+          "url": "https://xiaomeiqaq.top/assets/style-BAmneArq.js",
+          "status": 200,
+          "bytes": 1975,
+          "encoding": null
+        },
+        {
+          "url": "https://xiaomeiqaq.top/assets/useBreakpoint-BD9JzNf4.js",
+          "status": 200,
+          "bytes": 1822,
+          "encoding": null
+        },
+        {
+          "url": "https://xiaomeiqaq.top/assets/index-BcrkZ70Z.css",
+          "status": 200,
+          "bytes": 55591,
+          "encoding": null
+        }
+      ]
+    },
+    {
+      "run": "final",
+      "assets": 2,
+      "bytes": 82349,
+      "responses": [
+        {
+          "url": "https://xiaomeiqaq.top/assets/index-BsgDJ1kS.js",
+          "status": 200,
+          "bytes": 69012,
+          "encoding": "gzip"
+        },
+        {
+          "url": "https://xiaomeiqaq.top/assets/index-DR7nCyon.css",
+          "status": 200,
+          "bytes": 13337,
+          "encoding": "gzip"
+        }
+      ]
+    }
+  ],
+  "production_checks": [
+    {
+      "modules": 22,
+      "layouts": 110,
+      "page_errors": 0,
+      "overflow": []
+    },
+    {
+      "active_ui_runs": 0,
+      "ui_queue": 0,
+      "circle_busy": false,
+      "jenkins_queued": 0,
+      "jenkins_busy": 0
+    },
+    {
+      "read_only_checks": [
+        {
+          "path": "/health",
+          "status": 200
+        },
+        {
+          "path": "/auth/me",
+          "status": 200
+        },
+        {
+          "path": "/users",
+          "status": 200
+        },
+        {
+          "path": "/menu-options",
+          "status": 200
+        },
+        {
+          "path": "/file-transfers",
+          "status": 200
+        },
+        {
+          "path": "/image-tools/formats",
+          "status": 200
+        },
+        {
+          "path": "/test-packages/latest",
+          "status": 200
+        },
+        {
+          "path": "/v1/tools/data-generator/batches",
+          "status": 200
+        },
+        {
+          "path": "/v1/learning/mastery/overview",
+          "status": 200
+        },
+        {
+          "path": "/v1/command-library",
+          "status": 200
+        },
+        {
+          "path": "/v1/api-workspace/records",
+          "status": 200
+        },
+        {
+          "path": "/v1/work-journal/entries",
+          "status": 200
+        },
+        {
+          "path": "/v1/work-journal/reports",
+          "status": 200
+        },
+        {
+          "path": "/v1/ui-automation/overview",
+          "status": 200
+        },
+        {
+          "path": "/v1/ui-automation/data-sets",
+          "status": 200
+        },
+        {
+          "path": "/v1/integrations/webhooks",
+          "status": 200
+        },
+        {
+          "path": "/v1/self-study/grading-status",
+          "status": 200
+        },
+        {
+          "path": "/v1/online-preview/status",
+          "status": 200
+        },
+        {
+          "path": "/v1/online-preview/branches",
+          "status": 200
+        },
+        {
+          "path": "/v1/circle-stats/status",
+          "status": 200
+        },
+        {
+          "path": "/oa/admin/accounts",
+          "status": 200
+        },
+        {
+          "path": "/users without auth",
+          "status": 401
+        }
+      ]
+    }
+  ]
+}
