@@ -1,4 +1,22 @@
 /* Cling / Everyday atelier. Shared visual language; business layouts keep their own sizing. */
+.atelier-login .ant-input-password-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin: -9px -6px -9px 0;
+  border-radius: 6px;
+}
+.toolbox-layout .ant-input-password-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: -5px -3px -5px 0;
+}
 .atelier-login-story .atelier-eyebrow,
 .atelier-login-story .atelier-login-narrative p { color: #6e537e; }
 :root {
