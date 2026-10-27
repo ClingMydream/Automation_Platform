@@ -1,4 +1,39 @@
 /* Cling / Everyday atelier. Shared visual language; business layouts keep their own sizing. */
+.atelier-login .atelier-login-narrative .atelier-eyebrow,
+.login-screen.atelier-login .login-brand .atelier-eyebrow,
+.atelier-login .atelier-login-entry-label,
+.atelier-login .atelier-login-entry-foot,
+.atelier-login .atelier-login-entry-foot > span {
+  font-size: 12px;
+  letter-spacing: .06em;
+}
+.atelier-login-update {
+  position: fixed;
+  z-index: 3000;
+  top: 16px;
+  right: 16px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  border: 1px solid #d9cce3;
+  border-radius: 10px;
+  background: #fffefa;
+  color: #6e537e;
+  font-size: 13px;
+}
+.atelier-login-update button {
+  min-height: 40px;
+  border: 1px solid #9f89ad;
+  border-radius: 7px;
+  padding: 7px 12px;
+  background: #f2ebf7;
+  color: #6e537e;
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media(max-width:767px){.atelier-login-story .atelier-orbit text,.atelier-welcome-art .atelier-orbit text{display:none}}
 .atelier-login .ant-input-password-icon {
   display: inline-flex;
   align-items: center;

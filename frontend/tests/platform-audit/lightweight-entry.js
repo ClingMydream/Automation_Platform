@@ -1,0 +1,15 @@
+async page => {
+ const base='http://127.0.0.1:3104',contexts=[],results=[];
+ try{
+  const context=await page.context().browser().newContext();contexts.push(context);const target=await context.newPage();const requests=[];target.on('request',r=>requests.push(r.url()));
+  await target.goto(base);await target.getByLabel('登录账号',{exact:true}).waitFor();await target.waitForTimeout(250);
+  if(requests.some(url=>url.includes('/PlatformApp')))throw new Error('authenticated workspace eagerly requested before login');results.push('公开登录不加载登录后框架');
+  await target.getByLabel('登录账号',{exact:true}).fill('audit-admin');await target.getByLabel('登录密码',{exact:true}).fill('isolated-audit-20261026');await target.getByRole('button',{name:'进入自动化平台',exact:true}).click();await target.getByRole('menuitem',{name:'工作台',exact:true}).waitFor();if(!requests.some(url=>url.includes('/PlatformApp')))throw new Error('workspace was not loaded after login');results.push('提交登录后加载框架与工作台');
+  await target.reload();await target.getByRole('menuitem',{name:'工作台',exact:true}).waitFor();results.push('已有会话刷新恢复');
+  await target.getByRole('button',{name:'打开账号菜单',exact:true}).click();await target.getByRole('menuitem',{name:/退出登录$/}).click();await target.getByLabel('登录账号',{exact:true}).waitFor();results.push('退出登录返回登录页');
+  const versionContext=await page.context().browser().newContext();contexts.push(versionContext);const version=await versionContext.newPage();await version.goto(base);await version.getByLabel('登录账号',{exact:true}).fill('未保存的输入');await version.route('**/*version_check=*',route=>route.fulfill({contentType:'text/html',body:'<script type="module" src="/assets/updated.js"></script>'}));await version.evaluate(()=>window.dispatchEvent(new Event('focus')));await version.locator('.atelier-login-update').waitFor();if(await version.getByLabel('登录账号',{exact:true}).inputValue()!=='未保存的输入')throw new Error('version check lost input');results.push('登录页更新提示不自动刷新或丢失输入');
+  const response=await page.request.post(base+'/api/auth/login',{data:{username:'audit-admin',password:'isolated-audit-20261026'}});const token=(await response.json()).access_token;
+  const sessionContext=await page.context().browser().newContext();contexts.push(sessionContext);const sessionPage=await sessionContext.newPage();await sessionPage.goto(base);await sessionPage.evaluate(token=>{sessionStorage.setItem('token',token);localStorage.removeItem('token')},token);await sessionPage.reload();await sessionPage.getByRole('menuitem',{name:'工作台',exact:true}).waitFor();await sessionPage.reload();await sessionPage.getByRole('menuitem',{name:'工作台',exact:true}).waitFor();await sessionPage.getByRole('button',{name:'打开账号菜单',exact:true}).click();await sessionPage.getByRole('menuitem',{name:/退出登录$/}).click();await sessionPage.getByLabel('登录账号',{exact:true}).waitFor();if(await sessionPage.evaluate(()=>sessionStorage.getItem('token')||localStorage.getItem('token')))throw new Error('logout did not clear both token stores');results.push('仅会话存储的登录恢复、刷新与退出清理');
+  return {status:'passed',checks:results};
+ }finally{await Promise.all(contexts.map(context=>context.close()));}
+}
