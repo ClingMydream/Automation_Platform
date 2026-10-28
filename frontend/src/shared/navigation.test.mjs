@@ -10,4 +10,5 @@ assert.equal(groupKey('test_packages',sections[0].children),'jenkins');
 const all=collapseNavigation([{children:items}])[0].children;
 assert.equal(all.length,4);assert.equal(groupKey('codec',all),'json_tools');
 assert.equal(authorizedKeys(null,items).size,0);
+assert.deepEqual([...authorizedKeys({menu_permissions:[]},[{key:'knowledge'},{key:'personal_tasks'},{key:'learning_route'},{key:'practice_lab'}])],['home','knowledge','personal_tasks','learning_route']);
 console.log('PASS grouped navigation retains independent permissions and legacy URLs.');

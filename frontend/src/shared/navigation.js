@@ -6,7 +6,7 @@ export const NAVIGATION_GROUPS = [
 export function authorizedKeys(user, items) {
   if (!user) return new Set();
   return new Set(['home', ...items.filter(item => (!item.adminOnly || user.is_admin) &&
-    (user.is_admin || user.menu_permissions?.includes(item.key))).map(item=>item.key)]);
+    (user.is_admin || ['personal_tasks','knowledge','learning_route'].includes(item.key) || user.menu_permissions?.includes(item.key))).map(item=>item.key)]);
 }
 export function collapseNavigation(sections) {
   return sections.map(section => {

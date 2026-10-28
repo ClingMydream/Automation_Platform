@@ -22,6 +22,10 @@ import {
 
 const icons = {
   home: LayoutDashboard,
+  personal_tasks: NotebookPen,
+  knowledge: NotebookPen,
+  learning_route: Sprout,
+  practice_lab: Blocks,
   emote_ui_automation: Clapperboard,
   circle_stats: Bubbles,
   api_workspace: Braces,

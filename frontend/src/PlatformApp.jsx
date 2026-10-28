@@ -38,6 +38,10 @@ const CircleStatsPanel = lazy(() => import('./modules/17-circle-stats/CircleStat
 const SelfStudyPanel = lazy(() => import('./modules/18-self-study/SelfStudyPanel.jsx').then(m => ({ default: m.SelfStudyPanel })));
 const OaManagementPanel = lazy(() => import('./modules/19-oa-management/OaManagementPanel.jsx').then(m => ({ default: m.OaManagementPanel })));
 const WorkJournalPanel = lazy(() => import('./modules/20-work-journal/WorkJournalPanel.jsx').then(m => ({ default: m.WorkJournalPanel })));
+const PersonalSpace = lazy(()=>import('./modules/21-personal-space/PersonalSpace.jsx').then(m=>({default:m.PersonalSpace})));
+const LearningRoute = lazy(()=>import('./modules/21-personal-space/LearningRoute.jsx').then(m=>({default:m.LearningRoute})));
+const PracticePanel = lazy(()=>import('./modules/22-practice-lab/PracticePanel.jsx').then(m=>({default:m.PracticePanel})));
+const PracticePublicApp = lazy(()=>import('./modules/22-practice-lab/PracticeApp.jsx').then(m=>({default:m.PracticePublicApp})));
 import { apiClient } from './shared/apiClient.js';
 import { authorizedKeys, collapseNavigation, groupKey } from './shared/navigation.js';
 import { EnvironmentPanel } from './shared/EnvironmentPanel.jsx';
@@ -58,11 +62,12 @@ const MOBILE_PREVIEW_PATH = '/emote-mobile-preview';
 
 
 const MENU_SECTIONS = [
-  { key: 'workspace', label: '我的空间', children: [{ key: 'home', label: '工作台', icon: <WorkspaceIcon name="home" /> }] },
+  { key: 'workspace', label: '我的工作', children: [{ key: 'home', label: '今日工作台', icon: <WorkspaceIcon name="home" /> },{key:'personal_tasks',label:'待办与备忘',icon:<WorkspaceIcon name="personal_tasks"/>},{key:'work_journal',label:'工作手记',icon:<WorkspaceIcon name="work_journal"/>}] },
   {
     key: 'testing',
     label: '测试中心',
     children: [
+      {key:'practice_lab',label:'实践实验室',icon:<WorkspaceIcon name="practice_lab"/>},
       { key: 'emote_ui_automation', label: 'Emote UI 自动化', icon: <WorkspaceIcon name="emote_ui_automation" /> },
       { key: 'circle_stats', label: '全员圈统计', icon: <WorkspaceIcon name="circle_stats" /> },
       { key: 'api_workspace', label: '接口工作台', icon: <WorkspaceIcon name="api_workspace" /> },
@@ -73,12 +78,13 @@ const MENU_SECTIONS = [
   },
   {
     key: 'growth',
-    label: '个人成长',
+    label: '知识空间',
     children: [
+      {key:'knowledge',label:'笔记本',icon:<WorkspaceIcon name="knowledge"/>},
+      {key:'learning_route',label:'学习路线',icon:<WorkspaceIcon name="learning_route"/>},
       { key: 'self_study', label: '自考题库', icon: <WorkspaceIcon name="self_study" /> },
       { key: 'command_library', label: '命令手册', icon: <WorkspaceIcon name="command_library" /> },
       { key: 'effects', label: '临时效果', icon: <WorkspaceIcon name="effects" /> },
-      { key: 'work_journal', label: '工作手记', icon: <WorkspaceIcon name="work_journal" /> },
     ],
   },
   {
@@ -155,8 +161,8 @@ export default function PlatformApp() {
     window.addEventListener('keydown',handle);return () => window.removeEventListener('keydown',handle);
   },[token, user?.username]);
   const authGeneration = useRef(0);
-  function setTab(key) {
-    const url = new URL(location.href); url.searchParams.set('module', key);
+  function setTab(key, extra={}) {
+    const url = new URL(location.href); for(const name of ['record','lesson','new'])url.searchParams.delete(name);for(const [name,value]of Object.entries(extra))if(value!=null)url.searchParams.set(name,String(value));url.searchParams.set('module', key);
     if (url.href !== location.href) history.pushState(null, '', url);
     updateTab(key); setNavOpen(false);
     window.scrollTo(0, 0);
@@ -186,6 +192,7 @@ export default function PlatformApp() {
 
   function logout(notice = '') {
     authGeneration.current++;
+    try{sessionStorage.removeItem('cling:practice:'+user?.username);sessionStorage.removeItem('cling:practice:session');}catch{}
     localStorage.removeItem('token');
     sessionStorage.removeItem('token');
     setToken('');
@@ -247,6 +254,7 @@ export default function PlatformApp() {
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
   }, []);
 
+  if (location.pathname==='/practice-app') return <PracticePublicApp/>;
   if (isPublicEffect) return <BuiltinEffectGate />;
   if (transferToken) return <PublicTransferPage token={transferToken} />;
   if (testPackage === 'latest') return <PublicPackageDownload />;
@@ -321,7 +329,10 @@ export default function PlatformApp() {
             {!user ? <ModuleLoading /> : !allowed ? <Alert type="warning" title="此功能不存在或当前账号没有访问权限" action={<Button onClick={() => setTab(menuItems[0]?.children[0]?.key || 'home')}>返回可用功能</Button>} /> : <ModuleBoundary key={`${user.username}:${tab}`}><Suspense fallback={<ModuleLoading />}>
             {['online_preview','jenkins','test_packages'].includes(tab) && <EnvironmentPanel client={client} activeKey={tab} allowedKeys={allowedKeys} onChange={setTab}/>}
             {['json_tools','codec'].includes(tab) && <TextToolsPanel activeKey={tab} allowedKeys={allowedKeys} onChange={setTab}/>}
-            {tab === 'home' && <WorkspaceHome user={user} sections={workspaceSections} recent={recentModules} onNavigate={setTab} onSearch={openSearch}/>}
+            {['personal_tasks','knowledge'].includes(tab) && <PersonalSpace key={user.username+':'+tab} client={client} userKey={user.username} initialKind={tab==='knowledge'?'note':'task'}/>}
+            {tab==='learning_route' && <LearningRoute key={user.username} client={client} userKey={user.username} onNavigate={setTab} practiceAllowed={allowedKeys.has('practice_lab')}/>}
+            {tab==='practice_lab' && <PracticePanel key={user.username} client={client} userKey={user.username} onNavigate={setTab}/>}
+            {tab === 'home' && <WorkspaceHome user={user} sections={workspaceSections} recent={recentModules} onNavigate={setTab} onSearch={openSearch} client={client}/>}
             {tab === 'data_generator' && <DataGeneratorPanel client={client} />}
             {tab === 'files' && <FileTransferPanel client={client} />}
             {tab === 'images' && <ImageToolPanel token={token} />}

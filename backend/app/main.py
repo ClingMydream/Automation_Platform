@@ -102,3 +102,5 @@ def on_startup() -> None:
 
 # All feature routers are grouped under /api for a clean Nginx reverse-proxy rule.
 app.include_router(router, prefix="/api")
+from app.modules.practice_lab.docs import mount_docs
+mount_docs(app)

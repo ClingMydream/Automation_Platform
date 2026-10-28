@@ -31,6 +31,7 @@ services:
       - test-package-data:/var/lib/cling-test-packages
       - ui-automation-data:/var/lib/cling-ui-automation
       - temp-effects-data:/var/lib/cling-temp-effects
+      - personal-workspace-data:/var/lib/cling-personal-workspace
     depends_on:
       mysql:
         condition: service_healthy
@@ -178,7 +179,31 @@ services:
         limits:
           memory: 2G
 
+  practice-runner:
+    build:
+      context: .
+      dockerfile: deploy/practice-runner/Dockerfile
+    restart: unless-stopped
+    environment:
+      UI_RUNNER_TOKEN: ${UI_RUNNER_TOKEN}
+      PRACTICE_API_URL: http://backend:8000/api/practice/v1
+      PRACTICE_UI_URL: http://frontend/practice-app
+    volumes:
+      - practice-runner-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8093/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+          cpus: '1.0'
+
 volumes:
+  personal-workspace-data:
+  practice-runner-data:
   mysql-data:
   transfer-data:
   test-package-data:

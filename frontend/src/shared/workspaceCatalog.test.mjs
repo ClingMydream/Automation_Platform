@@ -23,7 +23,7 @@ assert.deepEqual(
 );
 assert.equal(searchModules(items, "用户管理").length, 0);
 assert.equal(searchModules(items, "不存在的功能").length, 0);
-assert.equal(Object.keys(MODULE_META).length, 19);
+assert.equal(Object.keys(MODULE_META).length, 23);
 let raw = "invalid";
 const storage = {
   getItem: (key) => {

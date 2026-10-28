@@ -1,6 +1,11 @@
 """Aggregate every backend module router under the shared /api prefix."""
 
 from fastapi import APIRouter
+from app.modules.personal_workspace.router import router as personal_workspace_router
+from app.modules.personal_workspace import extras, learning  # register owned attachments and learning APIs
+from app.modules.practice_lab.router import management as practice_management, router as practice_router
+from app.modules.practice_lab import execution  # register controlled execution APIs
+from app.modules.practice_lab import docs  # register downloadable practice project
 
 from app.modules.auth.router import router as auth_router
 from app.modules.api_workspace.router import router as api_workspace_router
@@ -25,6 +30,9 @@ router = APIRouter()
 
 # Keep the API surface intentionally limited to efficiency tools and settings.
 for module_router in [
+    personal_workspace_router,
+    practice_management,
+    practice_router,
     health_router,
     api_workspace_router,
     auth_router,

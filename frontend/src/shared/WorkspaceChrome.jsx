@@ -1,3 +1,4 @@
+import {TodayPanel} from "../modules/21-personal-space/TodayPanel.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Modal } from "antd";
 import {
@@ -78,6 +79,7 @@ export function WorkspaceHome({
   recent,
   onNavigate,
   onSearch,
+  client,
 }) {
   const [today, setToday] = useState(() => new Date());
   useEffect(() => {
@@ -98,13 +100,15 @@ export function WorkspaceHome({
           <button className="atelier-text-button" onClick={()=>onSearch('')}>查找功能<Search size={16}/></button>
         </div>
       </section>
+      <TodayPanel client={client} onNavigate={onNavigate} practiceAllowed={items.some(item=>item.key==='practice_lab')}/>
       <section className="atelier-recent" aria-labelledby="workspace-recent">
         <div className="atelier-section-heading"><h2 id="workspace-recent">最近使用</h2><Clock3 size={20}/></div>
         {last.length ? <div className="atelier-recent-grid">{last.slice(0,3).map(({item,at})=><button key={item.key} onClick={()=>onNavigate(item.key)}><span className="atelier-recent-icon"><WorkspaceIcon name={item.key}/></span><span><strong>{item.label}</strong><small>{new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(at)} 访问</small></span><ArrowUpRight size={16}/></button>)}</div> : <div className="atelier-recent-empty"><BrandMark/><div><strong>还没有访问记录</strong><p>打开下方功能，下次可在这里继续。</p></div></div>}
       </section>
-      <div className="atelier-section-heading"><h2>全部功能</h2><span className="atelier-count">{items.length} 个入口</span></div>
+      <details className="atelier-feature-directory"><summary>浏览全部功能</summary><div className="atelier-section-heading"><h2>全部功能</h2><span className="atelier-count">{items.length} 个入口</span></div>
       {!items.length && <div className="atelier-recent-empty"><WorkspaceIcon name="users"/><p>当前账号尚未分配功能，请联系管理员配置访问权限。</p></div>}
       <div className="atelier-spaces">{sections.filter(section=>SECTION_META[section.key]).map(section=><section key={section.key} className={`atelier-space atelier-tone-${SECTION_META[section.key].tone}`}><h3>{section.label}</h3><div className="atelier-space-links">{section.children.slice(0,3).map(item=><button key={item.key} onClick={()=>onNavigate(item.key)}><WorkspaceIcon name={item.key} size={17}/><span>{item.label}</span><ArrowRight size={15}/></button>)}</div>{section.children.length>3 && <button className="atelier-space-all" onClick={()=>onSearch(section.label)}>查看全部 {section.children.length} 项<ArrowUpRight size={14}/></button>}</section>)}</div>
+      </details>
     </div>
   );
 }

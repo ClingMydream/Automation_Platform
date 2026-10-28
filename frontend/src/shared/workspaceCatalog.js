@@ -26,9 +26,13 @@ export const SECTION_META = {
 };
 
 export const MODULE_META = {
+  personal_tasks:{description:"安排事情，留下想法，在需要的时候找回来。",keywords:"待办 备忘 提醒 截止 任务 todo memo"},
+  knowledge:{description:"让知识有归处，让经验能再次派上用场。",keywords:"笔记 notebook markdown 代码 标签 知识"},
+  learning_route:{description:"从 Python 到测试，把理解放进真实实践。",keywords:"学习 python pytest playwright locust 路线"},
+  practice_lab:{description:"一套可重置的订单库存系统，承接接口、UI 与性能练习。",keywords:"实践 订单 库存 商品 pytest Playwright Locust 自动化 性能"},
   home: {
     description: "测试、自考与日常工作，在这里轻轻连接。",
-    keywords: "首页 工作台 home dashboard",
+    keywords: "首页 工作台 home dashboard 今日 工作台",
   },
   emote_ui_automation: {
     description: "从一条用例到完整回归，让过程可见，让结果有据。",

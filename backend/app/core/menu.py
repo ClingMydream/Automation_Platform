@@ -7,6 +7,7 @@
 """
 
 MENU_OPTIONS = [
+    {"key": "practice_lab", "label": "实践实验室"},
     {"key": "emote_ui_automation", "label": "Emote UI 自动化"},
     {"key": "circle_stats", "label": "全员圈统计"},
     {"key": "self_study", "label": "自考题库"},
