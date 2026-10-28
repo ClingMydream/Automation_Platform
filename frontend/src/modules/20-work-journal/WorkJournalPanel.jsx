@@ -56,6 +56,7 @@ export function WorkJournalPanel({ client }) {
 
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
+  const reportSelectionVersion = useRef(0);
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
   const saveHandler = useRef(null);
@@ -136,19 +137,26 @@ export function WorkJournalPanel({ client }) {
   // 切换日期时，日报/周报自动定位到对应周期的记录。
   useEffect(() => {
     if (tab === 'logs') return;
+    const selectionVersion = reportSelectionVersion.current;
     let cancelled = false;
     (async () => {
       try {
         const periodStart = tab === 'daily' ? date : weekStart;
         const params = new URLSearchParams({ report_type: tab, date_from: periodStart, date_to: periodStart, page_size: '1' });
         const data = await client.get(`${API}/reports?${params.toString()}`);
-        if (!cancelled) setSelectedReport(data.items[0] || null);
+        if (!cancelled && selectionVersion === reportSelectionVersion.current) setSelectedReport(data.items[0] || null);
       } catch (error) {
-        if (!cancelled) setSelectedReport(null);
+        if (!cancelled && selectionVersion === reportSelectionVersion.current) setSelectedReport(null);
       }
     })();
     return () => { cancelled = true; };
   }, [client, tab, date, weekStart]);
+
+  function chooseReport(value) {
+    // An older automatic lookup must not replace a newly created or chosen report.
+    reportSelectionVersion.current += 1;
+    setSelectedReport(value);
+  }
 
   function guard(action) {
     if (!dirty) {
@@ -200,7 +208,7 @@ export function WorkJournalPanel({ client }) {
     const periodStart = reportType === 'daily' ? date : weekStart;
     try {
       const created = await client.post(`${API}/reports`, { report_type: reportType, period_start: periodStart });
-      setSelectedReport(created);
+      chooseReport(created);
       await loadList();
       return created;
     } catch (error) {
@@ -219,7 +227,7 @@ export function WorkJournalPanel({ client }) {
               const restored = existing.deleted_at
                 ? await client.post(`${API}/reports/${existing.id}/restore`)
                 : existing;
-              setSelectedReport(restored);
+              chooseReport(restored);
               await loadList();
             },
           });
@@ -262,7 +270,7 @@ export function WorkJournalPanel({ client }) {
       const reportId = selectedReport?.id ?? (await currentReportId());
       await client.post(`${API}/reports/${reportId}/assemble?mode=${mode}&include_draft_reports=${includeDraft}`, {});
       const refreshed = await client.get(`${API}/reports/${reportId}`);
-      setSelectedReport(refreshed);
+      chooseReport(refreshed);
       setSourceOpen(false);
       setPreview(null);
       setDirty(false);
@@ -293,7 +301,7 @@ export function WorkJournalPanel({ client }) {
   async function restoreReport(report) {
     try {
       const restored = await client.post(`${API}/reports/${report.id}/restore`);
-      setSelectedReport(restored);
+      chooseReport(restored);
       setTrash(false);
       await loadList();
     } catch (error) {
@@ -484,7 +492,7 @@ export function WorkJournalPanel({ client }) {
                   key={report.id}
                   type="button"
                   className={`work-journal__item ${selectedReport?.id === report.id ? 'is-active' : ''}`}
-                  onClick={() => guard(() => (trash ? restoreReport(report) : setSelectedReport(report)))}
+                  onClick={() => guard(() => (trash ? restoreReport(report) : chooseReport(report)))}
                 >
                   <span className="work-journal__item-title">
                     {tab === 'daily' ? report.period_start : `${report.period_start} ～ ${report.period_end}`}
@@ -510,7 +518,7 @@ export function WorkJournalPanel({ client }) {
 
           <div className="work-journal__side-foot">
             <span>{tab === 'logs' ? `${entries.length} 条记录` : `${reports.length} 份报告`}</span>
-            <Button size="small" type="link" onClick={() => { setTrash(!trash); setSelectedEntry(null); setSelectedReport(null); }}>
+            <Button size="small" type="link" onClick={() => { setTrash(!trash); setSelectedEntry(null); chooseReport(null); }}>
               {trash ? <><UndoOutlined /> 返回</> : <><DeleteOutlined /> 回收站</>}
             </Button>
           </div>
@@ -552,8 +560,8 @@ export function WorkJournalPanel({ client }) {
               onDirtyChange={setDirty}
               onRegisterSave={(save) => { saveHandler.current = save; }}
               onOpenSources={() => guard(openSources)}
-              onSaved={(saved) => { setSelectedReport(saved); loadList(); }}
-              onDeleted={() => { setSelectedReport(null); loadList(); }}
+              onSaved={(saved) => { chooseReport(saved); loadList(); }}
+              onDeleted={() => { chooseReport(null); loadList(); }}
             />
           ) : (
             <div className="work-journal__card">

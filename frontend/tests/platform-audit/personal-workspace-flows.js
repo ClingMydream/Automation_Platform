@@ -1,9 +1,9 @@
 // Local-only acceptance: real isolated API + actual React UI, never production credentials.
 async page => {
- const base='http://127.0.0.1:3104',suffix=Date.now(),results=[],errors=[];page.setDefaultTimeout(12000);page.on('dialog',dialog=>dialog.accept());page.on('pageerror',error=>errors.push(error.message));
+ const base='http://127.0.0.1:3104',suffix=Date.now(),results=[],errors=[];page.setDefaultTimeout(12000);page.removeAllListeners('dialog');page.on('dialog',dialog=>dialog.accept());page.on('pageerror',error=>errors.push(error.message));
  const check=async(name,fn)=>{try{await fn();results.push({name,status:'passed'});}catch(e){results.push({name,status:'failed',reason:e.message.slice(0,1400)});await page.screenshot({path:'output/workspace-20261028/failure-'+results.length+'.png',fullPage:true});await page.goto(base+'/?module=home');}};
  const close=async()=>{await page.locator('.ant-drawer').getByRole('button',{name:/^Close$|^关闭$/}).click();};
- await page.goto(base+'/?module=home');await page.evaluate(()=>{localStorage.clear();sessionStorage.clear();});await page.reload();await page.getByLabel('登录账号',{exact:true}).fill('audit-admin');await page.getByLabel('登录密码',{exact:true}).fill('isolated-audit-20261028');await page.getByRole('button',{name:'进入自动化平台',exact:true}).click();await page.getByRole('menuitem',{name:'今日工作台',exact:true}).waitFor();
+ await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/?module=home');await page.evaluate(()=>{localStorage.clear();sessionStorage.clear();});await page.reload();await page.getByLabel('登录账号',{exact:true}).fill('audit-admin');await page.getByLabel('登录密码',{exact:true}).fill('isolated-audit-20261028');await page.getByRole('button',{name:'进入自动化平台',exact:true}).click();await page.getByRole('menuitem',{name:'今日工作台',exact:true}).waitFor();
  await page.getByRole('heading',{name:'今天，从一件事开始',exact:true}).waitFor();
  const noteTitle='Python 笔记 '+suffix,taskTitle='今日接口练习 '+suffix,memoTitle='稍后查阅 '+suffix;let noteId,taskId;
  await check('笔记新增、Markdown预览、附件、刷新回看与笔记本',async()=>{

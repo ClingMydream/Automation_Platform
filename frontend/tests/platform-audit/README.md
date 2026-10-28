@@ -6,7 +6,7 @@
 2. 在 frontend 目录运行 `npm run dev -- --port 3104`。若要重复完整测试，使用新的隔离目录/数据库，不要清理生产存储。
 3. 使用 Playwright CLI 打开本机页面，使用脚本中公开的隔离账号登录，或先执行 `account-progress.js` 初始化登录状态。该脚本专门验证账号切换与旧进度归属。
 4. 按顺序通过 `playwright-cli run-code --filename` 执行 `core-flows.js`、`extended-flows.js`、`error-flows.js`。最后一个脚本验证 401 后会退出登录；重新执行 account-progress.js 可恢复隔离管理员。
-5. `inventory.js` 遍历含工作台的 19 个功能视图及 1440、1280、768、390、320px，检查页面宽度、可见按钮与未处理页面异常。组合入口内各页签通过原 URL 分别检查。
+5. `inventory.js` 遍历含工作台的 23 个功能视图及 1440、1280、768、390、320px，检查页面宽度、可见按钮与未处理页面异常。组合入口内各页签通过原 URL 分别检查。
 6. `populated-history.js` 额外模拟 32 条用例、历史执行、超长分支和网址，检查五档布局及用例区独立滚动。它补充空数据检查覆盖不到的最小内容宽度问题。
 7. `workspace-design.js` 验证新工作台搜索、键盘末项滚动、访问记录、前进后退、手机抽屉和权限过滤。CLI 脚本保留单个函数表达式，末尾不要添加分号。
 8. `password-target.js` 验证登录密码显隐、输入保留、五档按钮尺寸及页面宽度。
@@ -20,3 +20,7 @@
 自考主观题使用现有 `tests/self-study-written-smoke.html`，脚本 `self-study-written-browser-check.js` 的本机端口改为 3104；自动化专项入口使用 `tests/emote192-smoke.html` 与现有 `emote192-browser-check.js`，需要先打开对应 fixture。二者均为模拟外部依赖的组件检查。
 
 真实钉钉扫码/在线表格写入、Jenkins 构建发布、Emote 业务端运行、真实 DeepSeek 服务可用性，需要各自独立验收。模拟通过不得记录为这些真实链路通过。
+
+## 个人工作台与实践实验室
+
+使用 `scripts/run_personal_workspace_audit.py` 启动独立后端、`scripts/run_practice_runner_audit.py` 启动真实固定项目执行器。后者需先安装 practice/requirements.txt；不能与上面的旧隔离后端同时占用端口。执行 personal-workspace-flows.js、practice-management.js 和 inventory.js；真实工程验收使用 scripts/verify_practice_execution.py。具体日期与结果见 docs/个人工作台实施进度.md。
