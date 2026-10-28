@@ -1,15 +1,15 @@
 /* 工作手记模块样式。所有规则都限定在 .work-journal 作用域内，不覆盖平台的全局 .ant-* 类。 */
 
 .work-journal {
-  --wj-primary: #6d5bd0;
+  --wj-primary: #0066cc;
   --wj-mint: #15803d;
   --wj-peach: #b45309;
   --wj-rose: #be123c;
   --wj-ink: #182230;
   --wj-muted: #667085;
-  --wj-line: #ece8f6;
+  --wj-line: #e5e5ea;
   --wj-surface: #ffffff;
-  --wj-soft: #faf9fd;
+  --wj-soft: #f5f5f7;
   max-width: 1320px;
   margin: 0 auto;
   padding: 4px 4px 24px;
@@ -155,7 +155,7 @@
   background: #fff;
 }
 .work-journal__day.is-in-week {
-  background: #f2effc;
+  background: #eaf3ff;
 }
 .work-journal__day.is-in-week.is-selected {
   background: var(--wj-primary);
@@ -199,7 +199,7 @@
   background: var(--wj-soft);
 }
 .work-journal__item.is-active {
-  background: #f2effc;
+  background: #eaf3ff;
   border-color: #ded6f7;
 }
 .work-journal__item-title {

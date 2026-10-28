@@ -3,7 +3,7 @@
 
 import React, { useRef, useState } from 'react';
 import { apiClient } from '../../shared/apiClient';
-import { BrandMark, OrbitArtwork } from '../../shared/WorkspaceIdentity.jsx';
+import { BrandMark } from '../../shared/WorkspaceIdentity.jsx';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 
@@ -40,9 +40,9 @@ export function Login({ onLogin, notice }) {
   return (
     <main className="login-screen atelier-login">
       <section className="atelier-login-story" aria-labelledby="login-story-title">
-        <div className="atelier-login-wordmark"><BrandMark/><strong>cling<span>✦</span></strong></div>
-        <div className="atelier-login-narrative"><span className="atelier-eyebrow">A LITTLE ORDER. A LITTLE WONDER.</span><h1 id="login-story-title">做好工作，<br/>也留一点空间<br/>给<span>自己。</span></h1><p>让测试更有把握，让成长慢慢发生。<br/>你的日常工作，可以轻盈一点。</p></div>
-        <OrbitArtwork/>
+        <div className="atelier-login-wordmark"><BrandMark/><strong>cling</strong></div>
+        <div className="atelier-login-narrative"><span className="atelier-eyebrow">YOUR PERSONAL WORKSPACE</span><h1 id="login-story-title">专注当下。<br/><span>从容向前。</span></h1><p>工作、学习与灵感，在这里井然有序。<br/>把注意力留给真正重要的事。</p></div>
+
         <div className="atelier-login-story-foot"><span>测试 · 成长 · 效率</span><span>YOUR EVERYDAY WORKSPACE</span></div>
       </section>
       <section className="atelier-login-entry" aria-labelledby="login-form-title">

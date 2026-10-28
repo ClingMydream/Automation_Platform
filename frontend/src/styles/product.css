@@ -1,0 +1,74 @@
+/* Product shell: quiet chrome, generous content, no decorative gradients. */
+body{font-family:var(--workspace-font);-webkit-font-smoothing:antialiased}
+.toolbox-sider{background:#f5f5f7!important}
+.atelier-brand{min-height:88px;padding:24px;color:var(--atelier-ink)!important;gap:10px}
+.atelier-brand strong{font-size:27px;font-weight:600;letter-spacing:-1.1px}
+.atelier-brand small{font-size:11px;letter-spacing:0;margin-top:8px}
+.atelier-brand .atelier-mark{width:28px;height:28px;flex-basis:28px;color:#1d1d1f}
+.toolbox-menu .ant-menu-item-group-title{font-size:12px;letter-spacing:0;padding-top:25px}
+.toolbox-menu .ant-menu-item{font-size:14px;border-radius:8px!important}
+.toolbox-menu .ant-menu-item-selected{background:#e7edf5!important;color:#0055ad!important}
+.toolbox-sider .sider-footer{background:#f5f5f7}
+.toolbox-header{height:68px;background:#ffffffd9!important;border-bottom-color:#0000000a;backdrop-filter:blur(20px)}
+.atelier-breadcrumb,.atelier-breadcrumb button{font-size:13px}
+.atelier-search-trigger{border-color:#e5e5ea;border-radius:10px;background:#f5f5f7}
+.content-container.atelier-content{padding-top:32px}
+.atelier-welcome.atelier-welcome--compact{background:none;border:0;border-radius:0;padding:4px 0 28px;margin-bottom:22px;border-bottom:1px solid #dedee3}
+.atelier-welcome.atelier-welcome--compact h1{font-size:clamp(27px,2.6vw,38px);font-weight:600;letter-spacing:-.035em;line-height:1.3}
+.atelier-welcome--compact p{font-size:15px;line-height:1.7}
+.atelier-button-primary{background:#0071e3;border-color:#0071e3;border-radius:999px;box-shadow:none}
+.atelier-button-primary:hover{background:#0077ed;box-shadow:none}
+.atelier-text-button{color:#0066cc}
+.atelier-module-intro{padding-bottom:25px;margin-bottom:24px}
+.atelier-module-intro h1{font-size:32px;font-weight:600;letter-spacing:-.035em}
+.atelier-module-intro .atelier-module-seal{display:none}
+.toolbox-layout .toolbox-content .ant-card{border:1px solid #e8e8ed;box-shadow:0 2px 8px #00000002;border-radius:18px}
+.toolbox-layout .toolbox-content .ant-card-head{border-bottom-color:#f0f0f3;min-height:60px}
+.toolbox-layout .ant-btn-primary{background:#0071e3;border-color:#0071e3;box-shadow:none}
+.toolbox-layout .ant-btn-primary:not(:disabled):hover{background:#0077ed;border-color:#0077ed;box-shadow:none}
+.toolbox-layout .ant-btn-default{color:#1d1d1f;border-color:#d2d2d7;box-shadow:none}
+.toolbox-layout .ant-btn-default:hover{color:#0066cc;background:#f5f9ff;border-color:#9cc5f2}
+.toolbox-layout .ant-form-item-label>label{font-size:14px;color:#424245;font-weight:500}
+.toolbox-layout .ant-input,.toolbox-layout .ant-input-affix-wrapper,.toolbox-layout .ant-input-number,.toolbox-layout .ant-select-selector{border-color:#d2d2d7!important}
+.toolbox-layout .ant-input:focus,.toolbox-layout .ant-input-affix-wrapper-focused,.toolbox-layout .ant-input-number-focused{border-color:#0071e3!important;box-shadow:0 0 0 3px #0071e31a!important}
+.today-heading h2{font-size:23px;font-weight:600;letter-spacing:-.025em}
+.today-grid{gap:20px}.today-grid .ant-empty{padding-block:12px}.today-grid .ant-card-body{padding:24px}.today-grid .ant-btn-default{border-color:#e5e5ea}
+.atelier-recent-grid>button{background:transparent;border:0;border-radius:10px;box-shadow:none;padding:18px 8px}
+.atelier-recent-grid>button:hover{background:#ececf0;box-shadow:none}
+.atelier-recent-icon{background:#e9e9ee;color:#6e6e73;border-radius:10px}
+.personal-markdown{background:#fafafa;border-color:#e5e5ea}.personal-markdown pre{background:#f0f0f2;border-color:#e5e5ea}
+.learning-route-nav{background:#fff}.learning-route-nav>button.active{background:#eaf3ff;border-color:#b6d4fa}
+.practice-lab-banner{background:#fff;border-color:#e5e5ea}
+/* Login uses typography and space instead of an illustrated background. */
+.login-screen.atelier-login{background:#fff;gap:0;padding:0;grid-template-columns:1.05fr 1fr}
+.atelier-login-story{border-radius:0;background:#f5f5f7;min-height:100svh;padding:48px 10%;border-right:1px solid #ededf0}
+.atelier-login-wordmark{color:#1d1d1f}.atelier-login-wordmark strong{font-weight:600}
+.atelier-login-narrative{margin-block:auto;padding-block:70px}
+.atelier-login-narrative h1{font-size:clamp(42px,4.5vw,68px);font-weight:600;color:#1d1d1f;letter-spacing:-.055em;line-height:1.18;margin-block:22px}
+.atelier-login-narrative h1 span{color:#6e6e73}
+.atelier-login-narrative p{font-size:17px;line-height:1.8}
+.atelier-login-story-foot{padding-top:0;margin-top:0;font-size:12px;letter-spacing:0}
+.atelier-login-entry{padding:64px 44px}.atelier-login-entry-label{letter-spacing:.08em}
+.atelier-login .login-brand h2{font-size:29px;font-weight:600;line-height:1.4;letter-spacing:-.035em}
+.atelier-native-login input:not([type=checkbox]){border-color:#d2d2d7;border-radius:12px;height:52px}
+.atelier-login-submit{background:#0071e3;border-color:#0071e3;border-radius:12px;font-size:16px;min-height:50px;box-shadow:none}
+.atelier-login-submit:hover:not(:disabled){background:#0077ed}
+.atelier-remember{font-size:13px}.atelier-remember input{accent-color:#0071e3}
+.atelier-login-entry-foot{font-size:12px;line-height:1.7}
+@media(max-width:1000px){.atelier-login-story{padding:36px 32px}.atelier-login-entry{padding:40px 28px}}
+@media(max-width:767px){
+ .toolbox-header{height:64px}.content-container.atelier-content{padding-top:24px}
+ .atelier-welcome.atelier-welcome--compact{padding:0 0 22px;gap:18px;margin-bottom:24px}
+ .atelier-welcome.atelier-welcome--compact h1{font-size:28px}.atelier-welcome--compact p{font-size:14px}
+ .atelier-module-intro h1{font-size:28px}.today-heading h2{font-size:21px}.today-grid{gap:16px}
+ .today-grid .ant-card-body{padding:20px}.today-grid .ant-empty{padding-block:0}
+ .login-screen.atelier-login{display:flex;flex-direction:column}
+ .atelier-login-story{min-height:0;padding:26px 24px 28px;border-right:0;background:#f5f5f7}
+ .atelier-login-narrative{padding-block:24px 0;margin:0}.atelier-login-narrative h1{font-size:36px;margin:14px 0}
+ .atelier-login-narrative h1 br{display:none}.atelier-login-narrative p{font-size:15px}.atelier-login-narrative p br{display:none}
+ .atelier-login-story-foot{display:none}.atelier-login-entry{padding:32px 24px 40px}.atelier-login-entry-label{display:none}
+ .atelier-login .login-brand h2{font-size:25px}.atelier-login-entry-foot{margin-top:24px}
+}
+@media(prefers-reduced-motion:reduce){.atelier-login *,.toolbox-layout *{animation:none!important;transition:none!important}}
+
+.toolbox-layout .today-grid .ant-empty{padding-block:12px;margin-block:12px}.toolbox-layout .today-grid .ant-card-head-title{font-weight:600}

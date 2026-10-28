@@ -7,6 +7,7 @@ import './styles/theme.css';
 import './styles/app.css';
 import './styles/platform.css';
 import './styles/atelier.css';
+import './styles/product.css';
 
 const PlatformApp = lazy(() => import('./WorkspaceRoot.jsx'));
 const ModuleLoading = () => <div className="module-loading" role="status"><p>正在加载工作空间…</p></div>;

@@ -1,8 +1,9 @@
-/* Quiet sage palette: warm surfaces, neutral text, restrained green accents. */
+/* Shared palette. Colour roles are intentionally neutral; blue denotes an action. */
 :root {
- --atelier-ink:#303a32; --atelier-muted:#606c61; --atelier-paper:#eeeee6;
- --atelier-line:#d2d8cc; --atelier-accent:#526b56; --atelier-surface:#f7f7f1;
- --cling-primary:var(--atelier-accent); --cling-primary-soft:#e0e7d9;
- --cling-peach-soft:#eee8da; --cling-surface:var(--atelier-surface);
- --cling-border:var(--atelier-line); --cling-shadow:0 6px 18px #303a3208;
+ --workspace-font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+ --atelier-ink:#1d1d1f; --atelier-muted:#6e6e73; --atelier-paper:#f5f5f7;
+ --atelier-line:#e5e5ea; --atelier-accent:#0066cc; --atelier-surface:#fff;
+ --cling-primary:var(--atelier-accent); --cling-primary-soft:#eaf3ff;
+ --cling-peach-soft:#f5f5f7; --cling-surface:var(--atelier-surface);
+ --cling-border:var(--atelier-line); --cling-shadow:0 4px 20px #00000005;
 }
