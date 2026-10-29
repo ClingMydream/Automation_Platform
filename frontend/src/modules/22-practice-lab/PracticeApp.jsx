@@ -1,33 +1,605 @@
-import React,{useEffect,useMemo,useRef,useState}from'react';
-import {App,Alert,Button,Card,Empty,Form,Input,Select,Space,Spin,Tag}from'antd';
-import {LayoutDashboard,ShoppingBag,ShoppingCart,MapPin,ClipboardList,Package,Boxes,Truck,History,LogOut,RefreshCw,ArrowLeft}from'lucide-react';
-import {apiClient}from'../../shared/apiClient.js';
-import {practiceClient,ROLES}from'./commerceShared.js';
-import {Catalog,CartPage,Addresses,CheckoutPage}from'./CommerceShop.jsx';
-import {OrderList,OrderDetail}from'./CommerceOrders.jsx';
-import {Overview,ProductAdmin,Inventory,Audit,Legacy}from'./CommerceAdmin.jsx';
-import './commerce.css';
-export {practiceClient}from'./commerceShared.js';
-const PAGES={overview:{label:'业务概览',description:'订单、库存与待处理事项。',icon:LayoutDashboard,roles:['customer','admin','warehouse']},store:{label:'商品商城',description:'挑选商品，查看详情与可用库存。',icon:ShoppingBag,roles:['customer']},cart:{label:'购物车',description:'调整数量，核对明细后进入结算。',icon:ShoppingCart,roles:['customer']},orders:{label:'我的订单',description:'付款、收货、退款与每一次状态变化。',icon:ClipboardList,roles:['customer']},addresses:{label:'地址管理',description:'维护练习收货信息与默认地址。',icon:MapPin,roles:['customer']},catalog:{label:'商品管理',description:'维护分类、价格、描述与上架状态。',icon:Package,roles:['admin']},inventory:{label:'库存管理',description:'登记入库，核对预占库存与库存流水。',icon:Boxes,roles:['admin','warehouse']},fulfillment:{label:'订单履约',description:'处理模拟发货与退款申请。',icon:Truck,roles:['admin','warehouse']},audit:{label:'操作审计',description:'核对业务动作、执行人和关联记录。',icon:History,roles:['admin']},legacy:{label:'历史兼容订单',description:'查看原v1接口保留的练习订单。',icon:History,roles:['customer','admin','warehouse']}};
-const readRoute=role=>{const [page,id]=location.hash.replace(/^#\/?/,'').split('/');return {page:page|| (role==='customer'?'store':role==='warehouse'?'fulfillment':'overview'),id:id||''};};
-export function PracticeApp({session,onLogout,standalone=false}){
- const {message}=App.useApp();const client=useMemo(()=>practiceClient(session.token),[session.token]);const[data,setData]=useState(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[route,setRoute]=useState(()=>readRoute(session.role));const writes=useRef(false),generation=useRef(0);
- function navigate(page,id=''){const hash=page+(id?'/'+id:'');if(location.hash.slice(1)!==hash)location.hash=hash;else setRoute({page,id});window.scrollTo({top:0});}
- useEffect(()=>{const sync=()=>setRoute(readRoute(session.role));window.addEventListener('hashchange',sync);return()=>window.removeEventListener('hashchange',sync);},[session.role]);
- async function refresh(){const current=++generation.current;setLoading(true);try{const customer=session.role==='customer',operator=['admin','warehouse'].includes(session.role);const[products,dashboard,orders,legacy,cart,addresses,inventory,audit]=await Promise.all([client.get('/commerce/catalog'),client.get('/commerce/dashboard'),client.get('/commerce/orders'),client.get('/orders'),customer?client.get('/commerce/cart'):Promise.resolve({items:[],total_cents:0}),customer?client.get('/commerce/addresses'):Promise.resolve([]),operator?client.get('/commerce/inventory'):Promise.resolve({items:[],movements:[]}),session.role==='admin'?client.get('/audit'):Promise.resolve([])]);if(current===generation.current){setData({products:products.items,dashboard,orders,legacy,cart,addresses,inventory,audit,client});setError('');}}catch(e){if(current===generation.current)setError(e.message);}finally{if(current===generation.current)setLoading(false);}}
- useEffect(()=>{refresh();return()=>{generation.current++;};},[client]);
- async function execute(action,success){if(writes.current)return null;writes.current=true;setBusy(true);setError('');try{const result=await action();await refresh();message.success(success);return result;}catch(e){setError(e.message);message.error(e.message);return null;}finally{writes.current=false;setBusy(false);}}
- const key=route.page==='checkout'?'cart':route.page==='order'?(session.role==='customer'?'orders':'fulfillment'):route.page,allowed=PAGES[key]?.roles.includes(session.role),page=PAGES[key]||{label:'页面不存在',description:''};const common={data,session,busy,execute,navigate};
- return <main className={'commerce-app '+(standalone?'commerce-standalone':'commerce-embedded')}><header className="commerce-topbar"><button className="commerce-brand" onClick={()=>navigate(session.role==='customer'?'store':'overview')}><span><ShoppingBag size={20}/></span><strong>cling<span>store</span></strong></button><div className="commerce-topbar-actions"><Tag color="blue">{ROLES[session.role]}</Tag><span>{session.username}</span><Button icon={<RefreshCw size={15}/>} loading={loading} onClick={refresh}>刷新数据</Button><Button icon={<LogOut size={15}/>} disabled={busy} onClick={onLogout}>退出练习账号</Button>{standalone&&<Button href="/?module=practice_lab">返回个人工作台</Button>}</div></header>
- <div className="commerce-layout"><aside className="commerce-sidebar"><span className="commerce-eyebrow">{session.role==='customer'?'MY STORE':'OPERATIONS'}</span><nav aria-label="练习项目导航">{Object.entries(PAGES).filter(([name,p])=>p.roles.includes(session.role)&&(name!=='legacy'||data?.legacy.length)).map(([name,p])=><button key={name} aria-label={p.label} aria-current={key===name?'page':undefined} className={key===name?'active':''} onClick={()=>navigate(name)}><p.icon size={18}/><span>{p.label}</span>{name==='cart'&&data?.cart.items.length>0&&<small>{data.cart.items.reduce((sum,row)=>sum+row.quantity,0)}</small>}</button>)}</nav><div className="commerce-sidebar-note"><strong>业务练习环境</strong><p>模拟交易 · 独立数据<br/>支持重置与操作追溯</p></div></aside>
- <section className="commerce-main" aria-label="练习项目内容"><div className="commerce-page-title"><span className="commerce-eyebrow">{session.role==='customer'?'CUSTOMER WORKSPACE':'OPERATIONS WORKSPACE'}</span><h1>{route.page==='order'?'订单详情':route.page==='checkout'?'结算确认':page.label}</h1><p>{route.page==='order'?'查看订单快照、执行下一步操作并追溯状态。':page.description}</p></div>{error&&<Alert className="commerce-error" type="error" title="操作或读取未完成" description={error} action={<Button onClick={refresh}>重新读取</Button>}/>}
- {!allowed?<Card><Empty description={PAGES[key]?'当前练习角色不能访问此页面':'页面不存在' }><Button onClick={()=>navigate('overview')}>返回业务概览</Button></Empty></Card>:!data?<div className="commerce-loading">{loading?<Spin description="正在读取业务数据"/>:<Button onClick={refresh}>重新加载业务</Button>}</div>:<div className="commerce-page-stack">{route.page==='order'?<OrderDetail {...common} identifier={route.id}/>:route.page==='overview'?<Overview {...common}/>:route.page==='store'?<Catalog {...common}/>:route.page==='cart'?<CartPage {...common}/>:route.page==='checkout'?<CheckoutPage {...common}/>:route.page==='addresses'?<Addresses {...common}/>:route.page==='orders'?<OrderList {...common}/>:route.page==='catalog'?<ProductAdmin {...common}/>:route.page==='inventory'?<Inventory {...common}/>:route.page==='fulfillment'?<OrderList {...common} fulfillment/>:route.page==='audit'?<Audit {...common}/>:route.page==='legacy'?<Legacy {...common}/>:null}</div>}
- </section></div><footer className="commerce-footer"><span>Cling Commerce Lab · v2</span><span>参考工程与接口文档可在实践实验室下载和查看</span></footer></main>;
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  App,
+  Alert,
+  Button,
+  Card,
+  Empty,
+  Form,
+  Input,
+  Layout,
+  Select,
+  Space,
+  Spin,
+  Tag,
+} from "antd";
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  ShoppingCart,
+  MapPin,
+  ClipboardList,
+  Package,
+  Boxes,
+  Truck,
+  History,
+  LogOut,
+  RefreshCw,
+  ArrowLeft,
+} from "lucide-react";
+import { apiClient } from "../../shared/apiClient.js";
+import { practiceClient, ROLES } from "./commerceShared.js";
+import { Catalog, CartPage, Addresses, CheckoutPage } from "./CommerceShop.jsx";
+import { OrderList, OrderDetail } from "./CommerceOrders.jsx";
+import {
+  Overview,
+  ProductAdmin,
+  Inventory,
+  Audit,
+  Legacy,
+} from "./CommerceAdmin.jsx";
+import "./commerce.css";
+import { COMMERCE_UI_VERSION } from "./commerceLocator.js";
+export { practiceClient } from "./commerceShared.js";
+const PAGES = {
+  overview: {
+    label: "业务概览",
+    description: "订单、库存与待处理事项。",
+    icon: LayoutDashboard,
+    roles: ["customer", "admin", "warehouse"],
+  },
+  store: {
+    label: "商品商城",
+    description: "挑选商品，查看详情与可用库存。",
+    icon: ShoppingBag,
+    roles: ["customer"],
+  },
+  cart: {
+    label: "购物车",
+    description: "调整数量，核对明细后进入结算。",
+    icon: ShoppingCart,
+    roles: ["customer"],
+  },
+  orders: {
+    label: "我的订单",
+    description: "付款、收货、退款与每一次状态变化。",
+    icon: ClipboardList,
+    roles: ["customer"],
+  },
+  addresses: {
+    label: "地址管理",
+    description: "维护练习收货信息与默认地址。",
+    icon: MapPin,
+    roles: ["customer"],
+  },
+  catalog: {
+    label: "商品管理",
+    description: "维护分类、价格、描述与上架状态。",
+    icon: Package,
+    roles: ["admin"],
+  },
+  inventory: {
+    label: "库存管理",
+    description: "登记入库，核对预占库存与库存流水。",
+    icon: Boxes,
+    roles: ["admin", "warehouse"],
+  },
+  fulfillment: {
+    label: "订单履约",
+    description: "处理模拟发货与退款申请。",
+    icon: Truck,
+    roles: ["admin", "warehouse"],
+  },
+  audit: {
+    label: "操作审计",
+    description: "核对业务动作、执行人和关联记录。",
+    icon: History,
+    roles: ["admin"],
+  },
+  legacy: {
+    label: "历史兼容订单",
+    description: "查看原v1接口保留的练习订单。",
+    icon: History,
+    roles: ["customer", "admin", "warehouse"],
+  },
+};
+const readRoute = (role) => {
+  const [page, id] = location.hash.replace(/^#\/?/, "").split("/");
+  return {
+    page:
+      page ||
+      (role === "customer"
+        ? "store"
+        : role === "warehouse"
+          ? "fulfillment"
+          : "overview"),
+    id: id || "",
+  };
+};
+export function PracticeApp({ session, onLogout, standalone = false }) {
+  const { message } = App.useApp();
+  const client = useMemo(() => practiceClient(session.token), [session.token]);
+  const [data, setData] = useState(null),
+    [loading, setLoading] = useState(true),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [route, setRoute] = useState(() => readRoute(session.role));
+  const writes = useRef(false),
+    generation = useRef(0);
+  function navigate(page, id = "") {
+    const hash = page + (id ? "/" + id : "");
+    if (location.hash.slice(1) !== hash) location.hash = hash;
+    else setRoute({ page, id });
+    window.scrollTo({ top: 0 });
+  }
+  useEffect(() => {
+    const sync = () => setRoute(readRoute(session.role));
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, [session.role]);
+  async function refresh() {
+    const current = ++generation.current;
+    setLoading(true);
+    try {
+      const customer = session.role === "customer",
+        operator = ["admin", "warehouse"].includes(session.role);
+      const [
+        products,
+        dashboard,
+        orders,
+        legacy,
+        cart,
+        addresses,
+        inventory,
+        audit,
+      ] = await Promise.all([
+        client.get("/commerce/catalog"),
+        client.get("/commerce/dashboard"),
+        client.get("/commerce/orders"),
+        client.get("/orders"),
+        customer
+          ? client.get("/commerce/cart")
+          : Promise.resolve({ items: [], total_cents: 0 }),
+        customer ? client.get("/commerce/addresses") : Promise.resolve([]),
+        operator
+          ? client.get("/commerce/inventory")
+          : Promise.resolve({ items: [], movements: [] }),
+        session.role === "admin" ? client.get("/audit") : Promise.resolve([]),
+      ]);
+      if (current === generation.current) {
+        setData({
+          products: products.items,
+          dashboard,
+          orders,
+          legacy,
+          cart,
+          addresses,
+          inventory,
+          audit,
+          client,
+        });
+        setError("");
+      }
+    } catch (e) {
+      if (current === generation.current) setError(e.message);
+    } finally {
+      if (current === generation.current) setLoading(false);
+    }
+  }
+  useEffect(() => {
+    refresh();
+    return () => {
+      generation.current++;
+    };
+  }, [client]);
+  async function execute(action, success) {
+    if (writes.current) return null;
+    writes.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await action();
+      await refresh();
+      message.success(success);
+      return result;
+    } catch (e) {
+      setError(e.message);
+      message.error(e.message);
+      return null;
+    } finally {
+      writes.current = false;
+      setBusy(false);
+    }
+  }
+  const key =
+      route.page === "checkout"
+        ? "cart"
+        : route.page === "order"
+          ? session.role === "customer"
+            ? "orders"
+            : "fulfillment"
+          : route.page,
+    allowed = PAGES[key]?.roles.includes(session.role),
+    page = PAGES[key] || { label: "页面不存在", description: "" };
+  const common = { data, session, busy, execute, navigate };
+  return (
+    <Layout
+      data-testid="commerce-app"
+      data-ui-version={COMMERCE_UI_VERSION}
+      data-role={session.role}
+      className={
+        "commerce-app " +
+        (standalone ? "commerce-standalone" : "commerce-embedded")
+      }
+    >
+      <Layout.Header className="commerce-topbar" data-testid="commerce-header">
+        <button
+          type="button"
+          aria-label="返回商城首页"
+          data-testid="commerce-brand"
+          className="commerce-brand"
+          onClick={() =>
+            navigate(session.role === "customer" ? "store" : "overview")
+          }
+        >
+          <span>
+            <ShoppingBag size={20} />
+          </span>
+          <strong>
+            cling<span>store</span>
+          </strong>
+        </button>
+        <div className="commerce-topbar-actions">
+          <Tag color="blue">{ROLES[session.role]}</Tag>
+          <span>{session.username}</span>
+          <Button
+            data-testid="commerce-refresh"
+            icon={<RefreshCw size={15} />}
+            loading={loading}
+            onClick={refresh}
+          >
+            刷新数据
+          </Button>
+          <Button
+            data-testid="commerce-logout"
+            icon={<LogOut size={15} />}
+            disabled={busy}
+            onClick={onLogout}
+          >
+            退出练习账号
+          </Button>
+          {standalone && (
+            <Button href="/?module=practice_lab">返回个人工作台</Button>
+          )}
+        </div>
+      </Layout.Header>
+      <Layout className="commerce-layout">
+        <Layout.Sider
+          width="auto"
+          theme="light"
+          className="commerce-sidebar"
+          data-testid="commerce-sidebar"
+        >
+          <span className="commerce-eyebrow">
+            {session.role === "customer" ? "MY STORE" : "OPERATIONS"}
+          </span>
+          <nav aria-label="练习项目导航" data-testid="commerce-navigation">
+            {Object.entries(PAGES)
+              .filter(
+                ([name, p]) =>
+                  p.roles.includes(session.role) &&
+                  (name !== "legacy" || data?.legacy.length),
+              )
+              .map(([name, p]) => (
+                <button
+                  key={name}
+                  type="button"
+                  data-testid={"commerce-nav-" + name}
+                  aria-label={p.label}
+                  aria-current={key === name ? "page" : undefined}
+                  className={key === name ? "active" : ""}
+                  onClick={() => navigate(name)}
+                >
+                  <p.icon size={18} />
+                  <span>{p.label}</span>
+                  {name === "cart" && data?.cart.items.length > 0 && (
+                    <small>
+                      {data.cart.items.reduce(
+                        (sum, row) => sum + row.quantity,
+                        0,
+                      )}
+                    </small>
+                  )}
+                </button>
+              ))}
+          </nav>
+          <div className="commerce-sidebar-note">
+            <strong>业务练习环境</strong>
+            <p>
+              模拟交易 · 独立数据
+              <br />
+              支持重置与操作追溯
+            </p>
+          </div>
+        </Layout.Sider>
+        <Layout.Content
+          className="commerce-main"
+          role={standalone ? "main" : "region"}
+          aria-label="练习项目内容"
+          data-testid="commerce-content"
+          aria-busy={loading || busy}
+        >
+          <div
+            className="commerce-page-title"
+            data-testid="commerce-page-header"
+          >
+            <span className="commerce-eyebrow">
+              {session.role === "customer"
+                ? "CUSTOMER WORKSPACE"
+                : "OPERATIONS WORKSPACE"}
+            </span>
+            <h1 id="commerce-page-heading">
+              {route.page === "order"
+                ? "订单详情"
+                : route.page === "checkout"
+                  ? "结算确认"
+                  : page.label}
+            </h1>
+            <p>
+              {route.page === "order"
+                ? "查看订单快照、执行下一步操作并追溯状态。"
+                : page.description}
+            </p>
+          </div>
+          {error && (
+            <Alert
+              className="commerce-error"
+              type="error"
+              title="操作或读取未完成"
+              description={error}
+              action={<Button onClick={refresh}>重新读取</Button>}
+            />
+          )}
+          {!allowed ? (
+            <Card>
+              <Empty
+                description={
+                  PAGES[key] ? "当前练习角色不能访问此页面" : "页面不存在"
+                }
+              >
+                <Button onClick={() => navigate("overview")}>
+                  返回业务概览
+                </Button>
+              </Empty>
+            </Card>
+          ) : !data ? (
+            <div className="commerce-loading">
+              {loading ? (
+                <Spin description="正在读取业务数据" />
+              ) : (
+                <Button onClick={refresh}>重新加载业务</Button>
+              )}
+            </div>
+          ) : (
+            <section
+              key={route.page}
+              className="commerce-page-stack"
+              aria-labelledby="commerce-page-heading"
+              data-testid={"commerce-page-" + route.page}
+              data-ready={!loading}
+              data-busy={busy}
+            >
+              {route.page === "order" ? (
+                <OrderDetail {...common} identifier={route.id} />
+              ) : route.page === "overview" ? (
+                <Overview {...common} />
+              ) : route.page === "store" ? (
+                <Catalog {...common} />
+              ) : route.page === "cart" ? (
+                <CartPage {...common} />
+              ) : route.page === "checkout" ? (
+                <CheckoutPage {...common} />
+              ) : route.page === "addresses" ? (
+                <Addresses {...common} />
+              ) : route.page === "orders" ? (
+                <OrderList {...common} />
+              ) : route.page === "catalog" ? (
+                <ProductAdmin {...common} />
+              ) : route.page === "inventory" ? (
+                <Inventory {...common} />
+              ) : route.page === "fulfillment" ? (
+                <OrderList {...common} fulfillment />
+              ) : route.page === "audit" ? (
+                <Audit {...common} />
+              ) : route.page === "legacy" ? (
+                <Legacy {...common} />
+              ) : null}
+            </section>
+          )}
+        </Layout.Content>
+      </Layout>
+      <Layout.Footer className="commerce-footer" data-testid="commerce-footer">
+        <span>Cling Commerce Lab · v2</span>
+        <span>参考工程与接口文档可在实践实验室下载和查看</span>
+      </Layout.Footer>
+    </Layout>
+  );
 }
-export function PracticePublicApp(){
- const[session,setSession]=useState(()=>{try{const value=JSON.parse(sessionStorage.getItem('cling:practice:session')||'null');return typeof value?.token==='string'&&['customer','admin','warehouse'].includes(value.role)?value:null;}catch{return null;}}),[busy,setBusy]=useState(false),[error,setError]=useState(''),[form]=Form.useForm();const writing=useRef(false);let platformToken;try{platformToken=sessionStorage.getItem('token')||localStorage.getItem('token');}catch{}
- function logout(){sessionStorage.removeItem('cling:practice:session');setSession(null);location.hash='';}
- async function login(values){if(writing.current)return;writing.current=true;setBusy(true);setError('');try{const result=await apiClient(platformToken).post('/v1/practice-lab/login',values,{notifyAuthExpired:false});sessionStorage.setItem('cling:practice:session',JSON.stringify(result));location.hash='';setSession(result);}catch(e){setError(e.message);}finally{writing.current=false;setBusy(false);}}
- if(session)return <PracticeApp key={session.token} standalone session={session} onLogout={logout}/>;
- return <main className="commerce-login"><section className="commerce-login-story"><span className="commerce-brand"><ShoppingBag size={30}/><strong>cling<span>store</span></strong></span><span className="commerce-eyebrow">A REAL BUSINESS. A SAFE PLACE TO LEARN.</span><h1>不只是点按钮。<br/><span>把一笔生意走完整。</span></h1><p>客户下单，仓库履约，运营维护。<br/>用真实页面、API 与数据练习自动化。</p><div className="commerce-login-flow"><span>购物车</span><i>→</i><span>结算付款</span><i>→</i><span>发货收货</span><i>→</i><span>售后退款</span></div></section><section className="commerce-login-form"><Card><span className="commerce-eyebrow">SIGN IN / DEMO ACCOUNTS</span><h2>选择一个角色开始</h2><p>练习账号属于你自己的隔离空间。</p>{!platformToken?<Alert type="info" title="请先登录个人工作台" description="平台身份用于隔离练习数据，练习账号用于切换业务角色。" action={<Button href="/?module=practice_lab">进入平台登录</Button>}/>:<><div className="commerce-role-picks">{[['learner','客户'],['buyer_two','另一客户'],['lab_admin','管理员'],['warehouse','仓库']].map(([name,label])=><Button key={name} onClick={()=>form.setFieldsValue({username:name,password:'Practice123!'})}>{label}</Button>)}</div>{error&&<Alert type="error" title={error}/>}<Form form={form} layout="vertical" onFinish={login} initialValues={{username:'learner'}}><Form.Item label="练习用户名" name="username" rules={[{required:true}]}><Input aria-label="练习用户名" autoComplete="username"/></Form.Item><Form.Item label="练习密码" name="password" rules={[{required:true}]}><Input.Password aria-label="练习密码" autoComplete="off"/></Form.Item><Button type="primary" block htmlType="submit" loading={busy}>登录练习系统</Button></Form><p className="commerce-muted">固定练习密码：Practice123!</p></>}<Button type="link" href="/?module=practice_lab" icon={<ArrowLeft size={15}/>}>返回实践实验室</Button></Card></section></main>;
+export function PracticePublicApp() {
+  const [session, setSession] = useState(() => {
+      try {
+        const value = JSON.parse(
+          sessionStorage.getItem("cling:practice:session") || "null",
+        );
+        return typeof value?.token === "string" &&
+          ["customer", "admin", "warehouse"].includes(value.role)
+          ? value
+          : null;
+      } catch {
+        return null;
+      }
+    }),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [form] = Form.useForm();
+  const writing = useRef(false);
+  let platformToken;
+  try {
+    platformToken =
+      sessionStorage.getItem("token") || localStorage.getItem("token");
+  } catch {}
+  function logout() {
+    sessionStorage.removeItem("cling:practice:session");
+    setSession(null);
+    location.hash = "";
+  }
+  async function login(values) {
+    if (writing.current) return;
+    writing.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await apiClient(platformToken).post(
+        "/v1/practice-lab/login",
+        values,
+        { notifyAuthExpired: false },
+      );
+      sessionStorage.setItem("cling:practice:session", JSON.stringify(result));
+      location.hash = "";
+      setSession(result);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      writing.current = false;
+      setBusy(false);
+    }
+  }
+  if (session)
+    return (
+      <PracticeApp
+        key={session.token}
+        standalone
+        session={session}
+        onLogout={logout}
+      />
+    );
+  return (
+    <main
+      className="commerce-login"
+      data-testid="commerce-login"
+      data-ui-version={COMMERCE_UI_VERSION}
+    >
+      <section className="commerce-login-story">
+        <span className="commerce-brand">
+          <ShoppingBag size={30} />
+          <strong>
+            cling<span>store</span>
+          </strong>
+        </span>
+        <span className="commerce-eyebrow">
+          A REAL BUSINESS. A SAFE PLACE TO LEARN.
+        </span>
+        <h1>
+          不只是点按钮。
+          <br />
+          <span>把一笔生意走完整。</span>
+        </h1>
+        <p>
+          客户下单，仓库履约，运营维护。
+          <br />
+          用真实页面、API 与数据练习自动化。
+        </p>
+        <div className="commerce-login-flow">
+          <span>购物车</span>
+          <i>→</i>
+          <span>结算付款</span>
+          <i>→</i>
+          <span>发货收货</span>
+          <i>→</i>
+          <span>售后退款</span>
+        </div>
+      </section>
+      <section className="commerce-login-form">
+        <Card>
+          <span className="commerce-eyebrow">SIGN IN / DEMO ACCOUNTS</span>
+          <h2>选择一个角色开始</h2>
+          <p>练习账号属于你自己的隔离空间。</p>
+          {!platformToken ? (
+            <Alert
+              type="info"
+              title="请先登录个人工作台"
+              description="平台身份用于隔离练习数据，练习账号用于切换业务角色。"
+              action={
+                <Button href="/?module=practice_lab">进入平台登录</Button>
+              }
+            />
+          ) : (
+            <>
+              <div className="commerce-role-picks">
+                {[
+                  ["learner", "客户"],
+                  ["buyer_two", "另一客户"],
+                  ["lab_admin", "管理员"],
+                  ["warehouse", "仓库"],
+                ].map(([name, label]) => (
+                  <Button
+                    key={name}
+                    onClick={() =>
+                      form.setFieldsValue({
+                        username: name,
+                        password: "Practice123!",
+                      })
+                    }
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              {error && <Alert type="error" title={error} />}
+              <Form
+                name="commerce-login"
+                data-testid="commerce-login-form"
+                form={form}
+                layout="vertical"
+                onFinish={login}
+                initialValues={{ username: "learner" }}
+              >
+                <Form.Item
+                  label="练习用户名"
+                  name="username"
+                  rules={[{ required: true }]}
+                >
+                  <Input aria-label="练习用户名" autoComplete="username" />
+                </Form.Item>
+                <Form.Item
+                  label="练习密码"
+                  name="password"
+                  rules={[{ required: true }]}
+                >
+                  <Input.Password aria-label="练习密码" autoComplete="off" />
+                </Form.Item>
+                <Button
+                  type="primary"
+                  data-testid="commerce-login-submit"
+                  block
+                  htmlType="submit"
+                  loading={busy}
+                >
+                  登录练习系统
+                </Button>
+              </Form>
+              <p className="commerce-muted">固定练习密码：Practice123!</p>
+            </>
+          )}
+          <Button
+            type="link"
+            href="/?module=practice_lab"
+            icon={<ArrowLeft size={15} />}
+          >
+            返回实践实验室
+          </Button>
+        </Card>
+      </section>
+    </main>
+  );
 }

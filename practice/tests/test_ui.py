@@ -3,7 +3,7 @@ import base64,json,os,re
 from pathlib import Path
 from uuid import uuid4
 import pytest,requests
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright,expect
 BASE=os.environ['PRACTICE_API_URL'].rstrip('/')
 
 def session(token):
@@ -58,3 +58,41 @@ def test_admin_product_and_inventory(browser):
         assert download.value.suggested_filename=='inventory-movements.csv';page.screenshot(path='key-admin-inventory.png',full_page=True)
     except Exception:page.screenshot(path='failure-admin.png',full_page=True);raise
     finally:ctx.close()
+
+
+def test_stable_ui_hierarchy_and_locators(customer):
+    """Exercise the public locator contract, not CSS classes or generated Ant IDs."""
+    page=customer;item=product()
+    expect(page.get_by_test_id('commerce-app')).to_have_attribute('data-ui-version','1')
+    expect(page.get_by_test_id('commerce-page-store')).to_have_attribute('data-ready','true')
+    expect(page.get_by_role('main',name='练习项目内容',exact=True)).to_have_count(1)
+    search=page.get_by_test_id('commerce-catalog-filters').get_by_label('搜索商城商品',exact=True)
+    search.fill(item['sku']);search.press('Enter')
+    card=page.get_by_test_id('commerce-page-store').get_by_test_id('product-'+item['sku'])
+    for _ in range(2):
+        card.get_by_role('button',name='查看商品：'+item['name'],exact=True).click()
+        dialog=page.get_by_role('dialog',name='商品详情',exact=True)
+        expect(dialog.get_by_test_id('commerce-product-detail-dialog')).to_be_visible()
+        dialog.get_by_role('button',name='Close',exact=True).click()
+        expect(page.get_by_test_id('commerce-product-detail-dialog')).to_have_count(0)
+    card.get_by_role('button',name='加入购物车',exact=True).click()
+    page.get_by_text('已加入购物车',exact=True).wait_for()
+    page.get_by_test_id('commerce-navigation').get_by_test_id('commerce-nav-cart').click()
+    row=page.get_by_test_id('commerce-cart-table').get_by_test_id('cart-row-'+item['sku'])
+    row.get_by_role('spinbutton',name='购物车数量：'+item['sku'],exact=True).fill('2')
+    row.get_by_role('button',name='更新数量',exact=True).click()
+    expect(page.get_by_test_id('commerce-content')).to_have_attribute('aria-busy','false')
+    page.reload()
+    expect(row.get_by_role('spinbutton',name='购物车数量：'+item['sku'],exact=True)).to_have_value('2')
+    for width in [1440,768,390,320]:
+        page.set_viewport_size({'width':width,'height':960})
+        expect(page.get_by_test_id('commerce-nav-cart')).to_have_count(1)
+        expect(row).to_have_count(1)
+        duplicates=page.evaluate('''() => {
+            const ids=[...document.querySelectorAll('[data-testid]')].map(n=>n.dataset.testid);
+            return ids.filter((id,i)=>ids.indexOf(id)!==i);
+        }''')
+        assert not duplicates,duplicates
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2')
+    page.set_viewport_size({'width':1440,'height':1000})
+    page.screenshot(path='key-ui-locator-contract.png',full_page=True)
