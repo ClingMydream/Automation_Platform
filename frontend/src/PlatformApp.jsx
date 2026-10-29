@@ -296,7 +296,7 @@ export default function PlatformApp() {
           setTab(key);
         }} />
         <div className="sider-footer">
-          {!collapsed&&<Button type="text" block onClick={toggleNavigation}>{fullNav?'收起工具导航':'显示全部功能'}</Button>}
+          {(mobile||!collapsed)&&<Button type="text" block onClick={toggleNavigation}>{fullNav?'收起工具导航':'显示全部功能'}</Button>}
           <div className={`sider-status connection-${connection}`}><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
         </div>
       </Drawer> : <Sider className="toolbox-sider" width={236} collapsedWidth={76} collapsed={collapsed} trigger={null}>
@@ -305,7 +305,7 @@ export default function PlatformApp() {
           setTab(key);
         }} />
         <div className="sider-footer">
-          {!collapsed&&<Button type="text" block onClick={toggleNavigation}>{fullNav?'收起工具导航':'显示全部功能'}</Button>}
+          {(mobile||!collapsed)&&<Button type="text" block onClick={toggleNavigation}>{fullNav?'收起工具导航':'显示全部功能'}</Button>}
           <div className={`sider-status connection-${connection}`}><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
         </div>
       </Sider>}
