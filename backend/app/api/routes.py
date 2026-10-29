@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from app.modules.personal_workspace.router import router as personal_workspace_router
 from app.modules.personal_workspace import extras, learning  # register owned attachments and learning APIs
 from app.modules.practice_lab.router import management as practice_management, router as practice_router
-from app.modules.practice_lab import execution  # register controlled execution APIs
+from app.modules.practice_lab import execution, commerce  # register execution and full commerce APIs
 from app.modules.practice_lab import docs  # register downloadable practice project
 
 from app.modules.auth.router import router as auth_router

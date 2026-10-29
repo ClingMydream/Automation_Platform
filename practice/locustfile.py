@@ -8,4 +8,4 @@ class ProductReader(HttpUser):
         self.client.headers.update({'Authorization':'Bearer '+os.environ['PRACTICE_CUSTOMER_TOKEN']})
     @task
     def products(self):
-        self.client.get('/products',name='商品查询')
+        self.client.get('/commerce/catalog',name='商品查询')

@@ -29,3 +29,9 @@ for lesson in LESSONS:
  if lesson['id']=='api-idempotency':lesson.update(example='python -m pytest tests/test_api.py -k "concurrent or idempotency" -q',language='bash')
  if lesson['id']=='ui-workflow':lesson.update(example='python -m pytest tests/test_ui.py -q',language='bash')
  if lesson['id']=='performance-basics':lesson.update(example='python -m locust -f locustfile.py --headless -u 1 -r 1 --run-time 10s --host "$PRACTICE_API_URL"',language='bash')
+
+# The v2 project adds cart checkout and multi-role fulfilment to chapter verification.
+for lesson in LESSONS:
+ if lesson['id']=='api-orders':lesson['checks'].append({'name':'test_commerce_order_lifecycle','title':'完整交易、发货收货与退款'})
+ if lesson['id']=='api-idempotency':lesson['checks'].append({'name':'test_commerce_concurrent_checkout','title':'购物车结算并发不超卖'})
+ if lesson['id']=='ui-workflow':lesson['checks'].append({'name':'test_paid_order_fulfilment_and_return','title':'多角色页面履约与退货退款'})

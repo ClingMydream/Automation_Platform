@@ -49,7 +49,7 @@ class ResetInput(BaseModel):
 
 def issue_token(tenant, row, gen):
     return jwt.encode({'sub': f'practice:{tenant}:{row["id"]}', 'scope': 'practice', 'tenant': tenant,
-        'uid': row['id'], 'generation': gen, 'exp': datetime.now(timezone.utc) + timedelta(hours=1)},
+        'uid': row['id'],'username':row['username'],'role':row['role'], 'generation': gen, 'exp': datetime.now(timezone.utc) + timedelta(hours=1)},
         practice_key(), algorithm='HS256')
 
 
@@ -100,8 +100,8 @@ def status(user: AuthContext = Depends(guard)):
     conn = store.connect(tenant)
     try:
         return {'seed_version': store.SEED_VERSION, 'products': conn.execute('SELECT count(*) FROM products').fetchone()[0],
-            'orders': conn.execute('SELECT count(*) FROM orders').fetchone()[0], 'database': '个人独立 SQLite · 与平台数据库隔离',
-            'accounts': [{'username': 'lab_admin', 'role': 'admin'}, {'username': 'learner', 'role': 'customer'}],
+            'orders': conn.execute('SELECT count(*) FROM orders').fetchone()[0]+conn.execute('SELECT count(*) FROM commerce_orders').fetchone()[0], 'database': '个人独立 SQLite · 与平台数据库隔离',
+            'accounts': [{'username': 'lab_admin', 'role': 'admin'}, {'username': 'learner', 'role': 'customer'},{'username':'buyer_two','role':'customer'},{'username':'warehouse','role':'warehouse'}],
             'demo_password': store.DEMO_PASSWORD, 'docs_url': '/api/practice/docs'}
     finally:
         conn.close()
@@ -116,7 +116,7 @@ def login(payload: Credentials, user: AuthContext = Depends(guard)):
         row = conn.execute('SELECT * FROM users WHERE username=?', (payload.username,)).fetchone()
         if not row or not verify_password(payload.password, row['password_hash']):
             raise HTTPException(401, '练习账号或密码错误')
-        return {'token': issue_token(tenant, row, store.generation(conn)), 'username': row['username'], 'role': row['role']}
+        return {'token': issue_token(tenant, row, store.generation(conn)), 'username': row['username'], 'role': row['role'],'workspace_id':tenant}
     finally:
         conn.close()
 
@@ -153,6 +153,8 @@ def create_product(payload: ProductInput, user: dict = Depends(lab_user)):
             cursor = conn.execute('INSERT INTO products(sku,name,price_cents,stock) VALUES(?,?,?,?)', (payload.sku, payload.name.strip(), payload.price_cents, payload.stock))
         except sqlite3.IntegrityError:
             raise HTTPException(409, 'SKU 已存在')
+        from .commerce import movement
+        movement(conn,user,cursor.lastrowid,payload.stock,'v1商品初始库存')
         audit(conn, user, 'create_product', payload.sku)
         return dict(conn.execute('SELECT * FROM products WHERE id=?', (cursor.lastrowid,)).fetchone())
 
@@ -164,9 +166,12 @@ def set_stock(product_id: int, payload: StockInput, user: dict = Depends(lab_use
         valid_generation(conn, user)
         if not conn.execute('SELECT id FROM products WHERE id=?', (product_id,)).fetchone():
             raise HTTPException(404, '商品不存在')
+        previous=conn.execute('SELECT stock FROM products WHERE id=?',(product_id,)).fetchone()['stock']
         result = conn.execute('UPDATE products SET stock=?,version=version+1 WHERE id=? AND version=?', (payload.stock, product_id, payload.version))
         if result.rowcount != 1:
             raise HTTPException(409, '库存已变化，请刷新后重试')
+        from .commerce import movement
+        movement(conn,user,product_id,payload.stock-previous,'v1库存调整')
         audit(conn, user, 'set_stock', f'{product_id}: {payload.stock}')
         return dict(conn.execute('SELECT * FROM products WHERE id=?', (product_id,)).fetchone())
 
@@ -181,14 +186,16 @@ def order(payload: OrderInput, user: dict = Depends(lab_user)):
                 raise HTTPException(409, '同一幂等编号不能提交不同订单')
             return dict(existing)
         product = conn.execute('SELECT * FROM products WHERE id=?', (payload.product_id,)).fetchone()
-        if not product:
-            raise HTTPException(404, '商品不存在')
+        if not product or product['status']!='active':
+            raise HTTPException(404, '商品不存在或已下架')
         result = conn.execute('UPDATE products SET stock=stock-?,version=version+1 WHERE id=? AND stock>=?', (payload.quantity, payload.product_id, payload.quantity))
         if result.rowcount != 1:
             raise HTTPException(409, '库存不足')
         identifier = uuid4().hex
         conn.execute('INSERT INTO orders(id,user_id,product_id,quantity,unit_price_cents,total_cents,status,request_key) VALUES(?,?,?,?,?,?,?,?)',
             (identifier, user['id'], payload.product_id, payload.quantity, product['price_cents'], product['price_cents']*payload.quantity, 'created', payload.request_key))
+        from .commerce import movement
+        movement(conn,user,payload.product_id,-payload.quantity,'v1订单预占',identifier)
         audit(conn, user, 'create_order', identifier)
         return dict(conn.execute('SELECT * FROM orders WHERE id=?', (identifier,)).fetchone())
 
@@ -216,6 +223,8 @@ def cancel(order_id: str, user: dict = Depends(lab_user)):
         if row['status'] == 'created':
             conn.execute("UPDATE orders SET status='cancelled' WHERE id=?", (order_id,))
             conn.execute('UPDATE products SET stock=stock+?,version=version+1 WHERE id=?', (row['quantity'], row['product_id']))
+            from .commerce import movement
+            movement(conn,user,row['product_id'],row['quantity'],'v1取消释放',order_id)
             audit(conn, user, 'cancel_order', order_id)
         return dict(conn.execute('SELECT * FROM orders WHERE id=?', (order_id,)).fetchone())
 
@@ -232,6 +241,6 @@ def logs(user: dict = Depends(lab_user)):
 
 @management.get('/project-guide')
 def guide(user: AuthContext = Depends(guard)):
-    return {'business': ['登录练习账号', '查询商品与库存', '提交幂等订单', '查看订单', '取消订单并恢复库存'],
-        'assertions': ['price_cents 使用整数分', '订单不能超卖', '重复请求不重复扣库存', '重复取消不重复恢复', '普通用户无法维护库存'],
-        'tables': ['users', 'products', 'orders', 'audit', 'meta'], 'seed_version': store.SEED_VERSION}
+    return {'business':['选择客户、管理员或仓库账号','浏览分类商品与详情','维护地址、购物车和结算','模拟付款、后台发货、确认收货','申请退款、审核与库存回补','查看库存流水、审计与历史兼容订单'],
+        'assertions':['金额以整数分计算，运费由服务端计算','报价变化与购物车过期必须重新确认','多商品结算原子预占库存，失败不能部分扣减','重复结算/取消/付款/退款审核不重复生效','客户仅能查看自己的订单与地址','仓库可入库发货，不能改价或审批退款','已收货退款需确认退货收到后才回补库存'],
+        'tables':['users','products','orders（v1兼容）','addresses','shopping_carts','cart_items','commerce_orders','commerce_order_items','order_events','inventory_movements','audit','meta'],'seed_version':store.SEED_VERSION}

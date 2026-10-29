@@ -11,7 +11,7 @@ from app.core.auth import hash_password,create_access_token
 from app.db import Base,get_db
 from app.models.entities import AppUser
 from app.modules.practice_lab.router import management,router
-from app.modules.practice_lab import execution,docs
+from app.modules.practice_lab import execution,docs,commerce
 from app.modules.personal_workspace.router import router as personal
 from app.modules.personal_workspace import extras,learning
 
@@ -50,7 +50,8 @@ def test_roles_tenants_seed_and_reset(env):
     assert env.client.post('/api/v1/practice-lab/reset',headers=env.headers['alice'],json={'confirmation':'重置练习数据'}).status_code==200
     assert env.client.get('/api/practice/v1/products',headers=admin).status_code==401
     fresh=login(env);rows=env.client.get('/api/practice/v1/products',headers=fresh).json()
-    assert [(row['sku'],row['stock'])for row in rows]==[('BAG-003',0),('LAMP-002',5),('NOTE-001',20)]
+    assert {row['sku']:row['stock']for row in rows}.items()>={'BAG-003':0,'LAMP-002':5,'NOTE-001':20}.items()
+    assert len(rows)>=12
 
 def test_order_idempotency_cancel_and_optimistic_stock(env):
     admin=login(env);customer=login(env,username='learner');item=product(env,admin)
@@ -127,9 +128,9 @@ def test_learning_verified_requires_the_actual_chapter_checks(env):
     payload={'status':'verified','evidence':'我比较了下单前后库存，确认取消只恢复一次，并观察订单金额。'}
     missing=seed_run(env,tests=[{'name':'test_authentication_and_role','status':'passed'}])
     assert c.put(path,headers=a,json={**payload,'run_id':missing}).status_code==422
-    foreign=seed_run(env,owner='bob',tests=[{'name':'test_order_cancel_and_idempotency','status':'passed'}])
+    foreign=seed_run(env,owner='bob',tests=[{'name':'test_order_cancel_and_idempotency','status':'passed'},{'name':'test_commerce_order_lifecycle','status':'passed'}])
     assert c.put(path,headers=a,json={**payload,'run_id':foreign}).status_code==422
-    valid=seed_run(env,tests=[{'name':'test_order_cancel_and_idempotency','status':'passed'}])
+    valid=seed_run(env,tests=[{'name':'test_order_cancel_and_idempotency','status':'passed'},{'name':'test_commerce_order_lifecycle','status':'passed'}])
     r=c.post(path+'/notebook',headers=a,json={**payload,'run_id':valid,'client_request_id':'order-learning-note'});assert r.status_code==201,r.text
     assert 'run='+str(valid)in r.json()['note']['content']
     lesson=next(row for row in c.get('/api/v1/personal-workspace/lessons',headers=a).json()if row['id']=='api-orders');assert lesson['completed']and lesson['verification_eligible']

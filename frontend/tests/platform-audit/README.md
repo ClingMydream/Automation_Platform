@@ -24,3 +24,5 @@
 ## 个人工作台与实践实验室
 
 使用 `scripts/run_personal_workspace_audit.py` 启动独立后端、`scripts/run_practice_runner_audit.py` 启动真实固定项目执行器。后者需先安装 practice/requirements.txt；不能与上面的旧隔离后端同时占用端口。执行 personal-workspace-flows.js、practice-management.js 和 inventory.js；真实工程验收使用 scripts/verify_practice_execution.py。具体日期与结果见 docs/个人工作台实施进度.md。
+
+商城v2：commerce-workflows.js 从已登录的平台管理员准备独立验收账号，通过真实角色登录检查购物车、地址、结算、权限和85组布局；不会清空管理员本人的手动购物车。practice-management.js 检查平台内嵌业务与工程下载。真实完整履约浏览器测试在 practice/tests/test_ui.py，由固定项目执行器运行。

@@ -149,7 +149,7 @@ export default function PlatformApp() {
   const [profileError, setProfileError] = useState('');
   useEffect(() => {
     if (!isPublicEffect && !transferToken && !testPackage && !isMobilePreview && !uiAutomationRunMatch) {
-      document.title = token ? `${ALL_ITEMS.find(item => item.key === tab)?.label || '工作空间'} · Cling` : '登录 · Cling';
+      document.title = location.pathname === '/practice-app' ? 'Cling Store · 业务练习系统' : token ? `${ALL_ITEMS.find(item => item.key === tab)?.label || '工作空间'} · Cling` : '登录 · Cling';
     }
   }, [tab, Boolean(token)]);
   const [searchOpen,setSearchOpen] = useState(false);

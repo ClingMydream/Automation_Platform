@@ -23,6 +23,6 @@ def mount_docs(app):
     @app.get('/api/practice/openapi.json',include_in_schema=False)
     def specification():
         schema=app.openapi()
-        return {**schema,'info':{'title':'Cling 订单库存练习 API','version':'1.0.0','description':'练习 Token 由平台实践实验室登录获取。金额单位为分，request_key 用于订单幂等。'},'paths':{path:item for path,item in schema['paths'].items()if path.startswith('/api/practice/v1/')}}
+        return {**schema,'info':{'title':'Cling 订单库存练习 API','version':'2.0.0','description':'练习 Token 由平台实践实验室登录获取。v1旧订单接口保留；/commerce 为完整商城与履约接口。金额单位为分，付款物流均为本地模拟。'},'paths':{path:item for path,item in schema['paths'].items()if path.startswith('/api/practice/v1/')}}
     @app.get('/api/practice/docs',include_in_schema=False)
     def swagger():return get_swagger_ui_html(openapi_url='/api/practice/openapi.json',title='订单库存练习接口文档')

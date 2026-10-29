@@ -10,7 +10,7 @@ function errorMessage(data, status) {
 export function apiClient(token) {
   let expiryNotified = false;
   async function request(path, options = {}, download = false) {
-    const { timeoutMs = download || options.body instanceof FormData ? 120000 : options.method && options.method !== 'GET' ? 90000 : 20000, signal, ...fetchOptions } = options;
+    const { timeoutMs = download || options.body instanceof FormData ? 120000 : options.method && options.method !== 'GET' ? 90000 : 20000, signal, notifyAuthExpired = true, ...fetchOptions } = options;
     const controller = new AbortController();
     let timedOut = false;
     const relay = () => controller.abort();
@@ -22,7 +22,7 @@ export function apiClient(token) {
       res = await fetch(`${API_BASE}${path}`, { ...fetchOptions, signal: controller.signal,
         headers: { ...(form || download ? {} : { 'Content-Type': 'application/json' }),
           ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(fetchOptions.headers || {}) } });
-      if (res.status === 401 && token) {
+      if (res.status === 401 && token && notifyAuthExpired) {
         if (!expiryNotified) { expiryNotified = true; window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT)); }
         const err = new Error('登录已过期，请重新登录'); err.authExpired = true; err.status = 401; throw err;
       }

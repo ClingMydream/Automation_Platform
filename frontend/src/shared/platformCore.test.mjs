@@ -15,6 +15,7 @@ await assert.rejects(client.get('/bad'),err=>err.status===502&&err.requestId==='
 globalThis.fetch=async()=>new Response('<html/>',{status:200});await assert.rejects(client.get('/html'),/格式异常/);
 globalThis.fetch=async()=>new Response(JSON.stringify({detail:[{loc:['body','name'],msg:'必填'}]}),{status:422});await assert.rejects(client.post('/form',{}),/name：必填/);
 globalThis.fetch=async()=>new Response('{}',{status:401});await Promise.allSettled([client.get('/expired'),client.get('/expired-too')]);assert.equal(events,1);
+globalThis.fetch=async()=>new Response(JSON.stringify({detail:'练习账号或密码错误'}),{status:401});await assert.rejects(client.post('/v1/practice-lab/login',{}, {notifyAuthExpired:false}),/练习账号或密码错误/);assert.equal(events,1);
 let writes=0;globalThis.fetch=async()=>{writes++;throw new TypeError('network');};await assert.rejects(client.post('/write',{}),/网络连接失败/);assert.equal(writes,1);
 globalThis.fetch=async(url,{signal})=>await new Promise((resolve,reject)=>{signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')));});
 await assert.rejects(client.get('/slow',{timeoutMs:10}),err=>err.name==='TimeoutError');

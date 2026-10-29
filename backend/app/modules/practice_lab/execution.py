@@ -60,8 +60,10 @@ def start_run(payload:RunInput,user:AuthContext=Depends(guard),db:Session=Depend
     try:
         gen=store.generation(conn)
         admin=conn.execute("SELECT * FROM users WHERE role='admin'").fetchone()
-        customer=conn.execute("SELECT * FROM users WHERE role='customer'").fetchone()
-        credentials={'admin_token':issue_token(tenant,admin,gen),'customer_token':issue_token(tenant,customer,gen)}
+        customer=conn.execute("SELECT * FROM users WHERE username='_auto_customer'").fetchone()
+        warehouse=conn.execute("SELECT * FROM users WHERE username='warehouse'").fetchone()
+        other=conn.execute("SELECT * FROM users WHERE username='_auto_customer_two'").fetchone()
+        credentials={'admin_token':issue_token(tenant,admin,gen),'customer_token':issue_token(tenant,customer,gen),'warehouse_token':issue_token(tenant,warehouse,gen),'other_customer_token':issue_token(tenant,other,gen)}
     finally:conn.close()
     row=PracticeRun(owner=user.username,suite=payload.suite,status='queued',result={'seed_version':store.SEED_VERSION,'target':'个人独立练习数据库'});db.add(row);db.commit();db.refresh(row)
     try:

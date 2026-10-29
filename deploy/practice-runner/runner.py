@@ -36,6 +36,8 @@ class Job(BaseModel):
     duration:int=Field(default=10,ge=5,le=30)
     admin_token:str=Field(max_length=3000)
     customer_token:str=Field(max_length=3000)
+    warehouse_token:str=Field(default='',max_length=3000)
+    other_customer_token:str=Field(default='',max_length=3000)
 
 def persist(identifier):
     path=ROOT/identifier;path.mkdir(exist_ok=True)
@@ -53,7 +55,7 @@ def execute(job):
     with lock:
         if jobs[identifier]['status']=='stopped':return
         jobs[identifier]['status']='running';persist(identifier)
-    env={**os.environ,'PRACTICE_API_URL':API,'PRACTICE_UI_URL':UI,'PRACTICE_ADMIN_TOKEN':job.admin_token,'PRACTICE_CUSTOMER_TOKEN':job.customer_token,'PYTHONUNBUFFERED':'1','PYTHONIOENCODING':'utf-8','PYTHONUTF8':'1'}
+    env={**os.environ,'PRACTICE_API_URL':API,'PRACTICE_UI_URL':UI,'PRACTICE_ADMIN_TOKEN':job.admin_token,'PRACTICE_CUSTOMER_TOKEN':job.customer_token,'PRACTICE_WAREHOUSE_TOKEN':job.warehouse_token,'PRACTICE_OTHER_CUSTOMER_TOKEN':job.other_customer_token,'PYTHONUNBUFFERED':'1','PYTHONIOENCODING':'utf-8','PYTHONUTF8':'1'}
     if job.suite=='performance':
         command=[sys.executable,'-m','locust','-f',str(PROJECT/'locustfile.py'),'--headless','-u',str(job.users),'-r','1','--run-time',str(job.duration)+'s','--host',API,'--csv',str(folder/'load'),'--only-summary','--exit-code-on-error','1','--stop-timeout','3']
     else:
@@ -66,7 +68,7 @@ def execute(job):
             with lock:
                 processes[identifier]=process
                 if jobs[identifier]['status']=='stopped':stop_process(process)
-            timeout=job.duration+30 if job.suite=='performance' else 150
+            timeout=job.duration+30 if job.suite=='performance' else (240 if job.suite=='ui' else 150)
             try:code=process.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
                 stop_process(process)
@@ -74,13 +76,15 @@ def execute(job):
                 except subprocess.TimeoutExpired:process.kill();process.wait()
                 code=-1
         text=log.read_text(encoding='utf-8',errors='replace')
-        for secret in [job.admin_token,job.customer_token]:text=text.replace(secret,'[REDACTED]')
+        for secret in [job.admin_token,job.customer_token,job.warehouse_token,job.other_customer_token]:
+            if secret:text=text.replace(secret,'[REDACTED]')
         log.write_text(text[-100000:],encoding='utf-8')
         # Sanitise downloadable text evidence as well as console output.
         for evidence in folder.iterdir():
             if evidence.suffix in {'.xml','.csv','.txt'}:
                 content=evidence.read_text(encoding='utf-8',errors='replace')
-                for secret in [job.admin_token,job.customer_token]:content=content.replace(secret,'[REDACTED]')
+                for secret in [job.admin_token,job.customer_token,job.warehouse_token,job.other_customer_token]:
+                    if secret:content=content.replace(secret,'[REDACTED]')
                 evidence.write_text(content,encoding='utf-8')
         report={'duration_seconds':round(time.time()-started,2),'exit_code':code,'tests':[],'limits':{'users':job.users,'seconds':job.duration}if job.suite=='performance'else{},'artifacts':[]}
         if (folder/'junit.xml').exists():
