@@ -90,6 +90,8 @@ dialog.get_by_test_id('commerce-product-editor-submit').click()
 
 ## 本轮验收
 
-真实 UI 工程4项：下单取消、跨角色履约退款、后台商品入库导出、层级与稳定定位；前端单元12项、构建及85组独立页布局回归。具体部署后的结果在上线验收后追加。
+真实 UI 工程4项：下单取消、跨角色履约退款、后台商品入库导出、层级与稳定定位；前端单元12项、构建及85组独立页布局回归。应用提交765a9b4已于2026-10-29部署。远端隔离验收：API #12共12项通过，UI #13共4项通过（含test_stable_ui_hierarchy_and_locators），性能 #14通过；无未处理页面异常。验收账号已停用，临时凭据已清理，8个服务健康。备份在 /opt/cling-backups/765a9b4-20261029T093716Z。
 
 首轮发现 Ant Layout 的内容宽度默认规则与原网格冲突，已明确修正内容宽度并重跑。定位约定只约束公开业务容器，不承诺第三方组件内部 DOM 永不变化。
+
+结果证据：output/commerce-structure-20261029/remote-results.json；定位检查截图remote-locators.png；商城截图remote-shop.png。旧验收辅助脚本汇总文案仍写UI3项，已核对实际tests数组为4项且全部通过，以明细为准。
