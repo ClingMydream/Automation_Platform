@@ -141,6 +141,9 @@ export default function PlatformApp() {
   const [tab, updateTab] = useState(() => new URLSearchParams(location.search).get('module') || 'home');
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
   const [navOpen, setNavOpen] = useState(false);
+  const [fullNav,setFullNav]=useState(false);
+  useEffect(()=>{try{setFullNav(localStorage.getItem('cling:navigation:'+user?.username+':full')==='true');}catch{setFullNav(false);}},[user?.username]);
+  function toggleNavigation(){const next=!fullNav;setFullNav(next);try{localStorage.setItem('cling:navigation:'+user.username+':full',String(next));}catch{}}
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [connection, setConnection] = useState('checking');
   const [profileError, setProfileError] = useState('');
@@ -264,7 +267,9 @@ export default function PlatformApp() {
     return <UiAutomationRunViewer client={client} runId={uiAutomationRunMatch[1]} />;
   }
 
-  const menuItems = menuForUser(user);
+  const allMenuItems = menuForUser(user);
+  const essentialKeys=new Set(['home','personal_tasks','work_journal','knowledge','learning_route','practice_lab',groupKey(tab,workspaceItems)]);
+  const menuItems=fullNav?allMenuItems:allMenuItems.map(section=>({...section,children:section.children.filter(item=>essentialKeys.has(item.key))})).filter(section=>section.children.length);
   const allowedKeys = authorizedKeys(user, ALL_ITEMS);
   const allowed = allowedKeys.has(tab);
   const activeItem = workspaceItems.find(item=>item.key===groupKey(tab,workspaceItems)) || ALL_ITEMS.find(item=>item.key===tab) || ALL_ITEMS[0];
@@ -291,6 +296,7 @@ export default function PlatformApp() {
           setTab(key);
         }} />
         <div className="sider-footer">
+          {!collapsed&&<Button type="text" block onClick={toggleNavigation}>{fullNav?'收起工具导航':'显示全部功能'}</Button>}
           <div className={`sider-status connection-${connection}`}><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
         </div>
       </Drawer> : <Sider className="toolbox-sider" width={236} collapsedWidth={76} collapsed={collapsed} trigger={null}>
@@ -299,6 +305,7 @@ export default function PlatformApp() {
           setTab(key);
         }} />
         <div className="sider-footer">
+          {!collapsed&&<Button type="text" block onClick={toggleNavigation}>{fullNav?'收起工具导航':'显示全部功能'}</Button>}
           <div className={`sider-status connection-${connection}`}><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
         </div>
       </Sider>}

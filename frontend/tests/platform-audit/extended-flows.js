@@ -1,6 +1,6 @@
 async page => {
  page.setDefaultTimeout(8000);page.setDefaultNavigationTimeout(30000);
- await page.goto('http://127.0.0.1:3104/?module=data_generator',{waitUntil:'domcontentloaded'});
+ await page.goto('http://127.0.0.1:3104/?module=data_generator',{waitUntil:'domcontentloaded'});await page.getByRole('menuitem',{name:'今日工作台',exact:true}).waitFor();const expand=page.getByRole('button',{name:'显示全部功能',exact:true});if(await expand.count())await expand.click();
  const suffix=Date.now().toString(),results=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
  const nav=async name=>{const group={ 'JSON 工具':['文本工具','JSON 格式化与对比'],'转码工具':['文本工具','编码与解码'],'测试包安装':['Emote 测试环境','安装包'] }[name];await page.getByRole('menuitem',{name:group?group[0]:name,exact:true}).click();if(group)await page.getByRole('tab',{name:group[1],exact:true}).click();await page.waitForTimeout(350);};
  const test=async(name,fn)=>{try{await fn();results.push({name,status:'passed'});}catch(e){results.push({name,status:'failed',reason:e.message.slice(0,1000)});await page.goto('http://127.0.0.1:3104/?module=data_generator',{waitUntil:'domcontentloaded'});}finally{await page.evaluate(v=>sessionStorage.setItem('platform-audit-extended',JSON.stringify(v)),{results,errors});}};
