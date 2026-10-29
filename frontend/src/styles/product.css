@@ -37,7 +37,7 @@ body{font-family:var(--workspace-font);-webkit-font-smoothing:antialiased}
 .atelier-recent-grid>button:hover{background:#ececf0;box-shadow:none}
 .atelier-recent-icon{background:#e9e9ee;color:#6e6e73;border-radius:10px}
 .personal-markdown{background:#fafafa;border-color:#e5e5ea}.personal-markdown pre{background:#f0f0f2;border-color:#e5e5ea}
-.learning-route-nav{background:#fff}.learning-route-nav>button.active{background:#eaf3ff;border-color:#b6d4fa}
+.learning-route-nav{background:#fff}.learning-chapter-list>button.active{background:#eaf3ff;border-color:#b6d4fa}
 .practice-lab-banner{background:#fff;border-color:#e5e5ea}
 /* Login uses typography and space instead of an illustrated background. */
 .login-screen.atelier-login{background:#fff;gap:0;padding:0;grid-template-columns:1.05fr 1fr}

@@ -165,9 +165,9 @@ export default function PlatformApp() {
   },[token, user?.username]);
   const authGeneration = useRef(0);
   function setTab(key, extra={}) {
-    const url = new URL(location.href); for(const name of ['record','lesson','new'])url.searchParams.delete(name);for(const [name,value]of Object.entries(extra))if(value!=null)url.searchParams.set(name,String(value));url.searchParams.set('module', key);
+    const url = new URL(location.href); for(const name of ['record','lesson','new','run','suite'])url.searchParams.delete(name);for(const [name,value]of Object.entries(extra))if(value!=null)url.searchParams.set(name,String(value));url.searchParams.set('module', key);
     if (url.href !== location.href) history.pushState(null, '', url);
-    updateTab(key); setNavOpen(false);
+    updateTab(key); setNavOpen(false); window.dispatchEvent(new Event('cling:location'));
     window.scrollTo(0, 0);
   }
   useEffect(() => {

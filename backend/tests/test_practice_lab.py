@@ -97,3 +97,70 @@ def test_unavailable_executor_is_explicit_not_passed(env,monkeypatch):
     assert response.status_code==503
     rows=env.client.get('/api/v1/practice-lab/runs',headers=env.headers['alice']).json()
     assert rows[0]['status']=='blocked' and 'error'in rows[0]['result']
+
+# These records are controlled fixture data, never substituted for real runner acceptance.
+def seed_run(env,owner='alice',suite='api',status='passed',tests=None,performance=None):
+    from app.modules.practice_lab.execution import PracticeRun
+    with env.sessions()as db:
+        row=PracticeRun(owner=owner,suite=suite,status=status,result={'tests':tests or [],**({'performance':performance}if performance else {})})
+        db.add(row);db.commit();db.refresh(row);return row.id
+
+
+def test_learning_archive_is_owned_idempotent_and_preserves_notes(env):
+    c=env.client;a=env.headers['alice'];path='/api/v1/personal-workspace/lessons/python-values/notebook'
+    payload={'status':'practiced','evidence':'我将库存条件改成大于5，比较了库存0、5、6的输出。','client_request_id':'learning-archive-unique'}
+    first=c.post(path,headers=a,json=payload);assert first.status_code==201,first.text
+    note=first.json()['note'];assert '我的练习与心得'in note['content']and'库存0、5、6'in note['content']
+    repeated=c.post(path,headers=a,json=payload);assert repeated.json()['note']['id']==note['id']and repeated.json()['reused']
+    assert len(c.get('/api/v1/personal-workspace/records?kind=note',headers=a).json())==1
+    assert c.get('/api/v1/personal-workspace/records/'+str(note['id']),headers=env.headers['bob']).status_code==404
+    summary=c.get('/api/v1/personal-workspace/summary',headers=a).json();assert summary['learning']['completed']==1 and summary['continue_lesson']=='python-functions'
+    assert c.post(path,headers=a,json={**payload,'evidence':'不同的心得不能使用同一请求编号覆盖原来的笔记。'}).status_code==409
+    edited=c.put('/api/v1/personal-workspace/records/'+str(note['id']),headers=a,json={**note,'content':'这是我后来手动补充的知识笔记。'});assert edited.status_code==200
+    assert c.post(path,headers=a,json=payload).status_code==409
+    c.delete('/api/v1/personal-workspace/records/'+str(note['id']),headers=a)
+    summary=c.get('/api/v1/personal-workspace/summary',headers=a).json();assert summary['learning']['completed']==0 and summary['continue_lesson']=='python-values'
+
+
+def test_learning_verified_requires_the_actual_chapter_checks(env):
+    c=env.client;a=env.headers['alice'];path='/api/v1/personal-workspace/lessons/api-orders'
+    payload={'status':'verified','evidence':'我比较了下单前后库存，确认取消只恢复一次，并观察订单金额。'}
+    missing=seed_run(env,tests=[{'name':'test_authentication_and_role','status':'passed'}])
+    assert c.put(path,headers=a,json={**payload,'run_id':missing}).status_code==422
+    foreign=seed_run(env,owner='bob',tests=[{'name':'test_order_cancel_and_idempotency','status':'passed'}])
+    assert c.put(path,headers=a,json={**payload,'run_id':foreign}).status_code==422
+    valid=seed_run(env,tests=[{'name':'test_order_cancel_and_idempotency','status':'passed'}])
+    r=c.post(path+'/notebook',headers=a,json={**payload,'run_id':valid,'client_request_id':'order-learning-note'});assert r.status_code==201,r.text
+    assert 'run='+str(valid)in r.json()['note']['content']
+    lesson=next(row for row in c.get('/api/v1/personal-workspace/lessons',headers=a).json()if row['id']=='api-orders');assert lesson['completed']and lesson['verification_eligible']
+    failed=seed_run(env,status='failed',tests=[{'name':'test_order_cancel_and_idempotency','status':'failed'}])
+    r=c.post(path+'/notebook',headers=a,json={**payload,'status':'practiced','run_id':failed,'client_request_id':'failed-learning-note'});assert r.status_code==201 and 'failed'in r.json()['note']['content']
+    lesson=next(row for row in c.get('/api/v1/personal-workspace/lessons',headers=a).json()if row['id']=='api-orders');assert not lesson['completed']
+
+
+def test_learning_all_chapters_archive_and_performance_evidence(env):
+    c=env.client;a=env.headers['alice']
+    lessons=c.get('/api/v1/personal-workspace/lessons',headers=a).json();assert len(lessons)==7
+    for index,lesson in enumerate(lessons):
+        payload={'status':'practiced','evidence':'已按本章步骤运行和改写示例，记录实际观察与输出，并说明了验证范围。','client_request_id':'chapter-note-'+str(index)}
+        if lesson['suite']:
+            payload['status']='verified'
+            payload['run_id']=seed_run(env,suite=lesson['suite'],tests=[{'name':check['name'],'status':'passed'}for check in lesson['checks']],performance={'Request Count':'10','Failure Count':'0','95%':'20'}if lesson['suite']=='performance'else None)
+        r=c.post('/api/v1/personal-workspace/lessons/'+lesson['id']+'/notebook',headers=a,json=payload);assert r.status_code==201,(lesson['id'],r.text)
+    assert c.get('/api/v1/personal-workspace/summary',headers=a).json()['learning']['completed']==7
+    bad=seed_run(env,suite='performance',performance={'Request Count':'0','Failure Count':'0'})
+    assert c.put('/api/v1/personal-workspace/lessons/performance-basics',headers=a,json={'status':'verified','evidence':'没有实际请求时不能算作性能验证通过。','run_id':bad}).status_code==422
+    bad=seed_run(env,suite='performance',performance={'Request Count':'10','Failure Count':'2'})
+    assert c.put('/api/v1/personal-workspace/lessons/performance-basics',headers=a,json={'status':'verified','evidence':'存在请求失败，先排查错误再重新运行。','run_id':bad}).status_code==422
+
+def test_curriculum_targets_exist_and_basic_examples_execute():
+    import ast
+    from pathlib import Path
+    from app.modules.personal_workspace.curriculum import LESSONS
+    root=Path(__file__).resolve().parents[2]
+    names={node.name for file in (root/'practice/tests').glob('test_*.py')for node in ast.walk(ast.parse(file.read_text(encoding='utf-8')))if isinstance(node,ast.FunctionDef)}
+    assert len({row['id']for row in LESSONS})==len(LESSONS)
+    for lesson in LESSONS:
+        assert all(check['name']in names for check in lesson['checks'])
+        assert lesson['next_lesson_id']is None or any(row['id']==lesson['next_lesson_id']for row in LESSONS)
+        if lesson['suite']is None:exec(compile(lesson['example'],'lesson-example','exec'),{})

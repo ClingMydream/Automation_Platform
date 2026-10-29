@@ -4,7 +4,7 @@ function inline(text){
  return text.split(/(`[^`]+`|\[[^\]]+\]\([^\s)]+\))/g).map((part,index)=>{
   if(part.startsWith('`'))return <code key={index}>{part.slice(1,-1)}</code>;
   const match=part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-  if(match){const safe=/^https?:\/\//i.test(match[2])||/^\/(?!\/)/.test(match[2]);return safe?<a key={index} href={match[2]} target="_blank" rel="noopener noreferrer">{match[1]}</a>:<span key={index}>{match[1]}</span>;}
+  if(match){const safe=/^https?:\/\//i.test(match[2])||/^\/(?!\/)/.test(match[2]);return safe?<a key={index} href={match[2]} target={match[2].startsWith('/')?undefined:'_blank'} rel={match[2].startsWith('/')?undefined:'noopener noreferrer'}>{match[1]}</a>:<span key={index}>{match[1]}</span>;}
   return part;
  });
 }
