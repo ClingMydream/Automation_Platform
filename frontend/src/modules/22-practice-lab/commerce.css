@@ -1058,3 +1058,5 @@
   width: 100%;
   min-width: 0;
 }
+
+.commerce-login.commerce-session-recovery{display:grid;grid-template-columns:minmax(0,560px);place-content:center;padding:24px;min-height:100svh}.commerce-session-recovery p{line-height:1.8}.commerce-session-recovery .ant-btn{margin:8px 8px 0 0}

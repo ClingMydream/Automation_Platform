@@ -96,3 +96,17 @@ def test_stable_ui_hierarchy_and_locators(customer):
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2')
     page.set_viewport_size({'width':1440,'height':1000})
     page.screenshot(path='key-ui-locator-contract.png',full_page=True)
+
+
+def test_expired_session_recovery(browser):
+    ctx=browser.new_context()
+    ctx.add_init_script('sessionStorage.setItem("cling:practice:session",JSON.stringify({token:"invalid-expired-session",username:"lab_admin",role:"admin"}));')
+    page=ctx.new_page()
+    try:
+        page.goto(os.environ['PRACTICE_UI_URL'])
+        expect(page.get_by_test_id('commerce-session-expired')).to_be_visible()
+        expect(page.get_by_text('重新加载业务',exact=True)).to_have_count(0)
+        page.get_by_test_id('commerce-session-relogin').click()
+        expect(page.get_by_test_id('commerce-login')).to_be_visible()
+        assert page.evaluate('sessionStorage.getItem("cling:practice:session")')is None
+    finally:ctx.close()

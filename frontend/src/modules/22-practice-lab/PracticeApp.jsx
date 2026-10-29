@@ -118,7 +118,8 @@ const readRoute = (role) => {
 };
 export function PracticeApp({ session, onLogout, standalone = false }) {
   const { message } = App.useApp();
-  const client = useMemo(() => practiceClient(session.token), [session.token]);
+  const [expired,setExpired]=useState(false);
+  const client = useMemo(() => practiceClient(session.token,()=>setExpired(true)), [session.token]);
   const [data, setData] = useState(null),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
@@ -222,6 +223,7 @@ export function PracticeApp({ session, onLogout, standalone = false }) {
     allowed = PAGES[key]?.roles.includes(session.role),
     page = PAGES[key] || { label: "页面不存在", description: "" };
   const common = { data, session, busy, execute, navigate };
+  if(expired)return <main className="commerce-login commerce-session-recovery" data-testid="commerce-session-expired"><Card title="练习登录已过期"><p>练习会话已过期或数据已重置，请重新登录练习账号。平台登录和业务数据不受影响，未确认的结算编号会保留。</p><Button type="primary" data-testid="commerce-session-relogin" onClick={onLogout}>重新登录练习账号</Button><Button href="/?module=practice_lab">返回实践实验室</Button></Card></main>;
   return (
     <Layout
       data-testid="commerce-app"
