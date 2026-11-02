@@ -423,6 +423,8 @@ function UnitForm({ client, userKey, onNavigate, unit, onBusy, onSaved }) {
               />
               <Button
                 type="primary"
+                aria-label="保存学习记录到笔记本"
+                data-testid="learning-unit-save"
                 loading={busy}
                 onClick={save}
                 disabled={loadFailed}
