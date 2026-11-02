@@ -4,6 +4,7 @@ import {MarkdownView}from'./MarkdownView.jsx';
 import {requestId}from'../../shared/requestId.js';
 import {useRouteSearch}from'../../shared/useRouteSearch.js';
 import './personal-space.css';
+import {LearningUnitPanel}from'./LearningUnitPanel.jsx';
 const API='/v1/personal-workspace';
 const normalize=value=>({status:value?.status||'reading',evidence:value?.evidence||'',note_id:value?.note_id||null,run_id:value?.run_id||null});
 function covers(lesson,run){
@@ -11,7 +12,7 @@ function covers(lesson,run){
  if(run.suite==='performance')return Number(run.result?.performance?.['Request Count'])>0&&Number(run.result?.performance?.['Failure Count'])===0;
  return lesson.checks?.length>0&&lesson.checks.every(check=>run.result?.tests?.some(item=>item.name?.split('[')[0]===check.name&&item.status==='passed'));
 }
-export function LearningRoute({client,userKey,onNavigate,practiceAllowed}){
+function LegacyLearningRoute({client,userKey,onNavigate,practiceAllowed}){
  const {message,modal}=App.useApp(),params=useRouteSearch();
  const [lessons,setLessons]=useState([]),[notes,setNotes]=useState([]),[runs,setRuns]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false),[draft,setDraft]=useState(null),[draftError,setDraftError]=useState(false),[runError,setRunError]=useState(''),[outlineOpen,setOutlineOpen]=useState(false);
  const write=useRef(false),noteRequest=useRef({fingerprint:'',key:requestId()}),loadedRun=useRef('');
@@ -57,3 +58,5 @@ export function LearningRoute({client,userKey,onNavigate,practiceAllowed}){
   </div>
  </div>;
 }
+
+export function LearningRoute(props){const params=useRouteSearch();const[history,setHistory]=useState(false);if(history||params.get("lesson"))return <><Button onClick={()=>{setHistory(false);props.onNavigate("learning_route",{unit:"geekbang-python-01"});}}>返回链接学习单元</Button><LegacyLearningRoute {...props}/></>;return <LearningUnitPanel {...props} onHistory={()=>setHistory(true)}/>;}
