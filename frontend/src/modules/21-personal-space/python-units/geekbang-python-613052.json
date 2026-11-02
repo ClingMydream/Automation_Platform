@@ -1,0 +1,15 @@
+{
+  "id": "geekbang-python-613052",
+  "title": "53｜小试牛刀：如何利用函数实现电商购物车功能？",
+  "sourceTitle": "53｜小试牛刀：如何利用函数实现电商购物车功能？",
+  "group": "第六章 函数 (9讲)",
+  "course": "零基础学 Python（新版）",
+  "url": "https://time.geekbang.org/course/detail/100310001-613052",
+  "order": 55,
+  "duration": "30:47",
+  "sourceKind": "video",
+  "captionCues": 862,
+  "review": false,
+  "body": "# 53｜小试牛刀：如何利用函数实现电商购物车功能？\n\n课程：零基础学 Python（新版） · 尹会生 · 极客时间\n\n[打开本讲原内容](https://time.geekbang.org/course/detail/100310001-613052)\n\n## 学习目标\n\n理解本讲关键概念，运行并改写示例，用结果解释你的判断。\n\n## 课程核心归纳\n\n购物车案例把添加、删除、修改、查询拆成关联清楚的函数。数据结构与操作分开，输入校验、金额计算和库存规则需要明确；复用函数不代表可以省略边界测试。\n\n依据：已登录原课字幕要点。这是要点学习整理，不是逐字稿；以下代码、练习和答案为补充设计。\n\n## 补充代码与运行边界\n\nPython 3.10+，可在本地独立运行。示例不连接付费服务、不使用真实个人数据、不改动生产资源。涉及第三方库、数据库、硬件或网络的章节，离线示例只验证其中标明的核心逻辑，不代表完整外部链路通过。\n\n```python\ndef add_item(cart, sku, quantity):\n    if quantity <= 0: raise ValueError(\"数量必须为正\")\n    result = dict(cart)\n    result[sku] = result.get(sku, 0) + quantity\n    return result\ncart = add_item({}, \"NOTE-001\", 2)\ncart = add_item(cart, \"NOTE-001\", 1)\nassert cart == {\"NOTE-001\": 3}\nprint(cart)\n```\n\n## 自己动手\n\n1. 先预测示例输出，运行后逐行解释。\n2. 补充删除商品、重复添加、0和负数量的检查。\n3. 为正常输入、边界输入和失败输入各写一项检查；不适用的条件注明原因。\n\n## 参考答案（练习时先自己回答）\n\n说明每次操作后的购物车状态；示例仅是核心规则，不表示已经接入支付、库存或持久化。\n\n## 与测试工作的联系\n\n将本讲操作封装为最小、可重复的练习；保留输入、预期、实际结果和异常原因。核心逻辑、API、UI以及真实外部服务是不同验证层次，分别记录结果。\n\n## 验收与复习\n\n- 不看示例解释概念，并至少改写一个输入。\n- 保存自己的运行结果与仍未理解的问题；完成状态由自己确认。\n- 次日用不同数据重做；本章总结课闭卷复习此前单元。\n",
+  "codeChecked": true
+}

@@ -1,0 +1,15 @@
+{
+  "id": "geekbang-python-624255",
+  "title": "95｜如何批量读取 Excel 文件？",
+  "sourceTitle": "95｜如何批量读取 Excel 文件？",
+  "group": "第十二章 办公自动化：批量文件处理 (5讲)",
+  "course": "零基础学 Python（新版）",
+  "url": "https://time.geekbang.org/course/detail/100310001-624255",
+  "order": 97,
+  "duration": "18:27",
+  "sourceKind": "video",
+  "captionCues": 501,
+  "review": false,
+  "body": "# 95｜如何批量读取 Excel 文件？\n\n课程：零基础学 Python（新版） · 尹会生 · 极客时间\n\n[打开本讲原内容](https://time.geekbang.org/course/detail/100310001-624255)\n\n## 学习目标\n\n理解本讲关键概念，运行并改写示例，用结果解释你的判断。\n\n## 课程核心归纳\n\n批量Excel处理通常是文件、工作表、行与单元格的多层遍历。合并或拆分前统一表头、空值和数据类型，保证提出人、描述与附件等同一行关系不被打乱。\n\n依据：已登录原课字幕要点。这是要点学习整理，不是逐字稿；以下代码、练习和答案为补充设计。\n\n## 补充代码与运行边界\n\nPython 3.10+，可在本地独立运行。示例不连接付费服务、不使用真实个人数据、不改动生产资源。涉及第三方库、数据库、硬件或网络的章节，离线示例只验证其中标明的核心逻辑，不代表完整外部链路通过。\n\n```python\n# 用二维列表隔离表格合并规则，不依赖Excel软件。\ntables = [[['id', 'status'], ['C1', 'passed']], [['id', 'status'], ['C2', 'failed']]]\nmerged = [tables[0][0]]\nfor table in tables:\n    assert table[0] == merged[0]\n    merged.extend(table[1:])\nassert len(merged) == 3 and merged[2] == ['C2', 'failed']\nprint(merged)\n```\n\n## 自己动手\n\n1. 先预测示例输出，运行后逐行解释。\n2. 第二个文件列顺序不同，应直接追加吗？\n3. 为正常输入、边界输入和失败输入各写一项检查；不适用的条件注明原因。\n\n## 参考答案（练习时先自己回答）\n\n不能。先按列名做映射并校验必需字段，再写入统一结构；本例仅检查内存合并，不代表Excel文件已读写。\n\n## 与测试工作的联系\n\n将本讲操作封装为最小、可重复的练习；保留输入、预期、实际结果和异常原因。核心逻辑、API、UI以及真实外部服务是不同验证层次，分别记录结果。\n\n## 验收与复习\n\n- 不看示例解释概念，并至少改写一个输入。\n- 保存自己的运行结果与仍未理解的问题；完成状态由自己确认。\n- 次日用不同数据重做；本章总结课闭卷复习此前单元。\n",
+  "codeChecked": true
+}

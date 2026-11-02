@@ -1,0 +1,15 @@
+{
+  "id": "geekbang-python-603131",
+  "title": "15｜小试牛刀：如何制作简单计算器？",
+  "sourceTitle": "15｜小试牛刀：如何制作简单计算器？",
+  "group": "第二章 Python 编程基础知识 (10讲)",
+  "course": "零基础学 Python（新版）",
+  "url": "https://time.geekbang.org/course/detail/100310001-603131",
+  "order": 17,
+  "duration": "17:02",
+  "sourceKind": "video",
+  "captionCues": 402,
+  "review": false,
+  "body": "# 15｜小试牛刀：如何制作简单计算器？\n\n课程：零基础学 Python（新版） · 尹会生 · 极客时间\n\n[打开本讲原内容](https://time.geekbang.org/course/detail/100310001-603131)\n\n## 学习目标\n\n理解本讲关键概念，运行并改写示例，用结果解释你的判断。\n\n## 课程核心归纳\n\n计算器案例贯穿需求拆分、查资料、编码、测试与迭代。先限制输入和支持的运算，再验证正常与异常数据。课程演示涉及表达式执行；补充示例对白名单运算进行分发，不执行任意输入。\n\n依据：已登录原课字幕要点。这是要点学习整理，不是逐字稿；以下代码、练习和答案为补充设计。\n\n## 补充代码与运行边界\n\nPython 3.10+，可在本地独立运行。示例不连接付费服务、不使用真实个人数据、不改动生产资源。涉及第三方库、数据库、硬件或网络的章节，离线示例只验证其中标明的核心逻辑，不代表完整外部链路通过。\n\n```python\nimport operator\noperations = {\"+\": operator.add, \"-\": operator.sub, \"*\": operator.mul, \"/\": operator.truediv}\ndef calculate(a, op, b):\n    if op not in operations: raise ValueError(\"不支持的运算\")\n    return operations[op](float(a), float(b))\nassert calculate(\"1.5\", \"+\", \"2.5\") == 4\ntry: calculate(1, \"/\", 0)\nexcept ZeroDivisionError: print(\"拒绝除以0\")\nprint(calculate(3, \"*\", 4))\n```\n\n## 自己动手\n\n1. 先预测示例输出，运行后逐行解释。\n2. 补充不支持的符号、非法数字和除零三种测试。\n3. 为正常输入、边界输入和失败输入各写一项检查；不适用的条件注明原因。\n\n## 参考答案（练习时先自己回答）\n\n分别应明确拒绝、报告转换失败和报告除零。不要对外部输入直接eval。\n\n## 与测试工作的联系\n\n将本讲操作封装为最小、可重复的练习；保留输入、预期、实际结果和异常原因。核心逻辑、API、UI以及真实外部服务是不同验证层次，分别记录结果。\n\n## 验收与复习\n\n- 不看示例解释概念，并至少改写一个输入。\n- 保存自己的运行结果与仍未理解的问题；完成状态由自己确认。\n- 次日用不同数据重做；本章总结课闭卷复习此前单元。\n",
+  "codeChecked": true
+}
