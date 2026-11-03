@@ -338,12 +338,15 @@ export function UiAutomationPage({ client, onClose }) {
     }
   }
   async function sync() {
+    return syncVersion(branch);
+  }
+  async function syncVersion(selectedBranch) {
     if (lock.current) return;
-    if (!versions.some((row) => row.branch === branch)) { setError('请先选择有效版本'); return; }
+    if (!versions.some((row) => row.branch === selectedBranch)) { setError('请先选择有效版本'); return; }
     lock.current = true;
     setBusy(true);
     try {
-      await client.post("/v1/online-preview/sync", { branch });
+      await client.post("/v1/online-preview/sync", { branch: selectedBranch });
       message.success("已提交版本同步，请在完成后执行用例");
     } catch (e) {
       setError(e.message);
@@ -417,7 +420,7 @@ export function UiAutomationPage({ client, onClose }) {
         )}
         <section className="studio-toolbar">
           <Space wrap>
-            <Select aria-label="测试版本" value={branch || undefined} onChange={setBranch} placeholder="选择 Git 版本" disabled={running || saving}
+            <Select aria-label="测试版本" value={branch || undefined} onChange={(value) => { setBranch(value); if (value !== branch) syncVersion(value); }} placeholder="选择 Git 版本" disabled={running || saving}
               style={{ width: 220, maxWidth: '100%' }} options={versions.map((row) => ({ value: row.branch, label: row.version + ' · ' + row.branch }))} />
             <span>测试数据集</span>
             <Select
@@ -446,7 +449,7 @@ export function UiAutomationPage({ client, onClose }) {
           </Button>
         </section>
         {versionError && <Alert type="error" title={'Git 版本读取失败：' + versionError} action={<Button onClick={loadVersions}>重新读取版本</Button>} />}
-        <p className="studio-footnote">切换版本后，请在“执行环境”同步所选 Git 分支到平台预览；同步期间禁止执行。普通发帖为双账号私密帖；任务互评会用 AI 生成公开测试内容并保留记录。</p>
+        <p className="studio-footnote">切换版本会自动拉取并同步所选 Git 分支到平台预览；同步期间禁止执行，也可在“执行环境”手动重新同步。普通发帖为双账号私密帖；任务互评会用 AI 生成公开测试内容并保留记录。</p>
         <div className="studio-workspace" ref={workspace}>
           <aside className="studio-panel studio-catalog">
             <div className="studio-panel-heading">
