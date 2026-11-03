@@ -445,6 +445,7 @@ class EmotePages:
         self.home()
 
     def cross_comment(self):
+        previous_post = (getattr(self, 'post_text', None), getattr(self, 'post_id', None), getattr(self, 'post_public', False))
         with self.test_peer() as (other, _, __, ___, ____):
             tasks = {'task_a': self.read_daily_task(), 'task_b': other.read_daily_task()}
             try:
@@ -471,6 +472,8 @@ class EmotePages:
             self.checks.extend(['AI依据双方每日任务生成内容；仅本用例使用公开测试帖',
                 'A帖子ID：' + post_a_id + '；B帖子ID：' + post_b_id,
                 'A评论B：' + comment_a, 'B评论A：' + comment_b, '已重新打开双方帖子确认互评持久化，帖子和评论全部保留'])
+        # Following private-post scenarios must not reuse this public fixture.
+        self.post_text, self.post_id, self.post_public = previous_post
 
     def daily_task(self):
         self.go('weekly_tasks')
