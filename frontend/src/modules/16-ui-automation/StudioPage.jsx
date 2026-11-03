@@ -137,7 +137,7 @@ export function UiAutomationPage({ client, onClose }) {
     if (!element) return;
     const measure = () => {
       const top = element.getBoundingClientRect().top + window.scrollY;
-      const height = Math.max(420, window.innerHeight - top - 24);
+      const height = Math.max(420, window.innerHeight - top - 16);
       element.style.setProperty("--studio-height", height + "px");
     };
     measure();
@@ -340,7 +340,7 @@ export function UiAutomationPage({ client, onClose }) {
         <header className="studio-heading">
           <div>
             <span className="studio-eyebrow">EMOTE / UI STUDIO</span>
-            <h2>场景工作室</h2>
+            <h1>Emote UI 自动化</h1>
           </div>
           <Space wrap>
             <Button

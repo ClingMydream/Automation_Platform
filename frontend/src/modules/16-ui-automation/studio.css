@@ -1,14 +1,23 @@
+.content-container.atelier-content.atelier-content--emote_ui_automation {
+  width: 100%;
+  max-width: none;
+  padding: 18px 20px 16px;
+}
+.atelier-content--emote_ui_automation > .atelier-module-intro {
+  display: none;
+}
 .emote-studio {
   --studio-line: #e4e8e5;
   --studio-soft: #f4f7f5;
   --studio-ink: #253b36;
   color: var(--studio-ink);
-  padding: 24px;
-  max-width: 1920px;
+  padding: 0;
+  width: 100%;
+  max-width: none;
   margin: auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
   min-width: 0;
 }
 .studio-heading {
@@ -46,11 +55,10 @@
 }
 .studio-workspace {
   display: grid;
-  grid-template-columns: 240px minmax(320px, 1.2fr) minmax(280px, 0.8fr);
-  gap: 16px;
+  grid-template-columns: 210px minmax(300px, 1.2fr) minmax(260px, 0.8fr);
+  gap: 14px;
   height: var(--studio-height, calc(100dvh - 420px));
   min-height: 420px;
-  max-height: 1000px;
 }
 .studio-panel {
   background: #fff;
@@ -288,7 +296,7 @@
   display: block;
   max-width: 100%;
   width: 100%;
-  max-height: 420px;
+  max-height: max(420px, calc(var(--studio-height, 640px) - 140px));
   object-fit: contain;
 }
 .studio-artifacts {
@@ -347,7 +355,7 @@
 .studio-evidence > .studio-scroll {
   flex: 1;
 }
-@media (max-width: 1250px) {
+@media (max-width: 1100px) {
   .studio-workspace {
     grid-template-columns: 210px minmax(300px, 1fr);
   }
@@ -368,8 +376,11 @@
   }
 }
 @media (max-width: 767px) {
+  .content-container.atelier-content.atelier-content--emote_ui_automation {
+    padding: 14px 12px;
+  }
   .emote-studio {
-    padding: 14px;
+    padding: 0;
   }
   .studio-heading {
     align-items: flex-start;
