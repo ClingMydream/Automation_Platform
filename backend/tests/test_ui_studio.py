@@ -36,7 +36,7 @@ def test_edit_is_whitelisted_and_preserves_locator_configuration(db):
 def test_run_checks_served_revision_and_dispatches_only_selected_cases(db,monkeypatch):
     cases=api._studio_cases(db)
     db.add(UiAutomationDataSet(name='隔离数据',is_default=True,encrypted_data='test'));db.commit()
-    monkeypatch.setattr(api,'_decrypt_credentials',lambda _: {'account_a':{'username':'isolated','password':'secret'}})
+    monkeypatch.setattr(api,'_decrypt_credentials',lambda _: {'account_a':{'username':'isolated','password':'secret'},'smoke':{'reset_test_friendship_once':True}})
     monkeypatch.setattr(api,'_jenkins_job_status',lambda _: {'building':False})
     monkeypatch.setattr(api,'_remote_revision',lambda _: {'sha':'new'})
     monkeypatch.setattr(preview,'_deployed_revision',lambda: {'sha':'old'})
@@ -50,6 +50,7 @@ def test_run_checks_served_revision_and_dispatches_only_selected_cases(db,monkey
     result=api.studio_create_run(api.RunInput(case_ids=[cases[0].id]),db)
     assert result['status']=='queued'
     assert sent[0]['engine']=='studio-v2'
+    assert 'reset_test_friendship_once' not in sent[0]['credentials']['smoke']
     assert [c['id']for c in sent[0]['cases']]==[cases[0].id]
     assert 'credentials' not in result and 'secret' not in str(result)
     with pytest.raises(HTTPException)as error:

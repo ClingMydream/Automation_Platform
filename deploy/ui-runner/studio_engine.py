@@ -56,11 +56,17 @@ def execute_studio(task, callback, root):
                 page = prep.new_page()
                 network.bind(page)
                 pages = EmotePages(page,task['base_url'],credentials)
-                try:
-                    pages.home()
-                except Exception:
+                renewed=False
+                if 'storage_state' not in options:
                     pages.login()
-                prep.storage_state(path=str(state));state.chmod(0o600)
+                    renewed=True
+                else:
+                    try:
+                        pages.home()
+                    except Exception:
+                        pages.login();renewed=True
+                if renewed:
+                    prep.storage_state(path=str(state));state.chmod(0o600)
                 prep.close()
             context_options = {'viewport':viewport,'record_video_dir':str(directory/'raw-video'),'record_video_size':viewport}
             if not explicit_login:

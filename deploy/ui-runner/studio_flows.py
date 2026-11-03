@@ -55,19 +55,19 @@ class EmotePages:
         if route=='weekly_tasks':
             self.go('profile')
             self.page.locator('button[data-feature-guide="daily-tasks"]:visible').click()
-            self.page.wait_for_url('**/#/weekly_tasks')
+            self.page.wait_for_url(re.compile(r'#/weekly_tasks(?:\?|$)'),wait_until='commit')
             return
         selector={'chat':'button:has(.lucide-message-square):visible','profile':'button[data-feature-guide="profile-entry"]:visible'}.get(route)
         current=self.page.url.split('#/')[-1].split('?')[0]
         if route=='profile' and current=='weekly_tasks':
             self.page.locator('button[aria-label="back"]').click()
-            self.page.wait_for_url('**/#/profile')
+            self.page.wait_for_url(re.compile(r'#/profile(?:\?|$)'),wait_until='commit')
             return
         if selector and current in {'home','community','chat','profile'} and self.page.locator(selector).count():
             self.page.locator(selector).first.click()
-            self.page.wait_for_url('**/#/'+route)
+            self.page.wait_for_url(re.compile(r'#/'+re.escape(route)+r'(?:\?|$)'),wait_until='commit')
             return
-        self.page.goto(self.base + '/#/' + route, wait_until='domcontentloaded')
+        self.page.goto(self.base + '/?cling_studio=' + uuid.uuid4().hex + '#/' + route, wait_until='domcontentloaded')
 
     def button(self, text):
         return self.page.get_by_role('button', name=text, exact=True)
@@ -112,7 +112,7 @@ class EmotePages:
         if toggle.count() and 'bg-emerald-500' not in (toggle.get_attribute('class') or ''):
             toggle.click()
         self.submit(self.button('进入心灵花园'), '/login')
-        self.page.wait_for_url('**/#/home', timeout=30000)
+        self.page.wait_for_url(re.compile(r'#/home(?:\?|$)'), timeout=30000,wait_until='domcontentloaded')
         self.dismiss_guides()
         expect(self.page.locator('button[data-feature-guide="create-post"]:visible')).to_be_visible()
 
@@ -200,6 +200,12 @@ class EmotePages:
 
     def chat(self):
         self.go('chat')
+        search=self.page.get_by_placeholder('寻找灵魂...',exact=True)
+        expect(search).to_be_visible()
+        if search.input_value():
+            with self.page.expect_response(lambda r:'/friend-recommend' in r.url and 'exactMatch' not in (r.request.post_data or '')):
+                search.fill('')
+            expect(self.page.get_by_text('同步原野中...',exact=True)).to_be_hidden(timeout=15000)
         name = self.page.locator('h3:visible,h4:visible').filter(has_text='霖感小秘书').first
         expect(name).to_be_visible()
         card = name.locator("xpath=ancestor::div[contains(@class,'justify-between') and contains(@class,'rounded-3xl')][1]")
@@ -218,6 +224,7 @@ class EmotePages:
         peer = self.credentials.get('smoke', {}).get('friend_name') or self.credentials.get('account_b', {}).get('username')
         assert peer, '添加好友需要数据集中的专用账号 B 或 smoke.friend_name'
         b = self.credentials.get('account_b',{})
+        peer_name=None
         if b.get('username') and b.get('password'):
             assert b['username'] != self.credentials.get('account_a',{}).get('username'), '好友测试账号必须与账号 A 不同'
             peer_context=self.page.context.browser.new_context(viewport={'width':390,'height':844})
@@ -226,6 +233,8 @@ class EmotePages:
                 peer_pages=EmotePages(peer_page,self.base,{'account_a':b})
                 peer_pages.login()
                 peer=peer_page.evaluate("localStorage.getItem('emote_current_session')")
+                peer_pages.go('profile')
+                peer_name=peer_page.locator('h3.profile-card__title:visible').inner_text().strip()
                 assert peer, '专用测试账号 B 的身份未获取'
             finally:
                 peer_context.close()
@@ -233,8 +242,32 @@ class EmotePages:
             self.page.get_by_placeholder('寻找灵魂...', exact=True).fill(str(peer))
         assert result.value.ok and result.value.json().get('success') is True, '搜索专用测试好友失败'
         expect(self.page.get_by_text('同步原野中...',exact=True)).to_be_hidden(timeout=15000)
-        if self.page.locator('button:has(.lucide-message-circle):visible').count():
-            raise TestDataRequired('账号 A、B 已是好友；需未建立好友关系的专用账号，未删除现有关系或聊天记录')
+        pending=self.page.get_by_text('已发送',exact=True)
+        if pending.count()==1 and pending.is_visible():
+            self.checks.append('已有发给专用账号 B 的申请，已核对已发送状态；本轮未重复申请')
+            return
+        assert peer_name, '重置关系前必须通过账号 B 的个人页核对昵称'
+        peer_heading=self.page.locator('h3:visible,h4:visible').filter(has_text=re.compile('^'+re.escape(peer_name))).first
+        peer_cards=peer_heading.locator("xpath=ancestor::div[contains(@class,'justify-between') and contains(@class,'rounded-3xl')][1]")
+        peer_chats=peer_cards.locator('button:has(.lucide-message-circle):visible')
+        if peer_chats.count():
+            if self.credentials.get('smoke',{}).get('reset_test_friendship_once') is not True or not b.get('password'):
+                raise TestDataRequired('账号 A、B 已是好友；需未建立好友关系的专用账号，未删除现有关系或聊天记录')
+            chats=peer_chats
+            assert chats.count()==1, '专用好友搜索结果不唯一，未重置任何关系'
+            chats.click()
+            self.page.locator('button:has(.lucide-ellipsis-vertical):visible,button:has(.lucide-more-vertical):visible').click()
+            self.button('删除好友').click()
+            self.submit(self.button('删除'), '/friends', 'DELETE')
+            self.checks.append('依据本次明确授权，仅重置已核对的专用 A/B 好友关系及聊天记录')
+            self.home()
+            self.go('chat')
+            if self.page.get_by_placeholder('寻找灵魂...',exact=True).input_value():
+                with self.page.expect_response(lambda r:'/friend-recommend' in r.url and 'exactMatch' not in (r.request.post_data or '')):
+                    self.page.get_by_placeholder('寻找灵魂...',exact=True).fill('')
+            with self.page.expect_response(lambda r:'/friend-recommend' in r.url and str(peer) in (r.request.post_data or '')):
+                self.page.get_by_placeholder('寻找灵魂...',exact=True).fill(str(peer))
+            expect(self.page.get_by_text('同步原野中...',exact=True)).to_be_hidden(timeout=15000)
         add = self.page.locator('button:has(.lucide-user-plus):visible')
         expect(add.first).to_be_visible()
         assert add.count() == 1, '搜索结果不唯一，拒绝向未知用户发送申请'

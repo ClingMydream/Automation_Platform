@@ -840,6 +840,7 @@ def create_run(payload: RunInput, _: AuthContext = guard, db: Session = Depends(
     branch = _validate_branch(payload.branch)
     query = db.query(UiAutomationCase).filter(UiAutomationCase.enabled.is_(True))
     cases = query.filter(UiAutomationCase.id.in_(payload.case_ids)).all() if payload.case_ids else query.all()
+    cases = [case for case in cases if 'studio-v2' not in (case.tags or [])]
     if payload.mode == "emote192":
         cases = [case for case in cases if "emote192" in (case.tags or [])]
     elif payload.mode != "selected" and not payload.allow_sensitive:
@@ -1065,6 +1066,8 @@ def _studio_create_run(payload: RunInput, db: Session):
     if not dataset:
         raise HTTPException(400,'请选择测试数据集')
     credentials=_decrypt_credentials(dataset.encrypted_data)
+    # Destructive fixture reset is never inherited from a saved data set.
+    credentials.get('smoke',{}).pop('reset_test_friendship_once',None)
     run=UiAutomationRun(mode='studio-v2',branch=payload.branch,commit_sha=revision['sha'],viewport=payload.viewport,
         status='queued',case_ids=[c.id for c in cases],result_summary={'target_url':display,'engine':'studio-v2'})
     db.add(run);db.commit();db.refresh(run)
