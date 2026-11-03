@@ -106,7 +106,7 @@ class EmotePages:
         account = self.credentials.get('account_a', {})
         assert account.get('username') and account.get('password'), '测试数据集缺少账号 A'
         self.page.get_by_placeholder('手机号', exact=True).fill(str(account['username']))
-        self.page.locator('input[type=password]:visible').fill(str(account['password']))
+        self.page.get_by_placeholder('请输入密码', exact=True).fill(str(account['password']))
         # Agreement control is the button directly preceding the agreement paragraph.
         toggle = self.page.get_by_text('已阅读并同意', exact=False).locator('xpath=preceding-sibling::button')
         if toggle.count() and 'bg-emerald-500' not in (toggle.get_attribute('class') or ''):
