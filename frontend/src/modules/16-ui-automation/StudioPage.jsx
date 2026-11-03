@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import "./studio.css";
 import { StudioDataSets } from "./StudioDataSets.jsx";
+import { StudioEnvironments } from './StudioEnvironments.jsx';
 const API = "/v1/ui-automation";
 const BRANCH = "dev-20260930-1.9.2";
 const ACTION_LABELS = {
@@ -126,8 +127,19 @@ export function UiAutomationPage({ client, onClose }) {
     [busy, setBusy] = useState(false),
     [saving, setSaving] = useState(false),
     [loading, setLoading] = useState(true);
-  const [target, setTarget] = useState(""),
-    [viewport, setViewport] = useState("mobile"),
+  const [environments, setEnvironments] = useState([]);
+  const [environment, setEnvironment] = useState(() => {
+    try { return Number(localStorage.getItem('emote-studio-environment')) || null; } catch { return null; }
+  });
+  const target = environments.find((row) => row.id === environment)?.base_url || '';
+  function chooseEnvironment(value) {
+    setEnvironment(value || null);
+    setViewport(environments.find((row) => row.id === value)?.viewport || 'mobile');
+  }
+  useEffect(() => {
+    try { localStorage.setItem('emote-studio-environment', String(environment || '')); } catch { /* Preference storage is optional. */ }
+  }, [environment]);
+  const [viewport, setViewport] = useState("mobile"),
     [config, setConfig] = useState(false),
     [mode, setMode] = useState("cases");
   const lock = useRef(false),
@@ -154,12 +166,16 @@ export function UiAutomationPage({ client, onClose }) {
     setError("");
     setLoading(true);
     try {
-      const [d, sets] = await Promise.all([
+      const [d, sets, envs] = await Promise.all([
         client.get(API + "/studio"),
         client.get(API + "/data-sets"),
+        client.get(API + '/environments'),
       ]);
       setData(d);
       setDatasets(sets);
+      setEnvironments(envs);
+      setEnvironment((value) => envs.some((row) => row.id === value) ? value : null);
+      if (!run && environment) setViewport(envs.find((row) => row.id === environment)?.viewport || 'mobile');
       setDataset((v) => v || sets.find((s) => s.is_default)?.id || sets[0]?.id);
       setActive((v) => v || d.cases[0]?.id);
       setSelected((v) => (v.length ? v : d.cases.map((c) => c.id)));
@@ -288,7 +304,7 @@ export function UiAutomationPage({ client, onClose }) {
         case_ids: ids,
         data_set_id: dataset,
         viewport,
-        target_url: target || null,
+        environment_id: environment,
       });
       setRun(result);
       setData((d) => ({ ...d, runs: [result, ...d.runs] }));
@@ -389,8 +405,10 @@ export function UiAutomationPage({ client, onClose }) {
               disabled={running || saving}
               style={{ width: 180, maxWidth: "100%" }}
             />
+            <Select aria-label="测试环境" value={environment || 0} onChange={chooseEnvironment}
+              disabled={running || saving} style={{ width: 180, maxWidth: '100%' }}
+              options={[{ value: 0, label: '平台测试预览' }, ...environments.map((row) => ({ value: row.id, label: row.name }))]} />
             <span className="studio-muted">
-              {target ? "自定义环境" : "平台测试预览"} ·{" "}
               {viewport === "mobile" ? "移动端" : "桌面端"}
             </span>
           </Space>
@@ -829,16 +847,17 @@ export function UiAutomationPage({ client, onClose }) {
           onCancel={() => setConfig(false)}
           onOk={() => setConfig(false)}
           okText="完成"
+          okButtonProps={{ 'aria-label': '完成环境配置' }}
         >
           <label className="studio-field">
-            测试地址（留空使用平台预览）
-            <Input
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              placeholder="https://example.com/"
-              disabled={running || saving}
-            />
+            测试环境
+            <Select aria-label="配置测试环境" value={environment || 0} onChange={chooseEnvironment} disabled={running || saving}
+              options={[{ value: 0, label: '平台测试预览' }, ...environments.map((row) => ({ value: row.id, label: row.name }))]} />
+            <span className="studio-muted">Base URL：{target || '平台预览地址'}</span>
           </label>
+          <StudioEnvironments client={client} items={environments} disabled={running || saving}
+            onChange={(rows) => { setEnvironments(rows); if (!rows.some((row) => row.id === environment)) setEnvironment(null); }}
+            onSelect={(row) => { setEnvironment(row.id); setViewport(row.viewport); }} />
           <label className="studio-field">
             浏览器视口
             <Select

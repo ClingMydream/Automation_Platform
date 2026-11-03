@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.core.auth import AuthContext, require_menu
 from app.core.config import get_settings
@@ -30,6 +31,7 @@ from app.modules.online_preview.router import _jenkins_job_status, _remote_revis
 from .smoke_catalog import CATALOG_VERSION, SMOKE_CATALOG, SMOKE_KEYS, SENSITIVE_KEYS, catalog_rows
 from .catalog_state import UiAutomationCatalogInstall
 from .studio_catalog import rows as studio_rows, VERSION as STUDIO_VERSION, FLOW_ACTIONS
+from .environment import UiAutomationEnvironment
 
 router = APIRouter(prefix="/v1/ui-automation", tags=["Emote UI 自动化"])
 guard = Depends(require_menu("emote_ui_automation"))
@@ -229,6 +231,7 @@ class RunInput(BaseModel):
     data_set_id: int | None = None
     credentials: dict = Field(default_factory=dict)
     target_url: str | None = Field(default=None, max_length=2048)
+    environment_id: int | None = None
     allow_sensitive: bool = False
 
 
@@ -964,7 +967,7 @@ def runner_update(run_id: int, payload: RunnerUpdate, x_runner_token: str | None
     run = db.get(UiAutomationRun, run_id)
     if not run: raise HTTPException(404, "执行记录不存在")
     run.status, run.current_step, run.progress = payload.status, payload.current_step[:300], max(0, min(100, payload.progress))
-    persistent_summary = {key: value for key, value in (run.result_summary or {}).items() if key in {"target_url"}}
+    persistent_summary = {key: value for key, value in (run.result_summary or {}).items() if key in {"target_url", "environment"}}
     run.result_summary = {**payload.result_summary, **persistent_summary}
     run.error_message = payload.error_message[:5000]
     if payload.status == "running" and not run.started_at: run.started_at = datetime.utcnow()
@@ -1034,6 +1037,63 @@ def studio_update_case(case_id: int, payload: StudioCaseInput, db: Session = Dep
     return _case_dict(case)
 
 
+class EnvironmentInput(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    base_url: str = Field(default='', max_length=2048)
+    viewport: str = 'mobile'
+    notes: str = Field(default='', max_length=2000)
+
+
+def _environment_dict(row):
+    return {'id': row.id, 'name': row.name, 'base_url': row.base_url,
+        'viewport': row.viewport, 'notes': row.notes}
+
+
+@router.get('/environments', dependencies=[guard])
+def list_environments(db: Session = Depends(get_db)):
+    return [_environment_dict(row) for row in db.query(UiAutomationEnvironment).order_by(UiAutomationEnvironment.id).all()]
+
+
+def _save_environment(payload, db, row=None):
+    name = payload.name.strip()
+    if not name or payload.viewport not in {'mobile', 'desktop'}:
+        raise HTTPException(400, '请填写环境名称并选择正确的视口')
+    _, url = _validate_target_url(payload.base_url)
+    row = row or UiAutomationEnvironment()
+    row.name, row.base_url, row.viewport, row.notes = name, url, payload.viewport, payload.notes.strip()
+    db.add(row)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, '环境名称已存在') from None
+    db.refresh(row)
+    return _environment_dict(row)
+
+
+@router.post('/environments', dependencies=[guard])
+def create_environment(payload: EnvironmentInput, db: Session = Depends(get_db)):
+    return _save_environment(payload, db)
+
+
+@router.put('/environments/{environment_id}', dependencies=[guard])
+def update_environment(environment_id: int, payload: EnvironmentInput, db: Session = Depends(get_db)):
+    row = db.get(UiAutomationEnvironment, environment_id)
+    if not row:
+        raise HTTPException(404, '环境不存在或已删除')
+    return _save_environment(payload, db, row)
+
+
+@router.delete('/environments/{environment_id}', dependencies=[guard])
+def delete_environment(environment_id: int, db: Session = Depends(get_db)):
+    row = db.get(UiAutomationEnvironment, environment_id)
+    if not row:
+        raise HTTPException(404, '环境不存在或已删除')
+    db.delete(row)
+    db.commit()
+    return {'message': '环境已删除，历史执行记录保留'}
+
+
 _studio_run_lock = Lock()
 
 
@@ -1056,11 +1116,21 @@ def _studio_create_run(payload: RunInput, db: Session):
         raise HTTPException(409,'已有任务正在执行，请等待完成')
     if _jenkins_job_status('emote-preview').get('building') or _jenkins_job_status('emote-apk').get('building'):
         raise HTTPException(409,'预览正在更新或安装包正在构建，请稍后执行')
-    base,display = _validate_target_url(payload.target_url)
+    target_url = payload.target_url
+    environment = None
+    if payload.environment_id is not None:
+        row = db.get(UiAutomationEnvironment, payload.environment_id)
+        if not row:
+            raise HTTPException(404, '所选环境不存在或已删除，请重新选择')
+        if payload.target_url:
+            raise HTTPException(400, '已选保存环境，请勿同时提交临时地址')
+        environment = _environment_dict(row)
+        target_url = row.base_url
+    base,display = _validate_target_url(target_url)
     settings=get_settings()
     revision=_remote_revision(_validate_branch(payload.branch))
     from app.modules.online_preview.router import _deployed_revision
-    if not payload.target_url:
+    if not target_url:
         deployed=_deployed_revision()
         if not deployed or deployed.get('sha')!=revision['sha']:
             raise HTTPException(409,'预览版本与所选分支最新提交不一致，请先同步版本')
@@ -1071,7 +1141,8 @@ def _studio_create_run(payload: RunInput, db: Session):
     # Destructive fixture reset is never inherited from a saved data set.
     credentials.get('smoke',{}).pop('reset_test_friendship_once',None)
     run=UiAutomationRun(mode='studio-v2',branch=payload.branch,commit_sha=revision['sha'],viewport=payload.viewport,
-        status='queued',case_ids=[c.id for c in cases],result_summary={'target_url':display,'engine':'studio-v2'})
+        status='queued',case_ids=[c.id for c in cases],result_summary={'target_url':display,'engine':'studio-v2',
+            'environment': environment or {'name':'平台测试预览' if not target_url else '临时环境', 'base_url': display}})
     db.add(run);db.commit();db.refresh(run)
     try:
         response=httpx.post(settings.ui_runner_url+'/execute',headers={'X-Runner-Token':settings.ui_runner_token or ''},
