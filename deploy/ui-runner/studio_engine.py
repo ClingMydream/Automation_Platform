@@ -125,14 +125,18 @@ def execute_studio(task, callback, root):
                     if failed_video:
                         destination=directory/f'case-{case_id}-video.webm'
                         Path(failed_video.path()).replace(destination);artifact(destination,'video')
+                    context=None
+                    if case is task['cases'][-1]:
+                        continue
                     recovery={**context_options}
                     if state.exists():recovery['storage_state']=str(state)
                     context=browser.new_context(**recovery)
                     context.set_default_timeout(20000)
                     page=context.new_page();network.bind(page)
                     pages=EmotePages(page,task['base_url'],credentials)
-            video = page.video
-            context.close();context=None
+            video = page.video if context else None
+            if context:
+                context.close();context=None
             if video:
                 destination = directory/'run-video.webm'
                 source=Path(video.path())
