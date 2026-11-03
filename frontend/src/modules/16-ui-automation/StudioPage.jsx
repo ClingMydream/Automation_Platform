@@ -31,7 +31,6 @@ import "./studio.css";
 import { StudioDataSets } from "./StudioDataSets.jsx";
 import { StudioEnvironments } from './StudioEnvironments.jsx';
 const API = "/v1/ui-automation";
-const BRANCH = "dev-20260930-1.9.2";
 const ACTION_LABELS = {
   login: "账号登录",
   home: "进入首页",
@@ -47,6 +46,12 @@ const ACTION_LABELS = {
   chat: "向小秘书发送消息",
   daily_task: "签到与浇水",
   profile: "修改头像与签名",
+  dual_post: 'A、B 双账号私密发帖',
+  kindness_home: '首页日行一善',
+  kindness_task: '每日任务日行一善',
+  watering: '自己冷却后改给小秘书浇水',
+  avatar: '仅切换头像',
+  cross_comment: 'AI 每日任务公开帖互评',
   click: "点击元素",
   fill: "输入内容",
   press: "键盘操作",
@@ -128,6 +133,20 @@ export function UiAutomationPage({ client, onClose }) {
     [saving, setSaving] = useState(false),
     [loading, setLoading] = useState(true);
   const [environments, setEnvironments] = useState([]);
+  const [versions, setVersions] = useState([]), [versionError, setVersionError] = useState('');
+  const [branch, setBranch] = useState(() => {
+    try { return localStorage.getItem('emote-studio-branch') || ''; } catch { return ''; }
+  });
+  async function loadVersions() {
+    setVersionError('');
+    try {
+      const result = await client.get(API + '/studio/versions');
+      setVersions(result.versions);
+      setBranch((value) => result.versions.some((row) => row.branch === value) ? value : result.versions[0]?.branch || '');
+      if (!result.versions.length) setVersionError('Git 中未找到 1.9.1 或 1.9.2 分支');
+    } catch (e) { setVersionError(e.message); }
+  }
+  useEffect(() => { try { if (branch) localStorage.setItem('emote-studio-branch', branch); } catch {} }, [branch]);
   const [environment, setEnvironment] = useState(() => {
     try { return Number(localStorage.getItem('emote-studio-environment')) || null; } catch { return null; }
   });
@@ -188,6 +207,7 @@ export function UiAutomationPage({ client, onClose }) {
   }
   useEffect(() => {
     load();
+    loadVersions();
     return () => clearTimeout(poll.current);
   }, []);
   useEffect(() => {
@@ -291,6 +311,7 @@ export function UiAutomationPage({ client, onClose }) {
   }
   async function execute(ids) {
     if (lock.current || running) return;
+    if (!versions.some((row) => row.branch === branch)) { setError('请先读取 Git 版本并选择有效分支'); return; }
     if (dirty) {
       message.warning("请先保存用例修改");
       return;
@@ -300,7 +321,7 @@ export function UiAutomationPage({ client, onClose }) {
     setError("");
     try {
       const result = await client.post(API + "/studio/runs", {
-        branch: BRANCH,
+        branch,
         case_ids: ids,
         data_set_id: dataset,
         viewport,
@@ -318,10 +339,11 @@ export function UiAutomationPage({ client, onClose }) {
   }
   async function sync() {
     if (lock.current) return;
+    if (!versions.some((row) => row.branch === branch)) { setError('请先选择有效版本'); return; }
     lock.current = true;
     setBusy(true);
     try {
-      await client.post("/v1/online-preview/sync", { branch: BRANCH });
+      await client.post("/v1/online-preview/sync", { branch });
       message.success("已提交版本同步，请在完成后执行用例");
     } catch (e) {
       setError(e.message);
@@ -395,7 +417,8 @@ export function UiAutomationPage({ client, onClose }) {
         )}
         <section className="studio-toolbar">
           <Space wrap>
-            <Tag color="blue">1.9.2</Tag>
+            <Select aria-label="测试版本" value={branch || undefined} onChange={setBranch} placeholder="选择 Git 版本" disabled={running || saving}
+              style={{ width: 220, maxWidth: '100%' }} options={versions.map((row) => ({ value: row.branch, label: row.version + ' · ' + row.branch }))} />
             <span>测试数据集</span>
             <Select
               aria-label="测试数据集"
@@ -416,12 +439,14 @@ export function UiAutomationPage({ client, onClose }) {
             type="primary"
             icon={<Play size={16} />}
             loading={busy}
-            disabled={running || !selected.length || !dataset}
+            disabled={running || !selected.length || !dataset || !versions.length}
             onClick={() => execute(selected)}
           >
             运行所选 {selected.length} 项
           </Button>
         </section>
+        {versionError && <Alert type="error" title={'Git 版本读取失败：' + versionError} action={<Button onClick={loadVersions}>重新读取版本</Button>} />}
+        <p className="studio-footnote">切换版本后，请在“执行环境”同步所选 Git 分支到平台预览；同步期间禁止执行。普通发帖为双账号私密帖；任务互评会用 AI 生成公开测试内容并保留记录。</p>
         <div className="studio-workspace" ref={workspace}>
           <aside className="studio-panel studio-catalog">
             <div className="studio-panel-heading">
@@ -526,7 +551,7 @@ export function UiAutomationPage({ client, onClose }) {
                   </Button>
                   <Button
                     onClick={() => execute([active])}
-                    disabled={running || !active || !dataset}
+                    disabled={running || !active || !dataset || !versions.length}
                   >
                     运行当前
                   </Button>
@@ -882,9 +907,11 @@ export function UiAutomationPage({ client, onClose }) {
             }}
             disabled={running || saving}
           />
-          <p>分支：{BRANCH}</p>
+          <p>Git 分支：{branch || '尚未选择版本'}</p>
+          {versionError && <Alert type="error" title={versionError} action={<Button onClick={loadVersions}>重新读取版本</Button>} />}
+          <Button onClick={loadVersions} disabled={running || busy}>刷新 Git 版本列表</Button>
           <Button onClick={sync} loading={busy} disabled={running || saving}>
-            同步最新分支到预览
+            同步所选版本到预览
           </Button>
           <p className="studio-footnote">
             账号沿用平台已加密保存的测试数据集。日志中的凭据会脱敏。

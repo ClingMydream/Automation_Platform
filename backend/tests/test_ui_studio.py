@@ -16,13 +16,13 @@ def db(tmp_path):
     with Session(engine)as session:yield session
 
 
-def test_studio_installs_eleven_cases_without_overwriting_edits(db):
+def test_studio_installs_sixteen_cases_without_overwriting_edits(db):
     cases=api._studio_cases(db)
-    assert len(cases)==11
+    assert len(cases)==16
     assert any(c.name == '删除好友' for c in cases)
     cases[0].name='自定义登录';db.commit()
     assert api._studio_cases(db)[0].name=='自定义登录'
-    assert db.query(UiAutomationCase).count()==11
+    assert db.query(UiAutomationCase).count()==16
 
 
 def test_edit_is_whitelisted_and_preserves_locator_configuration(db):
@@ -32,6 +32,17 @@ def test_edit_is_whitelisted_and_preserves_locator_configuration(db):
     assert result['steps'][0]['value']=='首页'
     with pytest.raises(HTTPException):
         api.studio_update_case(case.id,api.StudioCaseInput(name='危险动作',steps=[{'action':'eval','label':'代码'}]),db)
+
+
+def test_only_unmodified_builtin_post_steps_upgrade_to_dual_accounts(db):
+    case = next(c for c in api._studio_cases(db) if c.name == '发帖')
+    case.steps = api.LEGACY_POST_STEPS; db.commit()
+    api._studio_cases(db)
+    assert case.steps[-1]['action'] == 'dual_post'
+    custom = [{'action': 'assert_visible', 'label': '自定义断言', 'locator': '首页', 'locator_type': 'text'}]
+    case.steps = custom; db.commit()
+    api._studio_cases(db)
+    assert case.steps == custom
 
 
 def test_run_checks_served_revision_and_dispatches_only_selected_cases(db,monkeypatch):

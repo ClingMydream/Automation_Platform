@@ -56,6 +56,7 @@ def execute_studio(task, callback, root):
                 page = prep.new_page()
                 network.bind(page)
                 pages = EmotePages(page,task['base_url'],credentials)
+                pages.network, pages.auth_dir = network, state_dir
                 renewed=False
                 if 'storage_state' not in options:
                     pages.login()
@@ -77,6 +78,7 @@ def execute_studio(task, callback, root):
             page = context.new_page()
             network.bind(page)
             pages = EmotePages(page,task['base_url'],credentials)
+            pages.network, pages.auth_dir = network, state_dir
             for case in task['cases']:
                 case_id = case['id']
                 network.case_id = case_id
@@ -113,6 +115,11 @@ def execute_studio(task, callback, root):
                 if row['status']=='passed':
                     image = directory / f'case-{case_id}-key.png'
                     page.screenshot(path=str(image),full_page=False);artifact(image,'screenshot')
+                for name, content in getattr(pages, 'extra_images', []):
+                    image = directory / f'case-{case_id}-{name}.png'
+                    image.write_bytes(content);artifact(image,'screenshot')
+                if hasattr(pages, 'extra_images'):
+                    pages.extra_images.clear()
                 row['duration_ms'] = round((time.monotonic()-case_started)*1000)
                 row['network_issues'] = network.for_case(case_id)
                 row['checks'] = list(pages.checks)
@@ -134,6 +141,7 @@ def execute_studio(task, callback, root):
                     context.set_default_timeout(20000)
                     page=context.new_page();network.bind(page)
                     pages=EmotePages(page,task['base_url'],credentials)
+                    pages.network, pages.auth_dir = network, state_dir
             video = page.video if context else None
             if context:
                 context.close();context=None

@@ -11,6 +11,7 @@ import secrets
 import zipfile
 import ipaddress
 import socket
+import re
 from threading import Lock
 from urllib.parse import urlsplit, urlunsplit
 
@@ -30,8 +31,9 @@ from app.modules.online_preview.router import _jenkins_job_status, _remote_revis
 
 from .smoke_catalog import CATALOG_VERSION, SMOKE_CATALOG, SMOKE_KEYS, SENSITIVE_KEYS, catalog_rows
 from .catalog_state import UiAutomationCatalogInstall
-from .studio_catalog import rows as studio_rows, VERSION as STUDIO_VERSION, FLOW_ACTIONS
+from .studio_catalog import rows as studio_rows, VERSION as STUDIO_VERSION, FLOW_ACTIONS, LEGACY_POST_STEPS
 from .environment import UiAutomationEnvironment
+from .task_content import TaskContentInput, generate_task_content
 
 router = APIRouter(prefix="/v1/ui-automation", tags=["Emote UI 自动化"])
 guard = Depends(require_menu("emote_ui_automation"))
@@ -1001,6 +1003,8 @@ def _studio_cases(db):
         elif 'studio-preview' in (case.tags or []):
             case.tags=[t for t in case.tags if t!='studio-preview']
             case.enabled=True
+        if item['key'] == 'post' and case.steps == LEGACY_POST_STEPS:
+            case.steps = item['steps']
         installed.append(case)
     db.commit()
     return installed
@@ -1049,9 +1053,27 @@ def _environment_dict(row):
         'viewport': row.viewport, 'notes': row.notes}
 
 
+@router.post('/internal/task-content')
+def internal_task_content(payload: TaskContentInput, x_runner_token: str | None = Header(None)):
+    _internal_auth(x_runner_token)
+    return generate_task_content(payload)
+
+
 @router.get('/environments', dependencies=[guard])
 def list_environments(db: Session = Depends(get_db)):
     return [_environment_dict(row) for row in db.query(UiAutomationEnvironment).order_by(UiAutomationEnvironment.id).all()]
+
+
+@router.get('/studio/versions', dependencies=[guard])
+def studio_versions():
+    from app.modules.online_preview.router import list_preview_branches, _deployed_revision
+    versions = []
+    for branch in list_preview_branches():
+        match = re.search(r'(?:^|[-/])(1\.9\.[12])$', branch)
+        if match:
+            versions.append({'version': match.group(1), 'branch': branch})
+    return {'versions': sorted(versions, key=lambda row: (row['version'], row['branch']), reverse=True),
+        'deployed': _deployed_revision()}
 
 
 def _save_environment(payload, db, row=None):
@@ -1132,7 +1154,7 @@ def _studio_create_run(payload: RunInput, db: Session):
     from app.modules.online_preview.router import _deployed_revision
     if not target_url:
         deployed=_deployed_revision()
-        if not deployed or deployed.get('sha')!=revision['sha']:
+        if not deployed or deployed.get('sha')!=revision['sha'] or deployed.get('branch',payload.branch)!=payload.branch:
             raise HTTPException(409,'预览版本与所选分支最新提交不一致，请先同步版本')
     dataset=db.get(UiAutomationDataSet,payload.data_set_id) if payload.data_set_id else db.query(UiAutomationDataSet).filter_by(is_default=True).first()
     if not dataset:
