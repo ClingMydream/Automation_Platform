@@ -74,6 +74,7 @@ _prepare_auth_state_root()
 
 
 class ExecuteInput(BaseModel):
+    engine: str = "legacy"
     run_id: int
     base_url: str
     viewport: str = "mobile"
@@ -593,6 +594,9 @@ def block_external_fonts(context):
 
 
 def run_task(task):
+    if task.get('engine') == 'studio-v2':
+        from studio_engine import execute_studio
+        return execute_studio(task, callback, DATA_ROOT)
     run_id, run_dir = task["run_id"], DATA_ROOT / f"run-{task['run_id']}"
     run_dir.mkdir(parents=True, exist_ok=True)
     now = datetime.now(ZoneInfo("Asia/Shanghai"))

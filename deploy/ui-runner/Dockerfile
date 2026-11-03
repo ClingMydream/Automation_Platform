@@ -14,6 +14,7 @@ COPY deploy/ui-runner/runner.py /app/runner.py
 COPY deploy/ui-runner/emote_smoke.py /app/emote_smoke.py
 COPY backend/app/modules/ui_automation/smoke_catalog.py /app/smoke_catalog.py
 COPY deploy/ui-runner/execution_report.py /app/execution_report.py
+COPY deploy/ui-runner/network_evidence.py deploy/ui-runner/studio_engine.py deploy/ui-runner/studio_flows.py /app/
 
 EXPOSE 8090
 CMD ["uvicorn", "runner:app", "--host", "0.0.0.0", "--port", "8090"]

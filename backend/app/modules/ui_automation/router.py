@@ -11,6 +11,7 @@ import secrets
 import zipfile
 import ipaddress
 import socket
+from threading import Lock
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -28,6 +29,7 @@ from app.modules.online_preview.router import _jenkins_job_status, _remote_revis
 
 from .smoke_catalog import CATALOG_VERSION, SMOKE_CATALOG, SMOKE_KEYS, SENSITIVE_KEYS, catalog_rows
 from .catalog_state import UiAutomationCatalogInstall
+from .studio_catalog import rows as studio_rows, VERSION as STUDIO_VERSION, FLOW_ACTIONS
 
 router = APIRouter(prefix="/v1/ui-automation", tags=["Emote UI 自动化"])
 guard = Depends(require_menu("emote_ui_automation"))
@@ -973,3 +975,105 @@ def runner_update(run_id: int, payload: RunnerUpdate, x_runner_token: str | None
                                         size_bytes=artifact.get("size_bytes", 0)))
     db.commit()
     return {"status": "ok"}
+
+
+def _studio_cases(db):
+    features = {f.key:f for f in db.query(UiAutomationFeature).all()}
+    installed = []
+    for item in studio_rows():
+        if item['key'] not in features:
+            feature = UiAutomationFeature(key=item['key'],name=item['name'],sort_order=len(features))
+            db.add(feature);db.flush();features[item['key']] = feature
+        tag = 'studio:'+item['key']
+        case = next((c for c in db.query(UiAutomationCase).all() if tag in (c.tags or [])),None)
+        if not case:
+            case = UiAutomationCase(feature_id=features[item['key']].id,name=item['name'],priority='P1',
+                tags=['studio-v2',tag],steps=item['steps'],enabled=True,
+                preconditions='测试数据集账号；登录准备不显示为业务步骤。',
+                cleanup_note='仅操作专用测试数据；除删帖用例外保留记录。')
+            db.add(case)
+        elif 'studio-preview' in (case.tags or []):
+            case.tags=[t for t in case.tags if t!='studio-preview']
+            case.enabled=True
+        installed.append(case)
+    db.commit()
+    return installed
+
+
+@router.get('/studio', dependencies=[guard])
+def studio_overview(db: Session = Depends(get_db)):
+    cases = _studio_cases(db)
+    runs = db.query(UiAutomationRun).filter(UiAutomationRun.mode=='studio-v2').order_by(UiAutomationRun.id.desc()).limit(30).all()
+    return {'version':STUDIO_VERSION,'cases':[_case_dict(c) for c in cases],
+            'runs':[_run_dict(r,db) for r in runs], 'actions':sorted(FLOW_ACTIONS)}
+
+
+class StudioCaseInput(BaseModel):
+    name: str = Field(min_length=1,max_length=200)
+    steps: list[dict] = Field(min_length=1,max_length=40)
+
+
+@router.put('/studio/cases/{case_id}', dependencies=[guard])
+def studio_update_case(case_id: int, payload: StudioCaseInput, db: Session = Depends(get_db)):
+    case = db.get(UiAutomationCase,case_id)
+    if not case or 'studio-v2' not in (case.tags or []):
+        raise HTTPException(404,'用例不存在')
+    for step in payload.steps:
+        if step.get('action') not in FLOW_ACTIONS or not isinstance(step.get('label'),str) or len(step['label'])>200:
+            raise HTTPException(400,'步骤动作或说明不合法')
+    case.name=payload.name
+    for step in payload.steps:
+        for key in ('locator_type','locator','role','value'):
+            if key in step and (not isinstance(step[key],str) or len(step[key])>4000):
+                raise HTTPException(400,'元素或输入值格式不合法')
+    case.steps=[{k:v for k,v in s.items() if k in {'action','label','locator_type','locator','role','value'}}for s in payload.steps]
+    db.commit()
+    return _case_dict(case)
+
+
+_studio_run_lock = Lock()
+
+
+@router.post('/studio/runs', dependencies=[guard])
+def studio_create_run(payload: RunInput, db: Session = Depends(get_db)):
+    if not _studio_run_lock.acquire(blocking=False):
+        raise HTTPException(409,'已有执行请求正在提交，请稍后再试')
+    try:
+        return _studio_create_run(payload,db)
+    finally:
+        _studio_run_lock.release()
+
+
+def _studio_create_run(payload: RunInput, db: Session):
+    cases = _studio_cases(db)
+    cases = [c for c in cases if c.enabled and (not payload.case_ids or c.id in payload.case_ids)]
+    if not cases or payload.viewport not in {'mobile','desktop'}:
+        raise HTTPException(400,'没有可执行用例或视口不正确')
+    if db.query(UiAutomationRun).filter(UiAutomationRun.status.in_(['queued','running'])).first():
+        raise HTTPException(409,'已有任务正在执行，请等待完成')
+    if _jenkins_job_status('emote-preview').get('building') or _jenkins_job_status('emote-apk').get('building'):
+        raise HTTPException(409,'预览正在更新或安装包正在构建，请稍后执行')
+    base,display = _validate_target_url(payload.target_url)
+    settings=get_settings()
+    revision=_remote_revision(_validate_branch(payload.branch))
+    from app.modules.online_preview.router import _deployed_revision
+    if not payload.target_url:
+        deployed=_deployed_revision()
+        if not deployed or deployed.get('sha')!=revision['sha']:
+            raise HTTPException(409,'预览版本与所选分支最新提交不一致，请先同步版本')
+    dataset=db.get(UiAutomationDataSet,payload.data_set_id) if payload.data_set_id else db.query(UiAutomationDataSet).filter_by(is_default=True).first()
+    if not dataset:
+        raise HTTPException(400,'请选择测试数据集')
+    credentials=_decrypt_credentials(dataset.encrypted_data)
+    run=UiAutomationRun(mode='studio-v2',branch=payload.branch,commit_sha=revision['sha'],viewport=payload.viewport,
+        status='queued',case_ids=[c.id for c in cases],result_summary={'target_url':display,'engine':'studio-v2'})
+    db.add(run);db.commit();db.refresh(run)
+    try:
+        response=httpx.post(settings.ui_runner_url+'/execute',headers={'X-Runner-Token':settings.ui_runner_token or ''},
+            json={'engine':'studio-v2','run_id':run.id,'base_url':base,'viewport':payload.viewport,
+                  'credentials':credentials,'cases':[_case_dict(c)for c in cases]},timeout=10)
+        response.raise_for_status()
+    except httpx.HTTPError:
+        run.status='failed';run.error_message='执行器暂不可用';run.finished_at=datetime.utcnow();db.commit()
+        raise HTTPException(502,'执行器暂不可用，任务未执行')from None
+    return _run_dict(run,db)
