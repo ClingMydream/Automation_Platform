@@ -216,11 +216,12 @@ export function UiAutomationPage({ client, onClose }) {
       JSON.stringify(data.cases.find((c) => c.id === active));
   const report = run?.result_summary?.report;
   const results = run?.result_summary?.case_results || [];
+  const currentResult = results.find((r) => r.case_id === active);
   const failedSteps = (run?.result_summary?.timeline || []).filter(
     (t) => t.case_id === active && t.status === 'failed',
   );
-  const failedRequests = results.some((r) => r.case_id === active && r.status === 'failed')
-    ? (run?.result_summary?.network_issues || []).filter(
+  const failedRequests = currentResult?.status === 'failed'
+    ? (currentResult.network_issues || run?.result_summary?.network_issues || []).filter(
       (n) => n.case_id === active && failedSteps.some((t) => t.name === n.step),
     ) : [];
   const artifacts = (run?.artifacts || []).filter(
@@ -332,7 +333,6 @@ export function UiAutomationPage({ client, onClose }) {
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  const currentResult = results.find((r) => r.case_id === active);
   return (
     <ConfigProvider
       theme={{
