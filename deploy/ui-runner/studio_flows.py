@@ -444,19 +444,23 @@ class EmotePages:
         expect(self.kindness_task_button()).to_contain_text('已完成', timeout=15000)
         self.home()
 
+    def generate_daily_content(self, tasks):
+        try:
+            response = httpx.post('http://backend:8000/api/v1/ui-automation/internal/task-content',
+                headers={'X-Runner-Token': os.environ.get('UI_RUNNER_TOKEN', '')}, json=tasks, timeout=75)
+            if response.status_code == 503:
+                raise TestDataRequired('AI 尚未配置，未生成或发布任务互评帖子')
+            response.raise_for_status()
+            generated = response.json()
+        except httpx.HTTPError:
+            raise TestDataRequired('AI 每日任务内容生成不可用，未发布任务互评帖子') from None
+        return generated
+
     def cross_comment(self):
         previous_post = (getattr(self, 'post_text', None), getattr(self, 'post_id', None), getattr(self, 'post_public', False))
         with self.test_peer() as (other, _, __, ___, ____):
             tasks = {'task_a': self.read_daily_task(), 'task_b': other.read_daily_task()}
-            try:
-                response = httpx.post('http://backend:8000/api/v1/ui-automation/internal/task-content',
-                    headers={'X-Runner-Token': os.environ.get('UI_RUNNER_TOKEN', '')}, json=tasks, timeout=75)
-                if response.status_code == 503:
-                    raise TestDataRequired('AI 尚未配置，未生成或发布任务互评帖子')
-                response.raise_for_status()
-                generated = response.json()
-            except httpx.HTTPError:
-                raise TestDataRequired('AI 每日任务内容生成不可用，未发布任务互评帖子') from None
+            generated = self.generate_daily_content(tasks)
             stamp = self.stamp + ' [自动化测试] '
             post_a, post_b = stamp + generated['post_a'], stamp + generated['post_b']
             comment_a, comment_b = stamp + generated['comment_a_to_b'], stamp + generated['comment_b_to_a']

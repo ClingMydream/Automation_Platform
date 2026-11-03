@@ -1,0 +1,17 @@
+{
+  "base_url": "https://xiaomeiqaq.top/emote-preview/",
+  "timezone": "Asia/Shanghai",
+  "active_hours": [9, 21],
+  "interval_seconds": [1200, 3600],
+  "max_sessions_per_pair_per_day": 3,
+  "chromium_path": "/usr/bin/chromium",
+  "record_video": false,
+  "allow_public_interaction": false,
+  "action_weights": {"browse": 3, "post": 1, "kindness": 1, "water": 1},
+  "pairs": [{
+    "id": "ai-pair-1",
+    "account_type": "ai_simulated",
+    "account_a": {"username_env": "AI_ACCOUNT_A", "password_env": "AI_PASSWORD_A"},
+    "account_b": {"username_env": "AI_ACCOUNT_B", "password_env": "AI_PASSWORD_B"}
+  }]
+}

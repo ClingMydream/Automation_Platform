@@ -1,0 +1,20 @@
+[Unit]
+Description=Emote explicitly labelled AI account activity worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=emote-activity
+WorkingDirectory=/opt/emote-activity
+EnvironmentFile=/etc/emote-activity.env
+ExecStart=/opt/emote-activity/.venv/bin/python /opt/emote-activity/emote_activity_service.py --config /etc/emote-activity.json --data-dir /var/lib/emote-activity --serve --execute
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=180
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
