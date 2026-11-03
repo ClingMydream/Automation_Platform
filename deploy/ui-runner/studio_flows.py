@@ -4,7 +4,19 @@ import re
 import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from playwright.sync_api import expect
+from playwright.sync_api import expect, TimeoutError as PlaywrightTimeout
+
+
+def watering_outcome(body, http_ok=True):
+    assert http_ok and isinstance(body, dict), '浇水接口请求失败，请查看失败请求日志'
+    data = body.get('data')
+    result = data if isinstance(data, dict) else body
+    message = str(result.get('error') or result.get('message') or body.get('message') or '')
+    cooldown = re.search(r'24\s*小时内.*(?:已经|已).*浇', message)
+    if cooldown and result.get('success') is False and body.get('code') not in (401, 403, 500):
+        return 'cooldown', message
+    assert body.get('success') is True and isinstance(data, dict) and data.get('success') is True, '浇水未成功，且不是24小时内已浇水分支'
+    return 'watered', message
 
 
 class TestDataRequired(Exception):
@@ -103,6 +115,14 @@ class EmotePages:
 
     def login(self):
         self.go('login')
+        consent = self.button('同意并继续')
+        try:
+            consent.wait_for(state='visible', timeout=3000)
+        except PlaywrightTimeout:
+            pass
+        else:
+            consent.click()
+            expect(consent).to_be_hidden()
         account = self.credentials.get('account_a', {})
         assert account.get('username') and account.get('password'), '测试数据集缺少账号 A'
         self.page.get_by_placeholder('手机号', exact=True).fill(str(account['username']))
@@ -289,24 +309,23 @@ class EmotePages:
         water_title=self.page.get_by_role('heading',name=re.compile('浇水')).first
         expect(water_title).to_be_visible()
         water_task=water_title.locator('xpath=ancestor::div[./button][1]').locator(':scope > button').last
-        if water_task.is_disabled():
-            expect(water_task).to_contain_text('已完成')
+        expect(water_task).to_contain_text(re.compile('已完成|去完成'))
+        if '已完成' in water_task.inner_text():
+            self.checks.append('浇水任务已完成，本轮无需重复浇水')
             return
         self.go('profile')
         water = self.page.locator('button:has(.lucide-droplets):visible').first
         expect(water).to_be_visible()
-        result=self.submit(water, '/water', 'POST')
-        if isinstance(result,dict) and result.get('success') is False:
-            last=result.get('lastWateringTime')
-            seconds=result.get('remainingSeconds')
-            assert last and isinstance(seconds,(int,float)) and 0<seconds<=86400, '浇水被拒绝，且不符合已浇水冷却条件'
-            assert '24小时' in str(result.get('error','')), '浇水失败原因不是重复浇水保护'
-            expect(self.page.get_by_text(result['error'],exact=True).last).to_be_visible()
-            self.checks.append('已验证24小时浇水冷却提示；本轮未重复浇水，保留此前成功记录')
+        with self.page.expect_response(lambda r: '/user-watering/water' in r.url and r.request.method == 'POST') as result:
+            water.click()
+        response = result.value
+        outcome, message = watering_outcome(response.json(), response.ok)
+        if outcome == 'cooldown':
+            expect(self.page.get_by_text(message,exact=True).last).to_be_visible()
+            self.checks.append('通过：24小时内已浇水，冷却保护分支符合预期；本轮未重复浇水')
         else:
-            assert isinstance(result,dict) and result.get('success') is True, '浇水响应缺少成功标志'
             expect(self.page.get_by_text('浇水成功！', exact=True).last).to_be_visible()
-            self.checks.append('本轮通过页面完成浇水')
+            self.checks.append('通过：本轮通过页面完成浇水，成功分支符合预期')
 
     def profile(self):
         self.go('profile')

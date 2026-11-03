@@ -216,6 +216,13 @@ export function UiAutomationPage({ client, onClose }) {
       JSON.stringify(data.cases.find((c) => c.id === active));
   const report = run?.result_summary?.report;
   const results = run?.result_summary?.case_results || [];
+  const failedSteps = (run?.result_summary?.timeline || []).filter(
+    (t) => t.case_id === active && t.status === 'failed',
+  );
+  const failedRequests = results.some((r) => r.case_id === active && r.status === 'failed')
+    ? (run?.result_summary?.network_issues || []).filter(
+      (n) => n.case_id === active && failedSteps.some((t) => t.name === n.step),
+    ) : [];
   const artifacts = (run?.artifacts || []).filter(
     (a) => a.kind === "video" || a.name.includes(`case-${active}-`),
   );
@@ -309,6 +316,7 @@ export function UiAutomationPage({ client, onClose }) {
     const text = [
       "# Emote UI 自动化简短报告",
       `执行：#${run.id} · ${run.branch} · ${run.commit_sha}`,
+      `Base URL：${run.result_summary?.base_url || run.result_summary?.target_url || '历史记录未保存'}`,
       `结论：${report?.conclusion || labels[run.status]}`,
       ...results.map(
         (row) =>
@@ -741,9 +749,8 @@ export function UiAutomationPage({ client, onClose }) {
                           description={currentResult.reason}
                         />
                       )}
-                      <h3>本场景步骤记录</h3>
-                      {(run.result_summary?.timeline || [])
-                        .filter((t) => t.case_id === active)
+                      <h3>失败步骤日志</h3>
+                      {failedSteps
                         .map((t, i) => (
                           <div
                             className={"studio-timeline " + t.status}
@@ -793,12 +800,11 @@ export function UiAutomationPage({ client, onClose }) {
                   </Button>
                 ))}
               </div>
-              <h3>相关异常请求</h3>
+              <h3>失败日志</h3>
               <p className="studio-muted">
-                仅展示浏览器实际请求；相关异常不等于已确认失败根因。
+                Base URL：{run?.result_summary?.base_url || run?.result_summary?.target_url || '历史记录未保存'}
               </p>
-              {(run?.result_summary?.network_issues || [])
-                .filter((n) => n.case_id == null || n.case_id === active)
+              {failedRequests
                 .map((n, i) => (
                   <details className="studio-network" key={i}>
                     <summary>
@@ -808,11 +814,9 @@ export function UiAutomationPage({ client, onClose }) {
                     <pre>{JSON.stringify(n, null, 2)}</pre>
                   </details>
                 ))}
-              {!(run?.result_summary?.network_issues || []).some(
-                (n) => n.case_id == null || n.case_id === active,
-              ) && (
+              {!failedRequests.length && (
                 <p className="studio-footnote">
-                  当前场景暂无已捕获的异常请求。
+                  当前场景无失败请求日志。
                 </p>
               )}
             </div>

@@ -7,7 +7,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from playwright.sync_api import sync_playwright
 from execution_report import make_report
-from network_evidence import NetworkEvidence, scrub
+from network_evidence import NetworkEvidence, scrub, safe_url
 from studio_flows import EmotePages, TestDataRequired
 
 
@@ -37,7 +37,7 @@ def execute_studio(task, callback, root):
     def emit(status, label, error=''):
         callback(run_id, status=status, current_step=label, progress=round(completed/total*100),
                  error_message=error, artifacts=artifacts,
-                 result_summary={'engine':'studio-v2','timeline':timeline,'case_results':rows,
+                 result_summary={'engine':'studio-v2','base_url':safe_url(task['base_url'], secrets),'timeline':timeline,'case_results':rows,
                                  'network_issues':network.rows,
                                  'report':make_report(rows,len(task['cases']),started,'running' if status=='running' else status)})
 
