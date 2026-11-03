@@ -2,6 +2,7 @@
 import random
 import re
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from playwright.sync_api import expect, TimeoutError as PlaywrightTimeout
@@ -60,7 +61,7 @@ class EmotePages:
             assert re.fullmatch(r'[a-z_]+',route), '仅允许应用内页面名称'
             self.go(route)
         else:
-            assert action in {'login','home','create_post','verify_post','own_post','like','comment','favorite','delete_post','friend','chat','daily_task','profile'}, '不支持的步骤'
+            assert action in {'login','home','create_post','verify_post','own_post','like','comment','favorite','delete_post','friend','delete_friend','chat','daily_task','profile'}, '不支持的步骤'
             getattr(self,action)()
 
     def go(self, route):
@@ -239,60 +240,98 @@ class EmotePages:
         assert response.value.ok and response.value.json().get('success') is True, '聊天发送失败，请查看请求证据'
         expect(self.page.get_by_text(text, exact=True)).to_be_visible()
 
-    def friend(self):
+    @contextmanager
+    def test_peer(self):
+        account_a = self.credentials.get('account_a', {})
+        account_b = self.credentials.get('account_b', {})
+        assert account_b.get('username') and account_b.get('password'), '好友增删需要数据集中的专用账号 B 和密码'
+        assert str(account_b['username']) != str(account_a.get('username')), '好友测试账号 A、B 必须不同'
+        self.go('profile')
+        own_id = self.page.evaluate("localStorage.getItem('emote_current_session')")
+        own_name = self.page.locator('h3.profile-card__title:visible').inner_text().strip()
+        assert own_id and own_name, '账号 A 身份未确认，未执行好友操作'
+        context = self.page.context.browser.new_context(viewport={'width':390,'height':844})
+        try:
+            other = EmotePages(context.new_page(), self.base, {'account_a': account_b})
+            other.login()
+            other.go('profile')
+            peer_id = other.page.evaluate("localStorage.getItem('emote_current_session')")
+            peer_name = other.page.locator('h3.profile-card__title:visible').inner_text().strip()
+            assert peer_id and peer_name and peer_id != own_id, '账号 B 身份未确认或与 A 相同，未执行好友操作'
+            yield other, peer_id, peer_name, own_id, own_name
+        finally:
+            context.close()
+
+    def find_test_peer(self, peer_id, peer_name):
+        self.home()
         self.go('chat')
-        peer = self.credentials.get('smoke', {}).get('friend_name') or self.credentials.get('account_b', {}).get('username')
-        assert peer, '添加好友需要数据集中的专用账号 B 或 smoke.friend_name'
-        b = self.credentials.get('account_b',{})
-        peer_name=None
-        if b.get('username') and b.get('password'):
-            assert b['username'] != self.credentials.get('account_a',{}).get('username'), '好友测试账号必须与账号 A 不同'
-            peer_context=self.page.context.browser.new_context(viewport={'width':390,'height':844})
-            try:
-                peer_page=peer_context.new_page()
-                peer_pages=EmotePages(peer_page,self.base,{'account_a':b})
-                peer_pages.login()
-                peer=peer_page.evaluate("localStorage.getItem('emote_current_session')")
-                peer_pages.go('profile')
-                peer_name=peer_page.locator('h3.profile-card__title:visible').inner_text().strip()
-                assert peer, '专用测试账号 B 的身份未获取'
-            finally:
-                peer_context.close()
-        with self.page.expect_response(lambda r:'/friend-recommend' in r.url and str(peer) in (r.request.post_data or '')) as result:
-            self.page.get_by_placeholder('寻找灵魂...', exact=True).fill(str(peer))
-        assert result.value.ok and result.value.json().get('success') is True, '搜索专用测试好友失败'
+        search = self.page.get_by_placeholder('寻找灵魂...', exact=True)
+        if search.input_value():
+            with self.page.expect_response(lambda r: '/friend-recommend' in r.url):
+                search.fill('')
+        with self.page.expect_response(lambda r: '/friend-recommend' in r.url and str(peer_id) in (r.request.post_data or '')) as result:
+            search.fill(str(peer_id))
+        body = result.value.json()
+        assert result.value.ok and body.get('success') is True, '搜索专用测试好友失败'
         expect(self.page.get_by_text('同步原野中...',exact=True)).to_be_hidden(timeout=15000)
-        pending=self.page.get_by_text('已发送',exact=True)
-        if pending.count()==1 and pending.is_visible():
-            self.checks.append('已有发给专用账号 B 的申请，已核对已发送状态；本轮未重复申请')
+        heading = self.page.locator('h3:visible,h4:visible').filter(has_text=re.compile('^'+re.escape(peer_name)+'$'))
+        expect(heading).to_have_count(1)
+        card = heading.locator("xpath=ancestor::div[contains(@class,'justify-between') and contains(@class,'rounded-3xl')][1]")
+        expect(card).to_have_count(1)
+        return card
+
+    def peer_is_friend(self, card):
+        return card.locator('button:has(.lucide-message-circle):visible').count() == 1
+
+    def remove_test_peer(self, card, peer_id, peer_name):
+        chat = card.locator('button:has(.lucide-message-circle):visible')
+        expect(chat).to_have_count(1)
+        chat.click()
+        self.page.locator('button:has(.lucide-ellipsis-vertical):visible,button:has(.lucide-more-vertical):visible').click()
+        self.button('删除好友').click()
+        self.submit(self.button('删除'), '/friends', 'DELETE')
+        expect(self.page.get_by_text('删除好友成功', exact=True)).to_be_visible()
+        card = self.find_test_peer(peer_id, peer_name)
+        expect(card.locator('button:has(.lucide-message-circle):visible')).to_have_count(0)
+        self.checks.append('已通过 UI 删除经身份核对的专用账号 B，并重新搜索确认好友关系移除；双方聊天记录按应用规则清除')
+        return card
+
+    def request_test_peer(self, card):
+        pending = card.get_by_text('已发送', exact=True)
+        if pending.count() and pending.is_visible():
+            self.checks.append('已确认发给专用账号 B 的申请处于已发送状态，本轮未重复发送')
             return
-        assert peer_name, '重置关系前必须通过账号 B 的个人页核对昵称'
-        peer_heading=self.page.locator('h3:visible,h4:visible').filter(has_text=re.compile('^'+re.escape(peer_name))).first
-        peer_cards=peer_heading.locator("xpath=ancestor::div[contains(@class,'justify-between') and contains(@class,'rounded-3xl')][1]")
-        peer_chats=peer_cards.locator('button:has(.lucide-message-circle):visible')
-        if peer_chats.count():
-            if self.credentials.get('smoke',{}).get('reset_test_friendship_once') is not True or not b.get('password'):
-                raise TestDataRequired('账号 A、B 已是好友；需未建立好友关系的专用账号，未删除现有关系或聊天记录')
-            chats=peer_chats
-            assert chats.count()==1, '专用好友搜索结果不唯一，未重置任何关系'
-            chats.click()
-            self.page.locator('button:has(.lucide-ellipsis-vertical):visible,button:has(.lucide-more-vertical):visible').click()
-            self.button('删除好友').click()
-            self.submit(self.button('删除'), '/friends', 'DELETE')
-            self.checks.append('依据本次明确授权，仅重置已核对的专用 A/B 好友关系及聊天记录')
-            self.home()
-            self.go('chat')
-            if self.page.get_by_placeholder('寻找灵魂...',exact=True).input_value():
-                with self.page.expect_response(lambda r:'/friend-recommend' in r.url and 'exactMatch' not in (r.request.post_data or '')):
-                    self.page.get_by_placeholder('寻找灵魂...',exact=True).fill('')
-            with self.page.expect_response(lambda r:'/friend-recommend' in r.url and str(peer) in (r.request.post_data or '')):
-                self.page.get_by_placeholder('寻找灵魂...',exact=True).fill(str(peer))
-            expect(self.page.get_by_text('同步原野中...',exact=True)).to_be_hidden(timeout=15000)
-        add = self.page.locator('button:has(.lucide-user-plus):visible')
-        expect(add.first).to_be_visible()
-        assert add.count() == 1, '搜索结果不唯一，拒绝向未知用户发送申请'
+        add = card.locator('button:has(.lucide-user-plus):visible')
+        expect(add).to_have_count(1)
         self.submit(add, '/friends', 'POST')
-        expect(self.page.get_by_text('已发送', exact=True)).to_be_visible()
+        expect(card.get_by_text('已发送', exact=True)).to_be_visible()
+        self.checks.append('已通过 UI 向身份核对后的专用账号 B 发送好友申请')
+
+    def friend(self):
+        with self.test_peer() as (_, peer_id, peer_name, _, __):
+            card = self.find_test_peer(peer_id, peer_name)
+            if self.peer_is_friend(card):
+                card = self.remove_test_peer(card, peer_id, peer_name)
+            self.request_test_peer(card)
+
+    def delete_friend(self):
+        with self.test_peer() as (other, peer_id, peer_name, own_id, own_name):
+            card = self.find_test_peer(peer_id, peer_name)
+            if not self.peer_is_friend(card):
+                # Prepare the missing relationship through both test accounts' UI.
+                accept = card.locator('button:has(.lucide-check):visible')
+                if accept.count() == 1:
+                    self.submit(accept, '/friends/accept', 'POST')
+                else:
+                    self.request_test_peer(card)
+                    received = other.find_test_peer(own_id, own_name)
+                    accept = received.locator('button:has(.lucide-check):visible')
+                    expect(accept).to_have_count(1)
+                    other.submit(accept, '/friends/accept', 'POST')
+                card = self.find_test_peer(peer_id, peer_name)
+                assert self.peer_is_friend(card), '删除好友前未成功建立专用 A/B 好友关系，未报告删除成功'
+                self.checks.append('前置准备：通过 UI 接受专用 A/B 好友申请并确认关系')
+            self.remove_test_peer(card, peer_id, peer_name)
 
     def daily_task(self):
         self.go('weekly_tasks')

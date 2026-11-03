@@ -991,7 +991,9 @@ def _studio_cases(db):
             case = UiAutomationCase(feature_id=features[item['key']].id,name=item['name'],priority='P1',
                 tags=['studio-v2',tag],steps=item['steps'],enabled=True,
                 preconditions='测试数据集账号；登录准备不显示为业务步骤。',
-                cleanup_note='仅操作专用测试数据；除删帖用例外保留记录。')
+                cleanup_note=('仅操作专用 A/B 账号；好友增删会清除双方聊天记录。'
+                    if item['key'] in {'friend', 'delete_friend'}
+                    else '仅操作专用测试数据；除删帖用例外保留记录。'))
             db.add(case)
         elif 'studio-preview' in (case.tags or []):
             case.tags=[t for t in case.tags if t!='studio-preview']

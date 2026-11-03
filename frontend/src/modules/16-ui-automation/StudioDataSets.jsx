@@ -167,6 +167,7 @@ export function StudioDataSets({ client, items, onChange, disabled }) {
             <p className="studio-footnote">
               已有密码显示为
               ******；保持此值即可保留原密码。仅使用专用测试账号。
+              添加好友遇到已有关系时会先删除再申请；删除好友用例也会清除 A、B 间的聊天记录。请勿配置日常账号。
             </p>
             {error && <p role="alert">{error}</p>}
           </>
