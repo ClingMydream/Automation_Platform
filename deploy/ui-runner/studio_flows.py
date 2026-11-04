@@ -71,7 +71,7 @@ class EmotePages:
             assert re.fullmatch(r'[a-z_]+',route), '仅允许应用内页面名称'
             self.go(route)
         else:
-            assert action in {'login','home','create_post','verify_post','own_post','like','comment','favorite','delete_post','friend','delete_friend','chat','daily_task','profile','dual_post','kindness_home','kindness_task','watering','avatar','cross_comment'}, '不支持的步骤'
+            assert action in {'login','home','create_post','verify_post','own_post','like','comment','favorite','delete_post','friend','delete_friend','chat','daily_task','profile','dual_post','kindness_home','kindness_task','watering','avatar','cross_comment','mutual_like','mutual_comment','mutual_favorite','peer_chat'}, '不支持的步骤'
             getattr(self,action)()
 
     def go(self, route):
@@ -192,8 +192,22 @@ class EmotePages:
         sent = response.request.post_data_json
         assert isinstance(sent, dict) and sent.get('isPublic') is public, '实际发帖可见性与所选用例不符'
         self.post_text, self.post_public = content, public
-        self.post_id = str(sent.get('id') or '')
-        assert self.post_id, '发帖请求未包含帖子 ID，无法确认后续评论目标'
+        self.post_id = self.resolve_persisted_post_id(content, public)
+
+    def resolve_persisted_post_id(self, content, public):
+        # Creation can replace the client UUID with a server-generated numeric ID.
+        with self.page.expect_response(lambda r: r.request.method == 'POST' and '/posts-extra/published' in r.url) as result:
+            self.page.goto(self.base + '/?cling_studio=' + uuid.uuid4().hex + '#/profile', wait_until='domcontentloaded')
+        response = result.value
+        body = response.json()
+        assert response.ok and body.get('success') is True, '读取本人已发布帖子失败'
+        data = body.get('data')
+        items = data.get('items', []) if isinstance(data, dict) else data
+        own_id = str(self.page.evaluate("localStorage.getItem('emote_current_session')") or '')
+        matches = [row for row in (items or []) if str(row.get('userId')) == own_id
+            and row.get('content') == content and row.get('isPublic') is public]
+        assert len(matches) == 1 and matches[0].get('id'), '未能从本人发布列表唯一确认帖子实际 ID，停止跨账号操作'
+        return str(matches[0]['id'])
 
     def verify_post(self):
         card = self.card()
@@ -456,28 +470,84 @@ class EmotePages:
             raise TestDataRequired('AI 每日任务内容生成不可用，未发布任务互评帖子') from None
         return generated
 
+    def social_pair(self, other):
+        fixture = getattr(self, 'social_fixture', None)
+        if fixture:
+            return fixture
+        tasks = {'task_a': self.read_daily_task(), 'task_b': other.read_daily_task()}
+        generated = self.generate_daily_content(tasks)
+        post_a, post_b = generated['post_a'], generated['post_b']
+        self.publish_task_post(post_a);post_a_id = self.post_id
+        other.publish_task_post(post_b);post_b_id = other.post_id
+        fixture = {'post_a': post_a, 'post_b': post_b, 'id_a': post_a_id, 'id_b': post_b_id,
+            'comment_a': generated['comment_a_to_b'], 'comment_b': generated['comment_b_to_a'], 'completed': []}
+        self.social_fixture = fixture
+        return fixture
+
+    def mutual_like(self):
+        self.mutual_interaction('like')
+
+    def mutual_comment(self):
+        self.mutual_interaction('comment')
+
+    def mutual_favorite(self):
+        self.mutual_interaction('favorite')
+
     def cross_comment(self):
-        previous_post = (getattr(self, 'post_text', None), getattr(self, 'post_id', None), getattr(self, 'post_public', False))
+        self.mutual_interaction('comment')
+
+    def mutual_interaction(self, kind):
+        previous_post = (self.post_text, self.post_id, self.post_public)
         with self.test_peer() as (other, _, __, ___, ____):
-            tasks = {'task_a': self.read_daily_task(), 'task_b': other.read_daily_task()}
-            generated = self.generate_daily_content(tasks)
-            stamp = self.stamp + ' [自动化测试] '
-            post_a, post_b = stamp + generated['post_a'], stamp + generated['post_b']
-            comment_a, comment_b = stamp + generated['comment_a_to_b'], stamp + generated['comment_b_to_a']
-            self.publish_task_post(post_a);post_a_id = self.post_id
-            other.publish_task_post(post_b);post_b_id = other.post_id
-            self.comment_on_test_post(post_b_id, post_b, comment_a)
-            other.comment_on_test_post(post_a_id, post_a, comment_b)
-            self.open_test_post(post_a_id, post_a)
-            expect(self.card().get_by_text(comment_b, exact=True)).to_be_visible()
-            other.open_test_post(post_b_id, post_b)
-            expect(other.card().get_by_text(comment_a, exact=True)).to_be_visible()
-            self.extra_images.append(('account-b-mutual-comment', other.page.screenshot(full_page=False)))
-            self.checks.extend(['AI依据双方每日任务生成内容；仅本用例使用公开测试帖',
-                'A帖子ID：' + post_a_id + '；B帖子ID：' + post_b_id,
-                'A评论B：' + comment_a, 'B评论A：' + comment_b, '已重新打开双方帖子确认互评持久化，帖子和评论全部保留'])
-        # Following private-post scenarios must not reuse this public fixture.
+            fixture = self.social_pair(other)
+            if kind == 'comment':
+                if kind not in fixture['completed']:
+                    self.comment_on_test_post(fixture['id_b'], fixture['post_b'], fixture['comment_a'])
+                    other.comment_on_test_post(fixture['id_a'], fixture['post_a'], fixture['comment_b'])
+                self.open_test_post(fixture['id_a'], fixture['post_a'])
+                expect(self.card().get_by_text(fixture['comment_b'], exact=True)).to_be_visible()
+                other.open_test_post(fixture['id_b'], fixture['post_b'])
+                expect(other.card().get_by_text(fixture['comment_a'], exact=True)).to_be_visible()
+            else:
+                for actor, pid, text in [(self, fixture['id_b'], fixture['post_b']), (other, fixture['id_a'], fixture['post_a'])]:
+                    actor.open_test_post(pid, text)
+                    getattr(actor, kind)()
+                    actor.open_test_post(pid, text)
+                    icon = '.fill-pink-500' if kind == 'like' else '.fill-amber-400'
+                    expect(actor.card().locator(icon)).to_be_visible()
+            fixture['completed'].append(kind)
+            self.extra_images.append(('account-b-mutual-' + kind, other.page.screenshot(full_page=False)))
+            self.checks.extend(['双方互相' + {'like':'点赞','comment':'评论','favorite':'收藏'}[kind] + '并重新读取确认持久化',
+                'A帖子实际ID：' + fixture['id_a'] + '；B帖子实际ID：' + fixture['id_b'],
+                '操作时间：' + datetime.now(ZoneInfo('Asia/Shanghai')).isoformat(), '帖子及互动记录全部保留'])
         self.post_text, self.post_id, self.post_public = previous_post
+
+    def peer_chat(self):
+        with self.test_peer() as (other, peer_id, peer_name, own_id, own_name):
+            card = self.find_test_peer(peer_id, peer_name)
+            if not self.peer_is_friend(card):
+                accept = card.locator('button:has(.lucide-check):visible')
+                if accept.count() == 1:
+                    self.submit(accept, '/friends/accept', 'POST')
+                else:
+                    self.request_test_peer(card)
+                    received = other.find_test_peer(own_id, own_name)
+                    other.submit(received.locator('button:has(.lucide-check):visible'), '/friends/accept', 'POST')
+            message_a = '聊天测试 ' + self.stamp + ' A→B ' + self.run_key
+            message_b = '聊天测试 ' + self.stamp + ' B→A ' + self.run_key
+            for actor, uid, name, text in [(self, peer_id, peer_name, message_a), (other, own_id, own_name, message_b)]:
+                card = actor.find_test_peer(uid, name)
+                card.locator('button:has(.lucide-message-circle):visible').click()
+                field = actor.page.get_by_placeholder('Message...', exact=True)
+                field.fill(text)
+                with actor.page.expect_response(lambda r: '/message' in r.url and r.request.method == 'POST') as result:
+                    field.press('Enter')
+                assert result.value.ok and result.value.json().get('success') is True, '双账号消息发送失败'
+                expect(actor.page.get_by_text(text, exact=True)).to_be_visible()
+            self.find_test_peer(peer_id, peer_name).locator('button:has(.lucide-message-circle):visible').click()
+            expect(self.page.get_by_text(message_b, exact=True)).to_be_visible(timeout=15000)
+            self.extra_images.append(('account-b-chat', other.page.screenshot(full_page=False)))
+            self.checks.append('A→B、B→A 消息已发送并验证接收，聊天记录保留')
 
     def daily_task(self):
         self.go('weekly_tasks')
@@ -519,7 +589,8 @@ class EmotePages:
         outcome = self.water_button(self.page.locator('button:has(.lucide-droplets):visible').first, '自己')
         if outcome == 'watered':
             return
-        self.water_secretary()
+        if self.water_secretary() == 'cooldown':
+            self.water_peer()
 
     def water_secretary(self):
         # Use the explicitly requested official account, avoiding arbitrary users.
@@ -537,6 +608,26 @@ class EmotePages:
         outcome = self.water_button(water, '霖感小秘书')
         self.checks.append('自己处于冷却，已切换小秘书；' + ('小秘书也在冷却，本轮未再次浇水' if outcome == 'cooldown' else '已实际完成向小秘书浇水'))
         return outcome
+
+    def water_peer(self):
+        with self.test_peer() as (other, peer_id, peer_name, own_id, own_name):
+            card = self.find_test_peer(peer_id, peer_name)
+            if not self.peer_is_friend(card):
+                accept = card.locator('button:has(.lucide-check):visible')
+                if accept.count() == 1:
+                    self.submit(accept, '/friends/accept', 'POST')
+                else:
+                    self.request_test_peer(card)
+                    received = other.find_test_peer(own_id, own_name)
+                    other.submit(received.locator('button:has(.lucide-check):visible'), '/friends/accept', 'POST')
+            for actor, uid, name, label in [(self, peer_id, peer_name, '账号B'), (other, own_id, own_name, '账号A')]:
+                card = actor.find_test_peer(uid, name)
+                card.locator('h3:visible,h4:visible').filter(has_text=re.compile('^'+re.escape(name)+'$')).click()
+                water = actor.page.locator('button:has(.lucide-droplets):visible')
+                expect(water).to_have_count(1)
+                outcome = actor.water_button(water, label)
+                self.checks.append(('A→B' if actor is self else 'B→A') + ('：24小时内已浇水，保护分支通过' if outcome == 'cooldown' else '：本轮浇水成功'))
+            self.extra_images.append(('account-b-water', other.page.screenshot(full_page=False)))
 
     def kindness_task_button(self):
         self.go('weekly_tasks')

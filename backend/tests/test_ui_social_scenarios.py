@@ -80,6 +80,6 @@ def test_mutual_comments_generate_before_publication_and_use_opposite_posts(monk
     a.cross_comment()
     assert requests == [{'task_a': 'A的每日任务', 'task_b': 'B的每日任务'}]
     assert [(e[1], e[2]) for e in events if e[0] == 'comment'] == [('A', 'B-post'), ('B', 'A-post')]
-    assert all('2026-11-03' in e[-1] and '[自动化测试]' in e[-1] for e in events if e[0] in {'post', 'comment'})
+    assert all('[自动化测试]' not in e[-1] and '2026-11-03' not in e[-1] for e in events if e[0] in {'post', 'comment'})
     assert [e for e in events if e[0] == 'verify'] == [('verify', 'A', 'A-post'), ('verify', 'B', 'B-post')]
     assert (a.post_text, a.post_id, a.post_public) == ('原私密帖', 'private-id', False)

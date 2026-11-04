@@ -31,7 +31,7 @@ from app.modules.online_preview.router import _jenkins_job_status, _remote_revis
 
 from .smoke_catalog import CATALOG_VERSION, SMOKE_CATALOG, SMOKE_KEYS, SENSITIVE_KEYS, catalog_rows
 from .catalog_state import UiAutomationCatalogInstall
-from .studio_catalog import rows as studio_rows, VERSION as STUDIO_VERSION, FLOW_ACTIONS, LEGACY_POST_STEPS
+from .studio_catalog import rows as studio_rows, VERSION as STUDIO_VERSION, FLOW_ACTIONS, LEGACY_POST_STEPS, LEGACY_INTERACTION_STEPS
 from .environment import UiAutomationEnvironment
 from .task_content import TaskContentInput, generate_task_content
 
@@ -1004,6 +1004,8 @@ def _studio_cases(db):
             case.tags=[t for t in case.tags if t!='studio-preview']
             case.enabled=True
         if item['key'] == 'post' and case.steps == LEGACY_POST_STEPS:
+            case.steps = item['steps']
+        if item['key'] in LEGACY_INTERACTION_STEPS and case.steps == LEGACY_INTERACTION_STEPS[item['key']]:
             case.steps = item['steps']
         installed.append(case)
     db.commit()

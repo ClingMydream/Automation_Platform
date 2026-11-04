@@ -16,13 +16,13 @@ def db(tmp_path):
     with Session(engine)as session:yield session
 
 
-def test_studio_installs_sixteen_cases_without_overwriting_edits(db):
+def test_studio_installs_seventeen_cases_without_overwriting_edits(db):
     cases=api._studio_cases(db)
-    assert len(cases)==16
+    assert len(cases)==17
     assert any(c.name == '删除好友' for c in cases)
     cases[0].name='自定义登录';db.commit()
     assert api._studio_cases(db)[0].name=='自定义登录'
-    assert db.query(UiAutomationCase).count()==16
+    assert db.query(UiAutomationCase).count()==17
 
 
 def test_edit_is_whitelisted_and_preserves_locator_configuration(db):
