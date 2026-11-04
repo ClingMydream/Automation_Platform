@@ -30,3 +30,7 @@ def rows():
             for key, name, steps in FLOWS]
 
 LEGACY_INTERACTION_STEPS = {'like': [{'action': 'home', 'label': '从首页开始'}, {'action': 'own_post', 'label': '定位本次本人私密帖子'}, {'action': 'like', 'label': '点赞并检查选中状态'}], 'comment': [{'action': 'home', 'label': '从首页开始'}, {'action': 'own_post', 'label': '定位本次本人私密帖子'}, {'action': 'comment', 'label': '评论自己并检查内容'}], 'favorite': [{'action': 'home', 'label': '从首页开始'}, {'action': 'own_post', 'label': '定位本次本人私密帖子'}, {'action': 'favorite', 'label': '收藏自己并检查选中状态'}]}
+LEGACY_INTERACTION_STEPS.update({
+    'cross_comment': [{'action':'home','label':'从首页开始'}, {'action':'cross_comment','label':'AI 依据双方每日任务生成公开测试帖及时间戳评论，互评后保留记录'}],
+    'watering': [{'action':'home','label':'从首页开始'}, {'action':'watering','label':'先给自己浇水；冷却时改给霖感小秘书浇水'}],
+})

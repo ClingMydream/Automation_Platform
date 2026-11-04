@@ -37,3 +37,12 @@ def test_ai_uses_both_daily_tasks_and_validates_all_four_fields(monkeypatch):
     with pytest.raises(HTTPException) as error:
         ai.generate_task_content(payload)
     assert error.value.status_code == 502
+
+
+def test_generated_post_body_drops_runtime_metadata_prefix(monkeypatch):
+    monkeypatch.setattr(ai, 'get_settings', lambda: SimpleNamespace(deepseek_api_key='test-only'))
+    text = '2026-11-04 08:57:50 [自动化测试] 测试模拟：今天把发现的小错误及时改正。'
+    result = {key:text for key in ['post_a','post_b','comment_a_to_b','comment_b_to_a']}
+    response = Mock();response.json.return_value = {'choices':[{'message':{'content':json.dumps(result)}}]}
+    monkeypatch.setattr(ai.httpx, 'post', lambda *args, **kwargs: response)
+    assert set(ai.generate_task_content(ai.TaskContentInput(task_a='小错误',task_b='小错误')).values()) == {'今天把发现的小错误及时改正。'}

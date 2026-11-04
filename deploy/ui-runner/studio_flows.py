@@ -197,7 +197,7 @@ class EmotePages:
     def resolve_persisted_post_id(self, content, public):
         # Creation can replace the client UUID with a server-generated numeric ID.
         with self.page.expect_response(lambda r: r.request.method == 'POST' and '/posts-extra/published' in r.url) as result:
-            self.page.goto(self.base + '/?cling_studio=' + uuid.uuid4().hex + '#/profile', wait_until='domcontentloaded')
+            self.page.goto(self.base + '/?cling_studio=' + uuid.uuid4().hex + '#/home', wait_until='domcontentloaded')
         response = result.value
         body = response.json()
         assert response.ok and body.get('success') is True, '读取本人已发布帖子失败'
@@ -224,7 +224,7 @@ class EmotePages:
 
     def like(self):
         card = self.card()
-        heart = card.locator('button:has(.lucide-heart)')
+        heart = card.locator('button:has(.lucide-heart)').first
         if not heart.locator('.fill-pink-500').count():
             self.submit(heart, '/reactions', 'POST')
         expect(heart.locator('.fill-pink-500')).to_be_visible()
@@ -504,6 +504,8 @@ class EmotePages:
                 if kind not in fixture['completed']:
                     self.comment_on_test_post(fixture['id_b'], fixture['post_b'], fixture['comment_a'])
                     other.comment_on_test_post(fixture['id_a'], fixture['post_a'], fixture['comment_b'])
+                else:
+                    self.checks.append('本用例复核本轮已完成的双向评论，未重复发送')
                 self.open_test_post(fixture['id_a'], fixture['post_a'])
                 expect(self.card().get_by_text(fixture['comment_b'], exact=True)).to_be_visible()
                 other.open_test_post(fixture['id_b'], fixture['post_b'])
@@ -590,6 +592,7 @@ class EmotePages:
         if outcome == 'watered':
             return
         if self.water_secretary() == 'cooldown':
+            self.home()
             self.water_peer()
 
     def water_secretary(self):

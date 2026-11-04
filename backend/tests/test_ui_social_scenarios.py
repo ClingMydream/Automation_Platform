@@ -23,6 +23,35 @@ def test_self_cooldown_selects_official_account(outcome, expected):
     assert calls == expected
 
 
+def test_both_cooldowns_fall_back_to_test_accounts_after_closing_modal():
+    pages = object.__new__(flows.EmotePages)
+    events = []
+    pages.go = lambda route: None
+    pages.page = SimpleNamespace(locator=lambda selector: SimpleNamespace(first=object()))
+    pages.water_button = lambda *args: 'cooldown'
+    pages.water_secretary = lambda: 'cooldown'
+    pages.home = lambda: events.append('home')
+    pages.water_peer = lambda: events.append('mutual-water')
+    pages.watering()
+    assert events == ['home', 'mutual-water']
+
+
+@pytest.mark.parametrize('duplicate', [False, True])
+def test_published_post_identity_comes_from_persisted_owned_record(duplicate):
+    pages = object.__new__(flows.EmotePages);pages.base = 'https://example.com'
+    row = {'id':'server-numeric-id','userId':'A','content':'自然正文','isPublic':True}
+    response = Mock(ok=True);response.json.return_value = {'success':True,'data':{'items':[row,row] if duplicate else [row]}}
+    @contextmanager
+    def expected(*args, **kwargs):
+        yield SimpleNamespace(value=response)
+    pages.page = SimpleNamespace(expect_response=expected, goto=lambda *args, **kwargs: None, evaluate=lambda code: 'A')
+    if duplicate:
+        with pytest.raises(AssertionError, match='唯一'):
+            pages.resolve_persisted_post_id('自然正文', True)
+    else:
+        assert pages.resolve_persisted_post_id('自然正文', True) == 'server-numeric-id'
+
+
 def test_dual_post_stays_private_and_retains_both_records():
     pages = object.__new__(flows.EmotePages); pages.checks = []; pages.extra_images = []
     events = []
