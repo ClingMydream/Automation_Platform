@@ -14,15 +14,21 @@ spec = importlib.util.spec_from_file_location('activity_runtime_test', ROOT / 'd
 runtime = importlib.util.module_from_spec(spec);spec.loader.exec_module(runtime)
 
 
-def test_configuration_rejects_accidental_public_interaction(tmp_path):
+@pytest.mark.parametrize('action', ['mutual_comment','like','comment','favorite'])
+def test_configuration_rejects_accidental_public_interaction(tmp_path, action):
     config = json.loads((ROOT / 'deploy/activity-service/config.example.json').read_text())
-    config['action_weights']['mutual_comment'] = 1
+    config['action_weights'][action] = 1
     path = tmp_path / 'config.json';path.write_text(json.dumps(config))
     with pytest.raises(ValueError, match='allow_public_interaction'):
         runtime.load_config(path)
     config['allow_public_interaction'] = True
     path.write_text(json.dumps(config))
-    assert runtime.load_config(path)['action_weights']['mutual_comment'] == 1
+    assert runtime.load_config(path)['action_weights'][action] == 1
+
+
+def test_natural_content_has_no_runtime_prefix():
+    assert runtime.natural_body('2026-11-04 08:57:50 [自动化测试] 测试模拟：今天记录一件善意。') == '今天记录一件善意。'
+    assert runtime.natural_body('今天想起2026-11-04的一件小事。') == '今天想起2026-11-04的一件小事。'
 
 
 def test_daily_reservations_survive_restart_and_count_interrupted_sessions(tmp_path):
