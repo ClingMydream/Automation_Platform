@@ -6,7 +6,7 @@ import hashlib
 import time
 import os
 import httpx
-from urllib.parse import urlencode
+from urllib.parse import urlencode, parse_qs, urlsplit
 from pathlib import Path
 from contextlib import contextmanager
 from datetime import datetime
@@ -351,22 +351,41 @@ class EmotePages:
             self.checks.append('账号 B 私密帖：' + other.post_text + '；两条帖子均保留，未执行跨账号互评')
 
     def find_test_peer(self, peer_id, peer_name):
-        self.home()
-        self.go('chat')
-        search = self.page.get_by_placeholder('寻找灵魂...', exact=True)
-        if search.input_value():
-            with self.page.expect_response(lambda r: '/friend-recommend' in r.url):
-                search.fill('')
-        with self.page.expect_response(lambda r: '/friend-recommend' in r.url and str(peer_id) in (r.request.post_data or '')) as result:
+        seen_ids = set()
+        def observe(response):
+            if '/friend' not in response.url:
+                return
+            try:
+                body = response.json()
+                if body.get('success') is not True:
+                    return
+                def collect(value):
+                    if isinstance(value, dict):
+                        for key in ['id', 'userId']:
+                            if value.get(key) is not None:seen_ids.add(str(value[key]))
+                        for child in value.values():collect(child)
+                    elif isinstance(value, list):
+                        for child in value:collect(child)
+                collect(body.get('data'))
+            except Exception:
+                pass
+        self.page.on('response', observe)
+        try:
+            self.home();self.go('chat')
+            search = self.page.get_by_placeholder('寻找灵魂...', exact=True)
             search.fill(str(peer_id))
-        body = result.value.json()
-        assert result.value.ok and body.get('success') is True, '搜索专用测试好友失败'
-        expect(self.page.get_by_text('同步原野中...',exact=True)).to_be_hidden(timeout=15000)
-        heading = self.page.locator('h3:visible,h4:visible').filter(has_text=re.compile('^'+re.escape(peer_name)+'$'))
-        expect(heading).to_have_count(1)
-        card = heading.locator("xpath=ancestor::div[contains(@class,'justify-between') and contains(@class,'rounded-3xl')][1]")
-        expect(card).to_have_count(1)
-        return card
+            deadline = time.monotonic() + 20
+            while str(peer_id) not in seen_ids and time.monotonic() < deadline:
+                self.page.wait_for_timeout(100)
+            assert str(peer_id) in seen_ids, '未从好友查询响应确认专用账号 ID，未操作任何用户'
+            expect(self.page.get_by_text('同步原野中...',exact=True)).to_be_hidden(timeout=15000)
+            heading = self.page.locator('h3:visible,h4:visible').filter(has_text=re.compile('^'+re.escape(peer_name)+'$'))
+            expect(heading).to_have_count(1)
+            card = heading.locator("xpath=ancestor::div[contains(@class,'justify-between') and contains(@class,'rounded-3xl')][1]")
+            expect(card).to_have_count(1)
+            return card
+        finally:
+            self.page.remove_listener('response', observe)
 
     def peer_is_friend(self, card):
         return card.locator('button:has(.lucide-message-circle):visible').count() == 1
@@ -375,6 +394,7 @@ class EmotePages:
         chat = card.locator('button:has(.lucide-message-circle):visible')
         expect(chat).to_have_count(1)
         chat.click()
+        self.page.wait_for_url(lambda url: parse_qs(urlsplit(url).fragment.partition('?')[2]).get('friendId') == [str(peer_id)])
         self.page.locator('button:has(.lucide-ellipsis-vertical):visible,button:has(.lucide-more-vertical):visible').click()
         self.button('删除好友').click()
         self.submit(self.button('删除'), '/friends', 'DELETE')
@@ -606,7 +626,11 @@ class EmotePages:
         self.watering()
 
     def water_button(self, water, label):
-        expect(water).to_be_visible()
+        expect(water).to_be_visible(timeout=15000)
+        if water.is_disabled() and re.search(r'已浇水|Watered', water.inner_text()):
+            self.checks.append('通过：' + label + '页面已显示已浇水，未重复发送请求')
+            return 'cooldown'
+        expect(water).to_be_enabled(timeout=15000)
         with self.page.expect_response(lambda r: '/user-watering/water' in r.url and r.request.method == 'POST') as result:
             water.click()
         response = result.value
@@ -621,7 +645,7 @@ class EmotePages:
 
     def watering(self):
         self.go('profile')
-        outcome = self.water_button(self.page.locator('button:has(.lucide-droplets):visible').first, '自己')
+        outcome = self.water_button(self.page.locator('.garden-plot button.bottom-4.right-4:visible').first, '自己')
         if outcome == 'watered':
             return
         if self.water_secretary() == 'cooldown':
@@ -639,7 +663,7 @@ class EmotePages:
         heading = self.page.locator('h3:visible,h4:visible').filter(has_text=re.compile('^霖感小秘书$'))
         expect(heading).to_have_count(1)
         heading.click()
-        water = self.page.locator('button:has(.lucide-droplets):visible')
+        water = self.page.get_by_role('button', name=re.compile(r'^(浇水|已浇水！|Water Garden|Watered!)$'))
         expect(water).to_have_count(1)
         outcome = self.water_button(water, '霖感小秘书')
         self.checks.append('自己处于冷却，已切换小秘书；' + ('小秘书也在冷却，本轮未再次浇水' if outcome == 'cooldown' else '已实际完成向小秘书浇水'))
@@ -650,7 +674,7 @@ class EmotePages:
             for actor, uid, name, label in [(self, peer_id, peer_name, '账号B'), (other, own_id, own_name, '账号A')]:
                 card = actor.find_test_peer(uid, name)
                 card.locator('h3:visible,h4:visible').filter(has_text=re.compile('^'+re.escape(name)+'$')).click()
-                water = actor.page.locator('button:has(.lucide-droplets):visible')
+                water = actor.page.get_by_role('button', name=re.compile(r'^(浇水|已浇水！|Water Garden|Watered!)$'))
                 expect(water).to_have_count(1)
                 outcome = actor.water_button(water, label)
                 self.checks.append(('A→B' if actor is self else 'B→A') + ('：24小时内已浇水，保护分支通过' if outcome == 'cooldown' else '：本轮浇水成功'))
