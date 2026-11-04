@@ -182,7 +182,7 @@ class EmotePages:
         expect(self.button('公开' if public else '私密')).to_be_visible()
         self.publish_post(self.button('释放心语'), content, public)
         self.verify_post()
-        self.checks.append(f'已随机选择心情「{mood_text}」与标签「{tag_text}」，发布本人' + ('公开' if public else '私密') + '时间戳动态')
+        self.checks.append(f'已随机选择心情「{mood_text}」与标签「{tag_text}」，发布本人' + ('公开' if public else '私密') + '动态；操作时间：' + self.stamp)
 
     def publish_post(self, button, content, public):
         with self.page.expect_response(lambda r: r.request.method == 'POST' and r.url.split('?')[0].endswith('/posts')) as result:
@@ -480,7 +480,8 @@ class EmotePages:
         self.publish_task_post(post_a);post_a_id = self.post_id
         other.publish_task_post(post_b);post_b_id = other.post_id
         fixture = {'post_a': post_a, 'post_b': post_b, 'id_a': post_a_id, 'id_b': post_b_id,
-            'comment_a': generated['comment_a_to_b'], 'comment_b': generated['comment_b_to_a'], 'completed': []}
+            'comment_a': re.sub(r'\s+', ' ', generated['comment_a_to_b']).strip(),
+            'comment_b': re.sub(r'\s+', ' ', generated['comment_b_to_a']).strip(), 'completed': []}
         self.social_fixture = fixture
         return fixture
 
