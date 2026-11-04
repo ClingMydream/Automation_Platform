@@ -29,4 +29,13 @@ def test_active_detail_card_and_comments_win_over_visible_background_copy():
         pages.card().get_by_test_id('foreground').click()
         assert page.evaluate('window.clicked') is True
         pages.assert_saved_comment('来自对方账号的自然回复')
+        page.set_content('''<div class="garden-plot">
+          <button id="visitor"><svg class="lucide-droplets"></svg>访客</button>
+          <button id="actual-water" class="bottom-4 right-4"><svg class="lucide-droplets"></svg></button>
+        </div>''')
+        picked = []
+        pages.go = lambda route: None
+        pages.water_button = lambda target, label: picked.append(target.get_attribute('id')) or 'watered'
+        pages.watering()
+        assert picked == ['actual-water']
         browser.close()

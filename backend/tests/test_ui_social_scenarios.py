@@ -87,6 +87,7 @@ def test_mutual_comments_generate_before_publication_and_use_opposite_posts(monk
         pages.publish_task_post = publish
         pages.comment_on_test_post = lambda pid, text, comment: events.append(('comment', name, pid, comment))
         pages.open_test_post = lambda pid, text: events.append(('verify', name, pid))
+        pages.assert_saved_comment = lambda text: None
         pages.card = lambda: SimpleNamespace(get_by_text=lambda *args, **kw: object())
         return pages
 

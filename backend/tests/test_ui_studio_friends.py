@@ -66,3 +66,19 @@ def test_standalone_delete_establishes_missing_relationship_before_delete():
     pages.ensure_test_friendship = lambda *args: events.append(('prepare', 'verified-b')) or 'card'
     pages.delete_friend()
     assert [e[0] for e in events] == ['prepare', 'delete']
+
+
+def test_daily_friend_limit_is_blocked_without_claiming_request_success(monkeypatch):
+    pages = object.__new__(flows.EmotePages);pages.checks = []
+    clicked = []
+    button = SimpleNamespace(click=lambda: clicked.append(True))
+    card = SimpleNamespace(get_by_text=lambda *a, **k: SimpleNamespace(count=lambda: 0), locator=lambda selector: button)
+    response = SimpleNamespace(ok=True, json=lambda: {'success':False,'i18nKey':'error.friend.add_limit_daily','message':'今日添加好友已达5次，请明日再来'})
+    @contextmanager
+    def expected(*args, **kwargs):
+        yield SimpleNamespace(value=response)
+    pages.page = SimpleNamespace(expect_response=expected)
+    monkeypatch.setattr(flows,'expect',lambda target:SimpleNamespace(to_have_count=lambda n:None))
+    with pytest.raises(flows.TestDataRequired, match='本轮未发送'):
+        pages.request_test_peer(card)
+    assert clicked == [True] and pages.checks == []
