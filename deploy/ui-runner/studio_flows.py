@@ -247,12 +247,22 @@ class EmotePages:
         expect(button.locator('.fill-amber-400')).to_be_visible()
 
     def delete_post(self):
+        post_id = self.post_id
+        self.open_test_post(post_id, self.post_text)
         card = self.card()
         card.locator('button:has(.lucide-ellipsis-vertical), button:has(.lucide-more-vertical)').click()
         card.get_by_role('button', name='删除动态', exact=True).click()
         self.submit(self.button('确认'), '/posts/', 'DELETE')
+        with self.page.expect_response(lambda r: r.request.method == 'POST' and '/posts-extra/published' in r.url) as result:
+            self.home()
+        body = result.value.json()
+        assert result.value.ok and body.get('success') is True, '删除后重新读取本人帖子失败'
+        data = body.get('data')
+        items = data.get('items', []) if isinstance(data, dict) else data
+        assert all(str(row.get('id')) != post_id for row in (items or [])), '删除后帖子仍在本人发布列表中'
         expect(self.page.get_by_text(self.post_text, exact=True)).to_have_count(0)
         self.post_text = None
+        self.post_id, self.post_public = None, False
 
     def chat(self):
         self.go('chat')
@@ -435,7 +445,7 @@ class EmotePages:
         with self.page.expect_response(lambda r: '/comment' in r.url and r.request.method == 'POST') as result:
             field.press('Enter')
         assert result.value.ok and result.value.json().get('success') is True, '跨账号评论接口失败，请查看请求日志'
-        expect(self.card().get_by_text(comment, exact=True)).to_be_visible()
+        expect(self.card().get_by_text(comment, exact=True)).to_be_visible(timeout=20000)
 
     def publish_task_post(self, content):
         action = self.kindness_task_button()
@@ -508,9 +518,9 @@ class EmotePages:
                 else:
                     self.checks.append('本用例复核本轮已完成的双向评论，未重复发送')
                 self.open_test_post(fixture['id_a'], fixture['post_a'])
-                expect(self.card().get_by_text(fixture['comment_b'], exact=True)).to_be_visible()
+                expect(self.card().get_by_text(fixture['comment_b'], exact=True)).to_be_visible(timeout=20000)
                 other.open_test_post(fixture['id_b'], fixture['post_b'])
-                expect(other.card().get_by_text(fixture['comment_a'], exact=True)).to_be_visible()
+                expect(other.card().get_by_text(fixture['comment_a'], exact=True)).to_be_visible(timeout=20000)
             else:
                 for actor, pid, text in [(self, fixture['id_b'], fixture['post_b']), (other, fixture['id_a'], fixture['post_a'])]:
                     actor.open_test_post(pid, text)

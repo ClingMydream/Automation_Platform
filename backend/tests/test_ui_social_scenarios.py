@@ -100,7 +100,7 @@ def test_mutual_comments_generate_before_publication_and_use_opposite_posts(monk
     response.json.return_value = {'post_a': 'A的任务帖', 'post_b': 'B的任务帖', 'comment_a_to_b': '回应B任务', 'comment_b_to_a': '回应A任务'}
     requests = []
     monkeypatch.setattr(flows.httpx, 'post', lambda *args, **kw: requests.append(kw['json']) or response)
-    monkeypatch.setattr(flows, 'expect', lambda target: SimpleNamespace(to_be_visible=lambda: None))
+    monkeypatch.setattr(flows, 'expect', lambda target: SimpleNamespace(to_be_visible=lambda **kwargs: None))
     if not ai_available:
         with pytest.raises(flows.TestDataRequired):
             a.cross_comment()
