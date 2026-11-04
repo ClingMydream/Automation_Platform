@@ -11,7 +11,6 @@ FLOWS = [
     ('cross_comment', '双账号任务互评', [('home', '从首页开始'), ('cross_comment', 'AI 依据双方每日任务生成自然正文并互评，保留帖子与评论')]),
     ('favorite', '收藏', [('home', '从首页开始'), ('mutual_favorite', '账号 A、B 互相收藏对方任务帖并验证保存')]),
     ('friend', '添加好友', [('home', '从首页开始'), ('friend', '向专用测试账号发起好友申请并检查关系')]),
-    ('delete_friend', '删除好友', [('home', '从首页开始'), ('delete_friend', '核对专用账号 B，删除好友并验证关系移除')]),
     ('chat', '聊天', [('home', '从首页开始'), ('chat', '向霖感小秘书发送聊天测试与时间戳')]),
     ('peer_chat', '双账号聊天', [('home', '从首页开始'), ('peer_chat', '专用账号 A、B 互相发送消息并验证接收')]),
     ('daily_task', '每日任务', [('home', '从首页开始'), ('daily_task', '完成签到与浇水，已完成时核对状态')]),
@@ -20,6 +19,7 @@ FLOWS = [
     ('watering', '浇水', [('home', '从首页开始'), ('watering', '自己及小秘书都冷却时，专用账号 A、B 互相浇水')]),
     ('profile', '修改资料', [('home', '从首页开始'), ('profile', '随机头像与时间戳签名，保存并核对')]),
     ('avatar', '切换头像', [('home', '从首页开始'), ('avatar', '切换为另一个头像，保存后重新打开核对')]),
+    ('delete_friend', '删除好友', [('home', '从首页开始'), ('delete_friend', '核对专用账号 B，删除好友并验证关系移除')]),
 ]
 FLOW_ACTIONS = {action for _, _, steps in FLOWS for action, _ in steps}
 FLOW_ACTIONS.update({'click','fill','press','assert_visible','assert_text','open'})

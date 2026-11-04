@@ -60,22 +60,9 @@ def test_unverified_or_same_accounts_cannot_delete(credentials):
             pytest.fail('Invalid identities must never enter destructive actions')
 
 
-def test_standalone_delete_establishes_missing_relationship_before_delete(monkeypatch):
+def test_standalone_delete_establishes_missing_relationship_before_delete():
     pages, events = scenario()
-    empty = SimpleNamespace(count=lambda: 0)
-    accept = SimpleNamespace(count=lambda: 1)
-    card = SimpleNamespace(locator=lambda selector: empty)
-    other = SimpleNamespace(find_test_peer=lambda *args: SimpleNamespace(locator=lambda selector: accept),
-        submit=lambda target, endpoint, method: events.append(('accept', endpoint)))
-
-    @contextmanager
-    def peer():
-        yield other, 'verified-b', 'B', 'verified-a', 'A'
-
-    pages.test_peer = peer
-    pages.find_test_peer = lambda *args: card
-    states = iter([False, True])
-    pages.peer_is_friend = lambda card: next(states)
-    monkeypatch.setattr(flows, 'expect', lambda target: SimpleNamespace(to_have_count=lambda count: None))
+    pages.peer_is_friend = lambda card: False
+    pages.ensure_test_friendship = lambda *args: events.append(('prepare', 'verified-b')) or 'card'
     pages.delete_friend()
-    assert [e[0] for e in events] == ['request', 'accept', 'delete']
+    assert [e[0] for e in events] == ['prepare', 'delete']

@@ -391,7 +391,12 @@ class EmotePages:
             return
         add = card.locator('button:has(.lucide-user-plus):visible')
         expect(add).to_have_count(1)
-        self.submit(add, '/friends', 'POST')
+        with self.page.expect_response(lambda r: '/friends/request' in r.url and r.request.method == 'POST') as result:
+            add.click()
+        response = result.value;body = response.json()
+        if response.ok and body.get('success') is False and body.get('i18nKey') == 'error.friend.add_limit_daily':
+            raise TestDataRequired(str(body.get('message') or '今日好友申请额度已用完') + '；本轮未发送新的好友申请')
+        assert response.ok and body.get('success') is True, '好友申请接口失败，请查看请求证据'
         expect(card.get_by_text('已发送', exact=True)).to_be_visible()
         self.checks.append('已通过 UI 向身份核对后的专用账号 B 发送好友申请')
 
@@ -402,23 +407,36 @@ class EmotePages:
                 card = self.remove_test_peer(card, peer_id, peer_name)
             self.request_test_peer(card)
 
+    def ensure_test_friendship(self, other, peer_id, peer_name, own_id, own_name):
+        card = self.find_test_peer(peer_id, peer_name)
+        if self.peer_is_friend(card):
+            return card
+        accept = card.locator('button:has(.lucide-check):visible')
+        if accept.count() == 1:
+            self.submit(accept, '/friends/accept', 'POST')
+        else:
+            other_card = other.find_test_peer(own_id, own_name)
+            other_accept = other_card.locator('button:has(.lucide-check):visible')
+            if other_accept.count() == 1:
+                other.submit(other_accept, '/friends/accept', 'POST')
+            else:
+                # Fixture preparation uses B's own valid application quota.
+                other.request_test_peer(other_card)
+                card = self.find_test_peer(peer_id, peer_name)
+                accept = card.locator('button:has(.lucide-check):visible')
+                expect(accept).to_have_count(1)
+                self.submit(accept, '/friends/accept', 'POST')
+        card = self.find_test_peer(peer_id, peer_name)
+        assert self.peer_is_friend(card), '未建立专用 A/B 好友关系，后续聊天前置条件未满足'
+        self.checks.append('已通过专用账号双方页面确认好友关系')
+        return card
+
     def delete_friend(self):
         with self.test_peer() as (other, peer_id, peer_name, own_id, own_name):
             card = self.find_test_peer(peer_id, peer_name)
             if not self.peer_is_friend(card):
-                # Prepare the missing relationship through both test accounts' UI.
-                accept = card.locator('button:has(.lucide-check):visible')
-                if accept.count() == 1:
-                    self.submit(accept, '/friends/accept', 'POST')
-                else:
-                    self.request_test_peer(card)
-                    received = other.find_test_peer(own_id, own_name)
-                    accept = received.locator('button:has(.lucide-check):visible')
-                    expect(accept).to_have_count(1)
-                    other.submit(accept, '/friends/accept', 'POST')
-                card = self.find_test_peer(peer_id, peer_name)
-                assert self.peer_is_friend(card), '删除好友前未成功建立专用 A/B 好友关系，未报告删除成功'
-                self.checks.append('前置准备：通过 UI 接受专用 A/B 好友申请并确认关系')
+                card = self.ensure_test_friendship(other, peer_id, peer_name, own_id, own_name)
+                self.checks.append('前置准备：已建立专用 A/B 好友关系')
             self.remove_test_peer(card, peer_id, peer_name)
 
     def read_daily_task(self):
@@ -549,15 +567,7 @@ class EmotePages:
 
     def peer_chat(self):
         with self.test_peer() as (other, peer_id, peer_name, own_id, own_name):
-            card = self.find_test_peer(peer_id, peer_name)
-            if not self.peer_is_friend(card):
-                accept = card.locator('button:has(.lucide-check):visible')
-                if accept.count() == 1:
-                    self.submit(accept, '/friends/accept', 'POST')
-                else:
-                    self.request_test_peer(card)
-                    received = other.find_test_peer(own_id, own_name)
-                    other.submit(received.locator('button:has(.lucide-check):visible'), '/friends/accept', 'POST')
+            self.ensure_test_friendship(other, peer_id, peer_name, own_id, own_name)
             message_a = '聊天测试 ' + self.stamp + ' A→B ' + self.run_key
             message_b = '聊天测试 ' + self.stamp + ' B→A ' + self.run_key
             for actor, uid, name, text in [(self, peer_id, peer_name, message_a), (other, own_id, own_name, message_b)]:
@@ -637,15 +647,6 @@ class EmotePages:
 
     def water_peer(self):
         with self.test_peer() as (other, peer_id, peer_name, own_id, own_name):
-            card = self.find_test_peer(peer_id, peer_name)
-            if not self.peer_is_friend(card):
-                accept = card.locator('button:has(.lucide-check):visible')
-                if accept.count() == 1:
-                    self.submit(accept, '/friends/accept', 'POST')
-                else:
-                    self.request_test_peer(card)
-                    received = other.find_test_peer(own_id, own_name)
-                    other.submit(received.locator('button:has(.lucide-check):visible'), '/friends/accept', 'POST')
             for actor, uid, name, label in [(self, peer_id, peer_name, '账号B'), (other, own_id, own_name, '账号A')]:
                 card = actor.find_test_peer(uid, name)
                 card.locator('h3:visible,h4:visible').filter(has_text=re.compile('^'+re.escape(name)+'$')).click()
