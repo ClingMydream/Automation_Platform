@@ -157,9 +157,15 @@ class EmotePages:
 
     def card(self):
         assert self.post_text, '本次测试帖子尚未创建'
-        text = self.page.locator('p:visible').filter(has_text=re.compile('^'+re.escape(self.post_text)+'$')).first
+        scope = self.detail_root() if '#/post_detail?' in self.page.url else self.page
+        text = scope.locator('p:visible').filter(has_text=re.compile('^'+re.escape(self.post_text)+'$')).first
         expect(text).to_be_visible()
         return text.locator("xpath=ancestor::div[contains(@class,'rounded-[28px]') and contains(@class,'group')][1]")
+
+    def detail_root(self):
+        heading = self.page.get_by_role('heading', name=re.compile(r'^(详情|Detail|Details)$'))
+        expect(heading).to_be_visible(timeout=15000)
+        return heading.locator('xpath=ancestor::div[contains(@class,"min-h-screen")][1]')
 
     def create_post(self, content=None, public=False):
         content = content or self.stamp + ' UI测试 ' + self.run_key + '-' + uuid.uuid4().hex[:4]
@@ -445,7 +451,13 @@ class EmotePages:
         with self.page.expect_response(lambda r: '/comment' in r.url and r.request.method == 'POST') as result:
             field.press('Enter')
         assert result.value.ok and result.value.json().get('success') is True, '跨账号评论接口失败，请查看请求日志'
-        expect(self.card().get_by_text(comment, exact=True)).to_be_visible(timeout=20000)
+        self.assert_saved_comment(comment)
+
+    def assert_saved_comment(self, comment):
+        # Detail comments are rendered beside the visual post-card wrapper.
+        assert '#/post_detail?' in self.page.url, '评论核验必须位于已确认的帖子详情页'
+        target = self.detail_root().locator('[id^="comment-"]:visible p').filter(has_text=re.compile('^'+re.escape(comment)+'$')).first
+        expect(target).to_be_visible(timeout=20000)
 
     def publish_task_post(self, content):
         action = self.kindness_task_button()
@@ -518,9 +530,9 @@ class EmotePages:
                 else:
                     self.checks.append('本用例复核本轮已完成的双向评论，未重复发送')
                 self.open_test_post(fixture['id_a'], fixture['post_a'])
-                expect(self.card().get_by_text(fixture['comment_b'], exact=True)).to_be_visible(timeout=20000)
+                self.assert_saved_comment(fixture['comment_b'])
                 other.open_test_post(fixture['id_b'], fixture['post_b'])
-                expect(other.card().get_by_text(fixture['comment_a'], exact=True)).to_be_visible(timeout=20000)
+                other.assert_saved_comment(fixture['comment_a'])
             else:
                 for actor, pid, text in [(self, fixture['id_b'], fixture['post_b']), (other, fixture['id_a'], fixture['post_a'])]:
                     actor.open_test_post(pid, text)
