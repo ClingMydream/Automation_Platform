@@ -40,3 +40,20 @@ def test_personal_favorites_isolated_and_explicit_set_idempotent(tmp_path, monke
     with factory() as db:
         assert db.scalar(select(CommandSnippet.is_favorite)) is True  # legacy data untouched
         assert db.query(PersonalCommandFavorite).count() == 0
+
+
+def test_builtin_upgrade_preserves_existing_edits_and_does_not_duplicate(tmp_path):
+    from app.modules.command_library.service import ensure_commands, BUILTINS
+    engine = create_engine(f"sqlite:///{tmp_path / 'upgrade.db'}")
+    Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine)() as db:
+        category, title, *_ = BUILTINS[0]
+        db.add(CommandSnippet(category=category, title=title, command='user edited command', tags=[], is_builtin=True))
+        db.commit()
+        ensure_commands(db)
+        first = list(db.scalars(select(CommandSnippet)).all())
+        ensure_commands(db)
+        second = list(db.scalars(select(CommandSnippet)).all())
+        assert len(first) == len(second) == len(BUILTINS)
+        assert next(row for row in second if row.title == title and row.category == category).command == 'user edited command'
+        assert {'Python', 'Pytest', 'Git', 'HTTP', 'Playwright', '性能测试'} <= {row.category for row in second}

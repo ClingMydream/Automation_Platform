@@ -27,10 +27,25 @@ BUILTINS = [
 ]
 
 
+BUILTINS += [
+    ('Python', '创建隔离环境', 'python -m venv .venv', '为项目建立独立依赖环境。', 'python -m pip install -r requirements.txt', '先激活虚拟环境，再安装项目依赖。', ['环境', '入门']),
+    ('Pytest', '定位首个失败', 'python -m pytest tests -q --maxfail=1', '运行测试，首个失败后停止。', 'python -m pytest tests -k login -v', '未收集用例不代表测试通过。', ['测试', '回归']),
+    ('Git', '提交前检查', 'git status --short\ngit diff --stat\ngit diff --check', '只读检查改动范围和空白错误。', 'git diff --check', '推送前确认当前分支与目标分支。', ['版本', '检查']),
+]
+
+
+BUILTINS += [
+ ('HTTP', '检查响应头与超时', 'curl -I --connect-timeout 3 --max-time 15 https://example.com', '区分连接超时和请求总时限；Windows PowerShell 使用 curl.exe。', 'curl -I https://example.com', '先排查 DNS、连接和 TLS，再看 HTTP 状态。', ['网络', '排查']),
+ ('Playwright', '运行浏览器测试', 'npx playwright test --project=chromium', '在已配置 Playwright Test 的 Node 项目中执行 Chromium 测试。', 'npx playwright show-report', '首次使用需要安装依赖及浏览器：npx playwright install chromium。', ['UI自动化']),
+ ('性能测试', 'Locust 无界面压测', 'locust -f locustfile.py --headless -u 10 -r 1 -t 1m --host http://127.0.0.1:8000', '需先安装 locust 并编写用户任务；仅对授权练习环境执行。', 'locust -f locustfile.py --host http://127.0.0.1:8000', 'u 为并发用户，r 为每秒启动用户，先从小负载开始。', ['性能', '练习']),
+]
+
+
 def ensure_commands(db: Session) -> None:
-    if db.scalar(select(CommandSnippet.id).where(CommandSnippet.is_builtin.is_(True)).limit(1)):
-        return
+    existing = set(db.execute(select(CommandSnippet.category, CommandSnippet.title).where(CommandSnippet.is_builtin.is_(True))).all())
     for category, title, command, description, example, interview, tags in BUILTINS:
+        if (category, title) in existing:
+            continue
         db.add(CommandSnippet(category=category, title=title, command=command, description=description,
             usage_example=example, interview_note=interview, tags=tags, is_builtin=True))
     db.commit()

@@ -72,3 +72,7 @@ body{font-family:var(--workspace-font);-webkit-font-smoothing:antialiased}
 @media(prefers-reduced-motion:reduce){.atelier-login *,.toolbox-layout *{animation:none!important;transition:none!important}}
 
 .toolbox-layout .today-grid .ant-empty{padding-block:12px;margin-block:12px}.toolbox-layout .today-grid .ant-card-head-title{font-weight:600}
+
+/* Compact workspace, preserving readable control sizes. */
+.toolbox-layout .content-container.atelier-content{max-width:none;padding:18px 20px;width:100%}.toolbox-layout .atelier-welcome.atelier-welcome--compact{padding-bottom:12px;margin-bottom:16px}.toolbox-layout .toolbox-sider .ant-menu-item{margin-block:3px}
+@media(max-width:767px){.toolbox-layout .content-container.atelier-content{padding:12px}}

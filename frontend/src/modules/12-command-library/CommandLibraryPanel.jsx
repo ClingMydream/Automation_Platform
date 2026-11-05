@@ -6,7 +6,7 @@ import './command-library.css';
 
 const { Paragraph, Text, Title } = Typography;
 const API = '/v1/command-library';
-const CATEGORIES = ['全部', 'MySQL', 'Linux', 'Redis', 'Docker', '收藏'];
+const CATEGORIES = ['全部', 'MySQL', 'Linux', 'Redis', 'Docker', 'Python', 'Pytest', 'Git', 'HTTP', 'Playwright', '性能测试', '收藏'];
 const COLORS = { MySQL: 'blue', Linux: 'green', Redis: 'red', Docker: 'cyan' };
 
 export function CommandLibraryPanel({ client }) {
@@ -63,8 +63,8 @@ export function CommandLibraryPanel({ client }) {
 
   const countText = useMemo(() => `${rows.length} 条命令`, [rows]);
   return <div className="command-library">
-    <div className="command-heading"><div><Text>工作速查 · 面试复习</Text><Title level={2}>⌨️ 命令手册</Title><Paragraph type="secondary">记录 MySQL、Linux、Redis、Docker 常用命令。这里只展示和复制，不会在服务器上执行。</Paragraph></div><Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor()}>记录命令</Button></div>
-    <Card className="command-toolbar"><Row gutter={[12, 12]} align="middle"><Col xs={24} lg={16}><Segmented block options={categories} value={category} onChange={setCategory} /></Col><Col xs={24} lg={8}><Input.Search allowClear placeholder="搜索命令、说明或面试要点" onSearch={setQuery} /></Col></Row><Text type="secondary">{loading ? '加载中…' : countText}</Text></Card>
+    <div className="command-heading"><div><Text>工作速查 · 面试复习</Text><Title level={2}>⌨️ 命令手册</Title><Paragraph type="secondary">按开发、测试和排障场景速查命令，覆盖 Python、自动化、性能测试与服务运维。这里只展示和复制，不会在服务器上执行。</Paragraph></div><Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor()}>记录命令</Button></div>
+    <Card className="command-toolbar"><Row gutter={[12, 12]} align="middle"><Col xs={24} lg={16}><Input.Group compact><select aria-label="命令分类" value={category} onChange={event=>setCategory(event.target.value)} style={{width:"100%",height:40,border:"1px solid #d9d9d9",borderRadius:8,padding:"0 12px",background:"transparent"}}>{categories.map(value=><option key={value} value={value}>{value}</option>)}</select></Input.Group></Col><Col xs={24} lg={8}><Input.Search allowClear placeholder="搜索命令、说明或面试要点" onSearch={setQuery} /></Col></Row><Text type="secondary">{loading ? '加载中…' : countText}</Text></Card>
     {rows.length ? <Row gutter={[14, 14]} className="command-grid">{rows.map((item) => <Col xs={24} lg={12} key={item.id}><Card className="command-card" title={<Space><Tag color={COLORS[item.category] || 'purple'}>{item.category}</Tag><b>{item.title}</b>{item.is_builtin && <Tag>内置</Tag>}</Space>} extra={<Button type="text" aria-label="收藏" loading={busyId === item.id} disabled={busyId !== null} icon={item.is_favorite ? <StarFilled className="favorite-star" /> : <StarOutlined />} onClick={() => favorite(item)} />}>
       <pre><code>{item.command}</code></pre><div className="command-section"><b>使用说明</b><Paragraph>{item.description || '暂无说明'}</Paragraph></div>{item.usage_example && <div className="command-section example"><b>使用示例</b><pre><code>{item.usage_example}</code></pre></div>}{item.interview_note && <div className="command-section interview"><b>💡 面试要点</b><Paragraph>{item.interview_note}</Paragraph></div>}<Space wrap className="command-actions"><Button type="primary" ghost icon={<CopyOutlined />} onClick={() => copy(item.command)}>复制命令</Button><Button icon={<EditOutlined />} onClick={() => openEditor(item)}>编辑</Button>{!item.is_builtin && <Popconfirm title="删除这条命令？" onConfirm={() => remove(item.id)}><Button danger icon={<DeleteOutlined />}>删除</Button></Popconfirm>}</Space>
     </Card></Col>)}</Row> : <Empty description="没有找到匹配的命令" />}

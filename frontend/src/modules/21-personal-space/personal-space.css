@@ -42,3 +42,5 @@
 .learning-unit-catalog{margin-top:16px;max-height:65vh;overflow:auto}.learning-unit-catalog .ant-btn{height:auto;min-height:40px;white-space:normal;text-align:left;line-height:1.65;padding:10px 8px;justify-content:flex-start}.learning-unit-catalog .ant-collapse-body{padding:8px!important}.learning-unit-catalog .ant-collapse{margin:0}.learning-unit-catalog .ant-collapse-header-text{overflow-wrap:anywhere;font-size:13px}@media(max-width:900px){.learning-unit-catalog{max-height:340px}}
 
 .learning-unit-detail{display:flex;flex-direction:column;gap:20px;min-width:0}.link-learning-layout .ant-card-head-title{white-space:normal;overflow-wrap:anywhere}.link-learning-layout .ant-card-head-wrapper{flex-wrap:wrap;gap:12px}
+
+.personal-inline-editor{background:var(--surface,#fff);border:1px solid #e5e7eb;border-radius:16px;padding:20px;margin-top:16px}.personal-inline-editor>header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px}.personal-inline-editor textarea{font-size:16px;line-height:1.7}

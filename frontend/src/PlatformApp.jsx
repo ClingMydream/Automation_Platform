@@ -34,8 +34,6 @@ const HAPPY_ZHAO_PATH = '/effect/xiaozhao-happy';
 const MobilePreviewPage = lazy(() => import('./modules/15-online-preview/MobilePreviewPage.jsx').then(m => ({ default: m.MobilePreviewPage })));
 const UiAutomationPage = lazy(() => import('./modules/16-ui-automation/UiAutomationPage.jsx').then(m => ({ default: m.UiAutomationPage })));
 const UiAutomationRunViewer = lazy(() => import('./modules/16-ui-automation/UiAutomationRunViewer.jsx').then(m => ({ default: m.UiAutomationRunViewer })));
-const CircleStatsPanel = lazy(() => import('./modules/17-circle-stats/CircleStatsPanel.jsx').then(m => ({ default: m.CircleStatsPanel })));
-const SelfStudyPanel = lazy(() => import('./modules/18-self-study/SelfStudyPanel.jsx').then(m => ({ default: m.SelfStudyPanel })));
 const OaManagementPanel = lazy(() => import('./modules/19-oa-management/OaManagementPanel.jsx').then(m => ({ default: m.OaManagementPanel })));
 const WorkJournalPanel = lazy(() => import('./modules/20-work-journal/WorkJournalPanel.jsx').then(m => ({ default: m.WorkJournalPanel })));
 const PersonalSpace = lazy(()=>import('./modules/21-personal-space/PersonalSpace.jsx').then(m=>({default:m.PersonalSpace})));
@@ -69,7 +67,6 @@ const MENU_SECTIONS = [
     children: [
       {key:'practice_lab',label:'实践实验室',icon:<WorkspaceIcon name="practice_lab"/>},
       { key: 'emote_ui_automation', label: 'Emote UI 自动化', icon: <WorkspaceIcon name="emote_ui_automation" /> },
-      { key: 'circle_stats', label: '全员圈统计', icon: <WorkspaceIcon name="circle_stats" /> },
       { key: 'api_workspace', label: '接口工作台', icon: <WorkspaceIcon name="api_workspace" /> },
       { key: 'jenkins', label: '持续集成', icon: <WorkspaceIcon name="jenkins" /> },
       { key: 'online_preview', label: '在线预览', icon: <WorkspaceIcon name="online_preview" /> },
@@ -82,7 +79,6 @@ const MENU_SECTIONS = [
     children: [
       {key:'knowledge',label:'笔记本',icon:<WorkspaceIcon name="knowledge"/>},
       {key:'learning_route',label:'学习路线',icon:<WorkspaceIcon name="learning_route"/>},
-      { key: 'self_study', label: '自考题库', icon: <WorkspaceIcon name="self_study" /> },
       { key: 'command_library', label: '命令手册', icon: <WorkspaceIcon name="command_library" /> },
       { key: 'effects', label: '临时效果', icon: <WorkspaceIcon name="effects" /> },
     ],
@@ -299,7 +295,7 @@ export default function PlatformApp() {
           {(mobile||!collapsed)&&<Button type="text" block onClick={toggleNavigation}>{fullNav?'收起工具导航':'显示全部功能'}</Button>}
           <div className={`sider-status connection-${connection}`}><i />{!collapsed && <span>{connection === 'online' ? '后端可达' : connection === 'checking' ? '正在检查连接' : '后端连接异常'}</span>}</div>
         </div>
-      </Drawer> : <Sider className="toolbox-sider" width={236} collapsedWidth={76} collapsed={collapsed} trigger={null}>
+      </Drawer> : <Sider className="toolbox-sider" width={208} collapsedWidth={76} collapsed={collapsed} trigger={null}>
         <button className="atelier-brand" onClick={() => setTab('home')} aria-label="返回工作台"><BrandMark/>{!collapsed && <span><strong>cling<span>✦</span></strong><small>给好工作，留一点空间。</small></span>}</button>
         <Menu mode="inline" className="toolbox-menu" selectedKeys={[groupKey(tab,workspaceItems)]} items={menuItems} onClick={({ key }) => {
           setTab(key);
@@ -346,8 +342,6 @@ export default function PlatformApp() {
             {tab === 'command_library' && <CommandLibraryPanel client={client} />}
             {tab === 'effects' && <EffectStudio client={client} isAdmin={user?.is_admin} />}
             {tab === 'emote_ui_automation' && <UiAutomationPage client={client} embedded />}
-            {tab === 'circle_stats' && <CircleStatsPanel key={user?.username} client={client} userKey={user?.username} />}
-            {tab === 'self_study' && <SelfStudyPanel key={user?.username} userId={user?.username} client={client} />}
             {tab === 'api_workspace' && <ApiWorkspacePanel client={client} />}
             {tab === 'integrations' && <>{integrationError && <Alert type="error" title={`集成配置加载失败：${integrationError}`} action={<Button onClick={reload}>重新加载配置</Button>} />}<IntegrationPanel client={client} integrations={integrations} reload={reload} /></>}
             {tab === 'users' && user?.is_admin && <UserPanel client={client} />}
