@@ -315,7 +315,7 @@ export function UiAutomationPage({ client, onClose }) {
   }
   async function execute(ids) {
     if (lock.current || running) return;
-    if (!versions.some((row) => row.branch === branch)) { setError('请先读取 Git 版本并选择有效分支'); return; }
+    if (!environment && !versions.some((row) => row.branch === branch)) { setError('请先读取 Git 版本并选择有效分支'); return; }
     if (dirty) {
       message.warning("请先保存用例修改");
       return;
@@ -324,6 +324,21 @@ export function UiAutomationPage({ client, onClose }) {
     setBusy(true);
     setError("");
     try {
+      if (!environment) {
+        const comparison = await client.get('/v1/online-preview/comparison?branch=' + encodeURIComponent(branch));
+        if (!comparison.matches) {
+          await client.post('/v1/online-preview/sync', { branch });
+          message.info('正在拉取并构建所选 Git 分支，完成后自动执行');
+          const deadline = Date.now() + 10 * 60 * 1000;
+          let ready = false;
+          while (Date.now() < deadline) {
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+            const current = await client.get('/v1/online-preview/comparison?branch=' + encodeURIComponent(branch));
+            if (current.matches) { ready = true; break; }
+          }
+          if (!ready) throw new Error('Git 预览构建尚未就绪，本次未执行测试，请检查构建状态');
+        }
+      }
       const result = await client.post(API + "/studio/runs", {
         branch,
         case_ids: ids,

@@ -90,7 +90,15 @@ class EmotePages:
             self.page.locator(selector).first.click()
             self.page.wait_for_url(re.compile(r'#/'+re.escape(route)+r'(?:\?|$)'),wait_until='commit')
             return
-        self.page.goto(self.base + '/?cling_studio=' + uuid.uuid4().hex + '#/' + route, wait_until='domcontentloaded')
+        target = self.base + '/?cling_studio=' + uuid.uuid4().hex + '#/' + route
+        try:
+            self.page.goto(target, wait_until='domcontentloaded')
+        except Exception as exc:
+            if 'net::ERR_ABORTED' not in str(exc):
+                raise
+            # Retry only read navigation; never repeat the preceding business write.
+            self.page.wait_for_timeout(500)
+            self.page.goto(target, wait_until='domcontentloaded')
 
     def button(self, text):
         return self.page.get_by_role('button', name=text, exact=True)

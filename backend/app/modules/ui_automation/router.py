@@ -1138,7 +1138,7 @@ def _studio_create_run(payload: RunInput, db: Session):
         raise HTTPException(400,'没有可执行用例或视口不正确')
     if db.query(UiAutomationRun).filter(UiAutomationRun.status.in_(['queued','running'])).first():
         raise HTTPException(409,'已有任务正在执行，请等待完成')
-    if _jenkins_job_status('emote-preview').get('building') or _jenkins_job_status('emote-apk').get('building'):
+    if not payload.environment_id and not payload.target_url and (_jenkins_job_status('emote-preview').get('building') or _jenkins_job_status('emote-apk').get('building')):
         raise HTTPException(409,'预览正在更新或安装包正在构建，请稍后执行')
     target_url = payload.target_url
     environment = None
@@ -1152,7 +1152,7 @@ def _studio_create_run(payload: RunInput, db: Session):
         target_url = row.base_url
     base,display = _validate_target_url(target_url)
     settings=get_settings()
-    revision=_remote_revision(_validate_branch(payload.branch))
+    revision={'sha': ''} if target_url else _remote_revision(_validate_branch(payload.branch))
     from app.modules.online_preview.router import _deployed_revision
     if not target_url:
         deployed=_deployed_revision()
