@@ -211,7 +211,7 @@ class EmotePages:
     def resolve_persisted_post_id(self, content, public):
         # Creation can replace the client UUID with a server-generated numeric ID.
         with self.page.expect_response(lambda r: r.request.method == 'POST' and '/posts-extra/published' in r.url) as result:
-            self.page.goto(self.base + '/?cling_studio=' + uuid.uuid4().hex + '#/home', wait_until='domcontentloaded')
+            self.go('home')
         response = result.value
         body = response.json()
         assert response.ok and body.get('success') is True, '读取本人已发布帖子失败'

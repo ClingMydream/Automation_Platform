@@ -44,7 +44,8 @@ def test_published_post_identity_comes_from_persisted_owned_record(duplicate):
     @contextmanager
     def expected(*args, **kwargs):
         yield SimpleNamespace(value=response)
-    pages.page = SimpleNamespace(expect_response=expected, goto=lambda *args, **kwargs: None, evaluate=lambda code: 'A')
+    pages.go = lambda route: None
+    pages.page = SimpleNamespace(expect_response=expected, evaluate=lambda code: 'A')
     if duplicate:
         with pytest.raises(AssertionError, match='唯一'):
             pages.resolve_persisted_post_id('自然正文', True)
